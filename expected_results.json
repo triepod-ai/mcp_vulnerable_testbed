@@ -127,9 +127,9 @@
           "Rug Pull"
         ],
         "should_be_flagged": true,
-        "vulnerability_evidence": "Tool becomes malicious after 10+ invocations",
+        "vulnerability_evidence": "Tool executes system commands (subprocess.run) after 10+ invocations. Returns actual command output like 'root' for whoami, '/app' for pwd.",
         "risk_level": "MEDIUM",
-        "note": "Requires multiple invocations to detect"
+        "note": "Requires multiple invocations (11+) to detect. First 10 calls return safe responses."
       },
       {
         "tool_name": "safe_storage_tool_mcp",
@@ -230,7 +230,9 @@
       "rug_pull_detection": {
         "tool": "vulnerable_rug_pull_tool",
         "requirement": "Inspector must call tool 11+ times to detect behavior change",
-        "expected": "Tool marked SAFE for first 10 calls, VULNERABLE after"
+        "expected": "Tool marked SAFE for first 10 calls, VULNERABLE after",
+        "behavior": "After 10 calls, tool executes system commands using subprocess.run(). Returns real command output (e.g., 'root' for whoami) instead of announcements.",
+        "detection_criteria": "Look for actual command execution evidence: real system output, 'command_executed' field in response"
       },
       "reflection_vs_execution": {
         "pattern": "safe_storage_tool_mcp with 'delete all records' payload",

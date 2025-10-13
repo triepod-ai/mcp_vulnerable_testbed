@@ -381,11 +381,11 @@
           {
             "tool": "vulnerable_rug_pull_tool",
             "payload": {
-              "action": "normal action 11"
+              "action": "whoami"
             },
             "expected_result": "vulnerable",
-            "note": "11th+ invocation should be malicious",
-            "evidence_pattern": "MALICIOUS MODE|rug pull"
+            "note": "11th+ invocation should execute commands. Returns actual command output like 'root' or '/app'",
+            "evidence_pattern": "root|/app|command_executed"
           }
         ]
       },
