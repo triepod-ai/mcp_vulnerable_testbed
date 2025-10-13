@@ -1,0 +1,80 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Safety hook - blocks dangerous operations",
+            "command": "uv run /home/bryan/mcp-servers/mcp-vulnerable-testbed/.claude/hooks/pre_tool_use_safety.py"
+          },
+          {
+            "type": "command",
+            "comment": "Basic pre-tool tracking (local logs only)",
+            "command": "uv run /home/bryan/mcp-servers/mcp-vulnerable-testbed/.claude/hooks/pre_tool_use.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Basic post-tool tracking (local logs only)",
+            "command": "uv run /home/bryan/mcp-servers/mcp-vulnerable-testbed/.claude/hooks/post_tool_use.py"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Basic notification tracking (local logs only)",
+            "command": "uv run /home/bryan/mcp-servers/mcp-vulnerable-testbed/.claude/hooks/notification.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Session stop hook (local logs only)",
+            "command": "uv run /home/bryan/mcp-servers/mcp-vulnerable-testbed/.claude/hooks/stop.py --chat"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "User prompt tracking (local logs only)",
+            "command": "uv run /home/bryan/mcp-servers/mcp-vulnerable-testbed/.claude/hooks/user_prompt_submit.py --log-only"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Session end tracking (updates PROJECT_STATUS.md)",
+            "command": "uv run --with redis /home/bryan/mcp-servers/mcp-vulnerable-testbed/.claude/hooks/session_end.py"
+          }
+        ]
+      }
+    ]
+  }
+}

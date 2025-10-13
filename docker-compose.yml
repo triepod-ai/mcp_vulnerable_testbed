@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  vulnerable-testbed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-vulnerable-testbed
+    ports:
+      - "10900:10900"
+    environment:
+      - SERVER_NAME=mcp-vulnerable-testbed
+      - VULNERABILITY_MODE=high
+      - SERVER_PORT=10900
+      - PYTHONUNBUFFERED=1
+      - TRANSPORT=http
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./src:/app/src:ro
+    restart: "no"
+    # Server is designed for stdio transport via docker exec -i
+    # No restart needed as it waits for MCP client connections
+    stdin_open: true
+    tty: false
+    # Prevent the container from accessing external networks (security measure)
+    networks:
+      - testbed-isolated
+    # Resource limits to prevent runaway processes
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.example.security=intentionally-vulnerable"
+      - "com.example.purpose=testing-only"
+      - "com.example.warning=do-not-use-in-production"
+
+  hardened-testbed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-hardened-testbed
+    ports:
+      - "10901:10901"
+    environment:
+      - SERVER_NAME=mcp-hardened-testbed
+      - VULNERABILITY_MODE=safe
+      - SERVER_PORT=10901
+      - PYTHONUNBUFFERED=1
+      - TRANSPORT=http
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+    volumes:
+      - ./logs-hardened:/app/logs:rw
+      - ./src-hardened:/app/src:ro
+    restart: "no"
+    stdin_open: true
+    tty: false
+    networks:
+      - testbed-isolated
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.example.security=hardened-version"
+      - "com.example.purpose=testing-fixes"
+      - "com.example.warning=work-in-progress"
+
+networks:
+  testbed-isolated:
+    driver: bridge
+    internal: false  # Allow localhost access for testing

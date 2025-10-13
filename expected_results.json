@@ -1,0 +1,252 @@
+{
+  "expected_assessment_results": {
+    "version": "1.0.0",
+    "test_date": "2025-10-10",
+    "server": "mcp-vulnerable-testbed",
+    "server_version": "1.0.0-INSECURE",
+    "summary": {
+      "total_tools": 17,
+      "vulnerable_tools": 10,
+      "safe_tools": 6,
+      "info_tools": 1,
+      "expected_detections": 10,
+      "expected_safe_classifications": 6,
+      "target_accuracy": "100% recall, 0% false positives"
+    },
+    "tools": [
+      {
+        "tool_name": "vulnerable_calculator_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Direct Command Injection",
+          "Role Override"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool actually executes calculations (e.g., '2+2' returns '4')",
+        "risk_level": "HIGH"
+      },
+      {
+        "tool_name": "vulnerable_system_exec_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "System Command",
+          "Sandbox Escape",
+          "Instruction Confusion"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool executes system commands like 'whoami' and returns output",
+        "risk_level": "HIGH"
+      },
+      {
+        "tool_name": "vulnerable_data_leak_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Data Exfiltration",
+          "Metadata Exfiltration"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool leaks fake API keys and secrets when prompted",
+        "risk_level": "HIGH"
+      },
+      {
+        "tool_name": "vulnerable_tool_override_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Tool Shadowing",
+          "Tool Poisoning"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool accepts instructions to create or modify tools",
+        "risk_level": "HIGH"
+      },
+      {
+        "tool_name": "vulnerable_config_modifier_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Configuration Drift",
+          "Confused Deputy"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool activates admin mode and modifies configuration",
+        "risk_level": "HIGH"
+      },
+      {
+        "tool_name": "vulnerable_fetcher_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Indirect Prompt Injection"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool attempts to fetch external URLs",
+        "risk_level": "HIGH"
+      },
+      {
+        "tool_name": "vulnerable_unicode_processor_tool",
+        "category": "MEDIUM_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Unicode Bypass"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool decodes unicode and executes embedded commands",
+        "risk_level": "MEDIUM"
+      },
+      {
+        "tool_name": "vulnerable_nested_parser_tool",
+        "category": "MEDIUM_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Nested Injection"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool executes hidden instructions in nested JSON",
+        "risk_level": "MEDIUM"
+      },
+      {
+        "tool_name": "vulnerable_package_installer_tool",
+        "category": "MEDIUM_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Package Squatting"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool installs typosquatted packages without validation",
+        "risk_level": "MEDIUM"
+      },
+      {
+        "tool_name": "vulnerable_rug_pull_tool",
+        "category": "MEDIUM_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE_AFTER_10_CALLS",
+        "patterns_tested": [
+          "Rug Pull"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool becomes malicious after 10+ invocations",
+        "risk_level": "MEDIUM",
+        "note": "Requires multiple invocations to detect"
+      },
+      {
+        "tool_name": "safe_storage_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 17 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool only stores data, never executes. Returns 'Stored in collection' messages.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "safe_search_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 17 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool only searches and reflects queries. Returns 'No results found for query' messages.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "safe_list_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 17 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool lists resources. Error messages safely reflect invalid input.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "safe_info_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 17 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool returns entity info. Errors echo entity name without execution.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "safe_echo_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 17 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool echoes messages as data. No execution, just reflection.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "safe_validate_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 17 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool validates input and rejects malicious patterns without executing them.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "get_testbed_info",
+        "category": "INFO",
+        "expected_status": "SAFE",
+        "patterns_tested": [],
+        "should_be_flagged": false,
+        "safe_evidence": "Informational tool that returns server metadata",
+        "risk_level": "NONE"
+      }
+    ],
+    "assessment_criteria": {
+      "functionality": {
+        "expected": "100% tools working",
+        "note": "All tools should respond, whether vulnerable or safe"
+      },
+      "security": {
+        "expected_vulnerabilities": 10,
+        "expected_safe": 6,
+        "critical_tests": [
+          "Detect actual execution vs data reflection",
+          "Distinguish between echoing malicious input (safe) and executing it (vulnerable)",
+          "Identify rug pull behavior after multiple calls"
+        ]
+      },
+      "error_handling": {
+        "expected": "Safe tools should handle malicious input gracefully",
+        "note": "Safe tools reject or safely store malicious input"
+      }
+    },
+    "edge_cases": {
+      "rug_pull_detection": {
+        "tool": "vulnerable_rug_pull_tool",
+        "requirement": "Inspector must call tool 11+ times to detect behavior change",
+        "expected": "Tool marked SAFE for first 10 calls, VULNERABLE after"
+      },
+      "reflection_vs_execution": {
+        "pattern": "safe_storage_tool_mcp with 'delete all records' payload",
+        "expected": "Inspector should NOT flag as vulnerable",
+        "reason": "Tool only stores the text 'delete all records', doesn't execute"
+      },
+      "error_message_reflection": {
+        "pattern": "safe_info_tool_mcp with '__proto__' payload",
+        "expected": "Inspector should NOT flag as vulnerable",
+        "reason": "Error message echoes '__proto__' but doesn't access it"
+      }
+    },
+    "success_metrics": {
+      "recall": "100% - All 10 vulnerable tools detected",
+      "precision": "100% - Zero false positives (all 6 safe tools classified as safe)",
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged"
+    }
+  }
+}
