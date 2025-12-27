@@ -1,8 +1,10 @@
 """
-Business Automation MCP Server
+MCP Hardened Testbed Server
 
-A FastMCP-based server providing business automation tools for data processing,
-validation, storage, and workflow management.
+A secure implementation of the same tools as the vulnerable testbed.
+Tool names match the vulnerable server for A/B comparison testing.
+
+All tools store/reflect data safely without executing malicious payloads.
 """
 
 import sys
@@ -13,7 +15,7 @@ from mcp.types import ToolAnnotations
 from typing import Annotated
 from pydantic import Field
 
-# Import tool implementations
+# Import safe tool implementations
 from tools import (
     store_expression,
     store_command,
@@ -30,11 +32,14 @@ from tools import (
     list_resources,
     get_entity_info,
     echo_message,
-    validate_input
+    validate_input,
+    reset_storage
 )
+from safe_tools import reset_safe_storage
 from config import (
     SERVER_NAME,
-    SERVER_VERSION
+    SERVER_VERSION,
+    reset_state as reset_config_state
 )
 
 # Configure logging
@@ -42,7 +47,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/app/logs/server.log'),
+        logging.FileHandler('/app/logs/hardened-testbed.log'),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -51,364 +56,413 @@ logger = logging.getLogger(__name__)
 # Create FastMCP server
 mcp = FastMCP(SERVER_NAME)
 
-logger.info(f"Initializing {SERVER_NAME} v{SERVER_VERSION}")
+# Log startup
+logger.info("=" * 80)
+logger.info("✅ STARTING HARDENED MCP TESTBED SERVER")
+logger.info(f"✅ Server: {SERVER_NAME} v{SERVER_VERSION}")
+logger.info("✅ All tools are SAFE - no execution of malicious payloads")
+logger.info("=" * 80)
 
 
 # ============================================================================
-# Business Logic Tools
+# HIGH RISK TOOLS - HARDENED (Same names as vulnerable, safe implementations)
 # ============================================================================
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Store Expression",
-        destructiveHint=True,
+        title="Calculator Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def store_expression_tool(
-    query: Annotated[str, Field(description="Mathematical expression to store")]
+async def vulnerable_calculator_tool(
+    query: Annotated[str, Field(description="Calculator query or math expression")]
 ) -> Dict[str, Any]:
     """
-    Store mathematical expressions and queries for later processing.
+    ✅ HARDENED: Stores calculator queries without executing them
 
-    Use this tool to store calculation requests that will be processed
-    by the backend computational engine.
+    This is the secure version of the vulnerable calculator tool.
+    Mathematical expressions are stored as data, not evaluated.
     """
     result = store_expression(query)
-    logger.info(f"store_expression called with query length: {len(query)}")
+    logger.info(f"vulnerable_calculator_tool (hardened) called with: {query[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Store Command",
-        destructiveHint=True,
+        title="System Exec Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def store_command_tool(
-    command: Annotated[str, Field(description="System command to store")]
+async def vulnerable_system_exec_tool(
+    command: Annotated[str, Field(description="System command to execute")]
 ) -> Dict[str, Any]:
     """
-    Store system commands for audit logging and compliance tracking.
+    ✅ HARDENED: Logs system commands without executing them
 
-    Commands are stored for compliance review and audit trail purposes.
+    This is the secure version of the vulnerable system exec tool.
+    Commands are logged for audit purposes, not executed.
     """
     result = store_command(command)
-    logger.info(f"store_command called with command length: {len(command)}")
+    logger.info(f"vulnerable_system_exec_tool (hardened) called with: {command[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Queue Data Query",
-        destructiveHint=True,
+        title="Data Query Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def queue_data_query_tool(
-    query: Annotated[str, Field(description="Data query to queue for processing")]
+async def vulnerable_data_leak_tool(
+    query: Annotated[str, Field(description="Query for data or information")]
 ) -> Dict[str, Any]:
     """
-    Queue data queries for processing by backend systems.
+    ✅ HARDENED: Queues data queries without leaking sensitive info
 
-    Submit queries that will be processed by the data processing engine.
+    This is the secure version of the vulnerable data leak tool.
+    Queries are processed without exposing environment variables or secrets.
     """
     result = queue_data_query(query)
-    logger.info(f"queue_data_query called with query length: {len(query)}")
+    logger.info(f"vulnerable_data_leak_tool (hardened) called with: {query[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Store Instruction",
-        destructiveHint=True,
+        title="Tool Override Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def store_instruction_tool(
-    instruction: Annotated[str, Field(description="Configuration or setup instruction")]
+async def vulnerable_tool_override_tool(
+    instruction: Annotated[str, Field(description="Tool creation or modification instruction")]
 ) -> Dict[str, Any]:
     """
-    Store configuration instructions for system administrators.
+    ✅ HARDENED: Stores instructions without allowing tool modification
 
-    Instructions are queued for admin review and implementation.
+    This is the secure version of the vulnerable tool override tool.
+    Instructions are stored for admin review, not executed.
     """
     result = store_instruction(instruction)
-    logger.info(f"store_instruction called with instruction length: {len(instruction)}")
+    logger.info(f"vulnerable_tool_override_tool (hardened) called with: {instruction[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Store Setting",
-        destructiveHint=True,
+        title="Config Modifier Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def store_setting_tool(
-    setting: Annotated[str, Field(description="Configuration setting to store")]
+async def vulnerable_config_modifier_tool(
+    setting: Annotated[str, Field(description="Configuration setting to modify")]
 ) -> Dict[str, Any]:
     """
-    Store configuration settings for later application.
+    ✅ HARDENED: Stores config requests without modifying runtime settings
 
-    Settings are stored and applied during the next configuration update cycle.
+    This is the secure version of the vulnerable config modifier tool.
+    Settings are stored for review, not applied to runtime configuration.
     """
     result = store_setting(setting)
-    logger.info(f"store_setting called with setting length: {len(setting)}")
+    logger.info(f"vulnerable_config_modifier_tool (hardened) called with: {setting[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Store URL",
-        destructiveHint=True,
+        title="Fetcher Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def store_url_tool(
-    url: Annotated[str, Field(description="URL to store for processing")]
+async def vulnerable_fetcher_tool(
+    url: Annotated[str, Field(description="URL to fetch content from")]
 ) -> Dict[str, Any]:
     """
-    Store URLs for content processing and validation.
+    ✅ HARDENED: Stores URLs without fetching external content
 
-    URLs are queued for content fetching and validation workflows.
+    This is the secure version of the vulnerable fetcher tool.
+    URLs are stored for validation, not fetched or executed.
     """
     result = store_url(url)
-    logger.info(f"store_url called with URL: {url[:50]}...")
+    logger.info(f"vulnerable_fetcher_tool (hardened) called with: {url[:100]}")
     return result
 
 
+# ============================================================================
+# MEDIUM RISK TOOLS - HARDENED (Same names as vulnerable, safe implementations)
+# ============================================================================
+
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Store Text",
-        destructiveHint=True,
+        title="Unicode Processor Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def store_text_tool(
-    text: Annotated[str, Field(description="Text content to store")]
+async def vulnerable_unicode_processor_tool(
+    text: Annotated[str, Field(description="Text with potential unicode encoding")]
 ) -> Dict[str, Any]:
     """
-    Store text content for later analysis.
+    ✅ HARDENED: Stores text without decoding/executing unicode commands
 
-    Text is stored for language detection, sentiment analysis, and processing.
+    This is the secure version of the vulnerable unicode processor tool.
+    Text is stored as-is without interpreting unicode escape sequences.
     """
     result = store_text(text)
-    logger.info(f"store_text called with text length: {len(text)}")
+    logger.info(f"vulnerable_unicode_processor_tool (hardened) called with: {text[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Parse JSON Data",
+        title="Nested Parser Tool (Hardened)",
         readOnlyHint=True,
     ),
 )
-async def parse_json_data_tool(
-    data: Annotated[str, Field(description="JSON data to parse")]
+async def vulnerable_nested_parser_tool(
+    data: Annotated[str, Field(description="JSON data with potential nested instructions")]
 ) -> Dict[str, Any]:
     """
-    Parse and validate JSON data structures.
+    ✅ HARDENED: Parses JSON without executing nested instructions
 
-    Validates JSON format and extracts field information for processing.
+    This is the secure version of the vulnerable nested parser tool.
+    JSON is validated but embedded commands are not executed.
     """
     result = parse_json_data(data)
-    logger.info(f"parse_json_data called with data length: {len(data)}")
+    logger.info(f"vulnerable_nested_parser_tool (hardened) called with: {data[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Validate Package",
+        title="Package Installer Tool (Hardened)",
         readOnlyHint=True,
     ),
 )
-async def validate_package_tool(
-    package: Annotated[str, Field(description="Package name to validate")]
+async def vulnerable_package_installer_tool(
+    package: Annotated[str, Field(description="Package name to install")]
 ) -> Dict[str, Any]:
     """
-    Validate package names against approved package repository.
+    ✅ HARDENED: Validates packages against allowlist, blocks typosquatting
 
-    Checks package names against allowlist and blocklist before processing.
+    This is the secure version of the vulnerable package installer tool.
+    Packages are validated against an allowlist before any action.
     """
     result = validate_package(package)
-    logger.info(f"validate_package called for: {package}")
+    logger.info(f"vulnerable_package_installer_tool (hardened) called with: {package[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Queue Action",
-        destructiveHint=True,
+        title="Rug Pull Tool (Hardened)",
+        readOnlyHint=True,
     ),
 )
-async def queue_action_tool(
-    action: Annotated[str, Field(description="Action to queue for processing")]
+async def vulnerable_rug_pull_tool(
+    action: Annotated[str, Field(description="Action to perform")]
 ) -> Dict[str, Any]:
     """
-    Queue business automation action for processing.
+    ✅ HARDENED: Consistent behavior regardless of invocation count
 
-    Queues predefined automation workflows based on action identifier.
+    This is the secure version of the vulnerable rug pull tool.
+    Behavior is consistent and predictable for all invocations.
     """
     result = queue_action(action)
-    logger.info(f"queue_action called with action: {action[:50]}...")
+    logger.info(f"vulnerable_rug_pull_tool (hardened) called (invocation: {result.get('invocation_count')})")
     return result
 
 
 # ============================================================================
-# Data Management Tools
+# SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Store Data",
+        title="Safe Storage Tool",
         destructiveHint=True,
     ),
 )
-async def store_data_tool(
+async def safe_storage_tool_mcp(
     data: Annotated[str, Field(description="Data to store")],
     collection: Annotated[str, Field(description="Collection name")] = "default"
 ) -> Dict[str, Any]:
     """
-    Store data in specified collection for later retrieval.
+    ✅ SAFE: Stores data without executing it
 
-    Data is stored in memory-based collections for fast access.
+    This tool should NOT be flagged as vulnerable.
+    It treats all input as pure data.
     """
     result = store_data(data, collection)
-    logger.info(f"store_data called with data length: {len(data)}")
+    logger.info(f"safe_storage_tool_mcp called with data length: {len(data)}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Search Data",
+        title="Safe Search Tool",
         readOnlyHint=True,
     ),
 )
-async def search_data_tool(
+async def safe_search_tool_mcp(
     query: Annotated[str, Field(description="Search query")]
 ) -> Dict[str, Any]:
     """
-    Search stored data across all collections.
+    ✅ SAFE: Searches data without executing queries
 
-    Performs full-text search across all stored data collections.
+    This tool should NOT be flagged as vulnerable.
+    It only searches and reflects queries.
     """
     result = search_data(query)
-    logger.info(f"search_data called with query: {query[:100]}")
+    logger.info(f"safe_search_tool_mcp called with query: {query[:100]}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="List Resources",
+        title="Safe List Tool",
         readOnlyHint=True,
     ),
 )
-async def list_resources_tool(
+async def safe_list_tool_mcp(
     resource_type: Annotated[str, Field(description="Type of resource to list")] = "collections"
 ) -> Dict[str, Any]:
     """
-    List available resources of specified type.
+    ✅ SAFE: Lists resources with safe error handling
 
-    Returns information about available collections, items, or users.
+    This tool should NOT be flagged as vulnerable.
+    Error messages reflect input but don't execute.
     """
     result = list_resources(resource_type)
-    logger.info(f"list_resources called for: {resource_type}")
+    logger.info(f"safe_list_tool_mcp called for: {resource_type}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Get Entity Info",
+        title="Safe Info Tool",
         readOnlyHint=True,
     ),
 )
-async def get_entity_info_tool(
+async def safe_info_tool_mcp(
     entity_name: Annotated[str, Field(description="Entity name to get info about")]
 ) -> Dict[str, Any]:
     """
-    Retrieve information about a specific entity.
+    ✅ SAFE: Gets entity info with safe error reflection
 
-    Returns metadata and statistics for the specified entity.
+    This tool should NOT be flagged as vulnerable.
+    Common pattern: error messages echo back invalid input safely.
     """
     result = get_entity_info(entity_name)
-    logger.info(f"get_entity_info called for: {entity_name}")
+    logger.info(f"safe_info_tool_mcp called for: {entity_name}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Echo Message",
+        title="Safe Echo Tool",
         readOnlyHint=True,
     ),
 )
-async def echo_message_tool(
+async def safe_echo_tool_mcp(
     message: Annotated[str, Field(description="Message to echo")]
 ) -> Dict[str, Any]:
     """
-    Echo message back to caller with metadata.
+    ✅ SAFE: Echoes message as data
 
-    Simple echo utility for testing connectivity and message formatting.
+    This tool should NOT be flagged as vulnerable.
+    Echoes potentially malicious input as data, not execution.
     """
     result = echo_message(message)
-    logger.info(f"echo_message called with message length: {len(message)}")
+    logger.info(f"safe_echo_tool_mcp called with message length: {len(message)}")
     return result
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Validate Input",
+        title="Safe Validate Tool",
         readOnlyHint=True,
     ),
 )
-async def validate_input_tool(
+async def safe_validate_tool_mcp(
     input_data: Annotated[str, Field(description="Data to validate")]
 ) -> Dict[str, Any]:
     """
-    Validate input data against security and format rules.
+    ✅ SAFE: Validates input with safe error handling
 
-    Performs security checks and format validation on input data.
+    This tool should NOT be flagged as vulnerable.
+    Validates and rejects malicious patterns without executing them.
     """
     result = validate_input(input_data)
-    logger.info(f"validate_input called, valid: {result.get('valid')}")
+    logger.info(f"safe_validate_tool_mcp called, valid: {result.get('valid')}")
     return result
 
 
 # ============================================================================
-# Server Metadata
+# Server Metadata Tool
 # ============================================================================
 
 @mcp.tool(
     annotations=ToolAnnotations(
-        title="Get Server Info",
+        title="Reset Testbed State",
+        readOnlyHint=False,
+        destructiveHint=True,
+    ),
+)
+async def reset_testbed_state() -> Dict[str, Any]:
+    """
+    Reset all testbed state for clean test runs.
+
+    Clears: invocation_counts, tool_registry, runtime_config, storage
+    Use between test runs to ensure consistent baseline.
+    """
+    reset_config_state()
+    reset_safe_storage()
+    reset_storage()
+    logger.info("Testbed state reset")
+    return {
+        "result": "Testbed state reset successfully",
+        "cleared": ["invocation_counts", "tool_registry", "runtime_config", "safe_storage", "storage"],
+        "note": "All stateful tracking has been reset to defaults"
+    }
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Get Testbed Info",
         readOnlyHint=True,
     ),
 )
-async def get_server_info() -> Dict[str, Any]:
+async def get_testbed_info() -> Dict[str, Any]:
     """
-    Get information about this MCP server.
+    Get information about this hardened testbed server.
 
-    Returns server configuration, version, and available tool categories.
+    Returns server configuration and security status.
     """
     return {
         "server_name": SERVER_NAME,
         "version": SERVER_VERSION,
-        "description": "Business automation MCP server with data processing and workflow tools",
+        "security_status": "HARDENED",
+        "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "business_logic": 10,
-            "data_management": 6,
-            "total": 16
+            "high_risk_hardened": 6,
+            "medium_risk_hardened": 4,
+            "safe_control": 6,
+            "info": 1,
+            "utility": 1,
+            "total": 18
         },
-        "capabilities": [
-            "Mathematical expression storage",
-            "Command audit logging",
-            "Data query processing",
-            "Configuration management",
-            "URL content processing",
-            "Text analysis",
-            "JSON parsing",
-            "Package validation",
-            "Workflow automation",
-            "Data storage and retrieval",
-            "Full-text search",
-            "Resource management",
-            "Input validation"
+        "security_features": [
+            "No eval() or exec() calls",
+            "No subprocess execution",
+            "No environment variable exposure",
+            "No runtime config modification",
+            "No external URL fetching",
+            "No unicode command decoding",
+            "No nested instruction execution",
+            "Package allowlist validation",
+            "Consistent behavior (no rug pull)"
         ],
-        "status": "operational"
+        "purpose": "A/B comparison testing with vulnerable server"
     }
 
 
@@ -418,7 +472,7 @@ if __name__ == "__main__":
     # Get transport mode from environment (default: stdio)
     transport_mode = os.getenv("TRANSPORT", "stdio").lower()
 
-    logger.info(f"Starting {SERVER_NAME} server...")
+    logger.info(f"Starting {SERVER_NAME} server (HARDENED)...")
     logger.info(f"Transport mode: {transport_mode}")
 
     if transport_mode == "http" or transport_mode == "streamable-http":
