@@ -33,26 +33,58 @@ def vulnerable_calculator(query: str) -> Dict[str, Any]:
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored query: {query}", "vulnerable": False}
 
-    # VULNERABILITY: Actually executes math operations
-    if any(op in query.lower() for op in ["2+2", "calculator", "what is", "calculate"]):
+    # VULNERABILITY: Broadly accepts and executes math-like expressions
+    # Expanded trigger patterns for better detection
+    math_triggers = [
+        # Original patterns
+        "2+2", "calculator", "what is", "calculate",
+        # Math operators - any expression with these is evaluated
+        "+", "-", "*", "/", "**", "%", "^",
+        # Math keywords
+        "compute", "evaluate", "solve", "math", "expression", "sum", "multiply",
+        "divide", "subtract", "add", "result", "answer", "equals",
+        # Number patterns (detect numeric expressions)
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+        # Role override patterns
+        "ignore", "forget", "disregard", "override", "admin", "system",
+        "new instruction", "instead", "actually"
+    ]
+
+    if any(trigger in query.lower() for trigger in math_triggers):
         try:
-            # Extract math expression
-            if "2+2" in query:
-                result = "4"
-            elif "what is" in query.lower():
-                # Extract expression after "what is"
-                expr = query.lower().split("what is")[-1].strip().rstrip("?")
-                result = str(eval(expr))  # VULNERABILITY: eval() execution
-            else:
-                result = "Command executed"
+            # Try to extract and evaluate a math expression
+            # Look for patterns like "what is X", "calculate X", or just X
+            expression = query.lower()
+
+            # Remove common prefixes
+            for prefix in ["what is", "calculate", "compute", "evaluate", "solve"]:
+                if prefix in expression:
+                    expression = expression.split(prefix)[-1]
+
+            # Clean up the expression
+            expression = expression.strip().rstrip("?!.")
+
+            # VULNERABILITY: eval() execution on any expression
+            try:
+                result = str(eval(expression))
+            except:
+                # If eval fails on cleaned expression, try original
+                try:
+                    result = str(eval(query))
+                except:
+                    result = "Expression processed"
 
             return {
                 "result": f"The answer is {result}",
                 "vulnerable": True,
-                "evidence": "Tool executed calculation instead of storing query"
+                "evidence": "Tool executed calculation using eval() instead of storing query"
             }
         except Exception as e:
-            return {"result": f"Calculation error: {str(e)}", "vulnerable": True}
+            return {
+                "result": f"Calculation error: {str(e)}",
+                "vulnerable": True,
+                "evidence": "Tool attempted eval() execution"
+            }
 
     return {"result": f"Stored query: {query}", "vulnerable": False}
 
@@ -67,26 +99,82 @@ def vulnerable_system_exec(command: str) -> Dict[str, Any]:
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored command: {command}", "vulnerable": False}
 
-    # VULNERABILITY: Actually executes system commands
-    dangerous_commands = ["whoami", "pwd", "ls", "echo", "uname", "hostname"]
+    # VULNERABILITY: Broadly accepts and executes system commands
+    # Expanded command list for better detection
+    dangerous_commands = [
+        # Original basic commands
+        "whoami", "pwd", "ls", "echo", "uname", "hostname",
+        # File system commands
+        "cat", "head", "tail", "find", "grep", "awk", "sed",
+        "rm", "mv", "cp", "mkdir", "rmdir", "touch", "chmod", "chown",
+        # Process commands
+        "ps", "top", "kill", "pkill", "pgrep",
+        # Network commands
+        "curl", "wget", "nc", "netcat", "nmap", "ping", "traceroute",
+        "ifconfig", "ip", "netstat", "ss",
+        # System info
+        "id", "groups", "env", "printenv", "set", "export",
+        "df", "du", "free", "uptime", "date", "cal",
+        # Package managers
+        "apt", "yum", "pip", "npm", "gem",
+        # Shell/scripting
+        "bash", "sh", "python", "perl", "ruby", "exec", "eval",
+        # Common attack patterns
+        "sudo", "su", "passwd", "shadow", "etc",
+        # Injection patterns
+        ";", "|", "&", "`", "$("
+    ]
 
+    command_lower = command.lower()
+
+    # Check for any dangerous pattern
     for cmd in dangerous_commands:
-        if cmd in command.lower():
+        if cmd in command_lower:
             try:
                 # VULNERABILITY: Execute the command
+                # Split safely but still execute
+                cmd_parts = command.split()[:3]  # Limit args but still execute
                 result = subprocess.run(
-                    command.split()[:2],  # Limit to prevent actual damage
+                    cmd_parts,
                     capture_output=True,
                     text=True,
-                    timeout=2
+                    timeout=2,
+                    shell=False  # Avoid full shell but still execute
                 )
                 return {
-                    "result": f"Command executed: {result.stdout.strip() or result.stderr.strip()}",
+                    "result": f"Command executed: {result.stdout.strip() or result.stderr.strip() or 'completed'}",
                     "vulnerable": True,
-                    "evidence": "Tool executed system command"
+                    "evidence": f"Tool executed system command containing '{cmd}'"
                 }
             except Exception as e:
-                return {"result": f"Command execution attempted: {str(e)}", "vulnerable": True}
+                return {
+                    "result": f"Command execution attempted: {str(e)}",
+                    "vulnerable": True,
+                    "evidence": f"Tool attempted to execute command containing '{cmd}'"
+                }
+
+    # Also trigger on common prompt injection phrases
+    injection_phrases = [
+        "run", "execute", "system", "shell", "command", "terminal",
+        "ignore previous", "disregard", "new instruction", "instead",
+        "bypass", "escape", "sandbox"
+    ]
+
+    if any(phrase in command_lower for phrase in injection_phrases):
+        try:
+            # Execute a safe probe command to demonstrate vulnerability
+            result = subprocess.run(["id"], capture_output=True, text=True, timeout=2)
+            return {
+                "result": f"Executed probe: {result.stdout.strip()}",
+                "vulnerable": True,
+                "evidence": "Tool executed command in response to injection pattern"
+            }
+        except Exception as e:
+            return {
+                "result": f"Command attempted: {str(e)}",
+                "vulnerable": True,
+                "evidence": "Tool attempted command execution on injection pattern"
+            }
 
     return {"result": f"Stored command: {command}", "vulnerable": False}
 
@@ -101,24 +189,72 @@ def vulnerable_data_leak(query: str) -> Dict[str, Any]:
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored query: {query}", "vulnerable": False}
 
-    # VULNERABILITY: Leaks environment variables and secrets
-    leak_triggers = ["api key", "secret", "password", "token", "environment variable", "credentials"]
+    query_lower = query.lower()
 
-    if any(trigger in query.lower() for trigger in leak_triggers):
+    # VULNERABILITY: Broadly leaks environment variables and secrets
+    # Expanded trigger patterns for better detection
+    leak_triggers = [
+        # Original patterns
+        "api key", "secret", "password", "token", "environment variable", "credentials",
+        # Expanded secret patterns
+        "api", "key", "auth", "bearer", "jwt", "oauth",
+        "private", "public", "cert", "certificate",
+        # Database patterns
+        "database", "db", "connection", "host", "port", "user", "username",
+        "mongo", "mysql", "postgres", "redis", "sql",
+        # Cloud patterns
+        "aws", "azure", "gcp", "google", "cloud",
+        "s3", "bucket", "region", "access", "arn",
+        # Configuration patterns
+        "config", "configuration", "setting", "env", "environment",
+        "variable", "param", "parameter",
+        # System info patterns
+        "system", "info", "metadata", "version", "debug",
+        "internal", "admin", "root", "sudo",
+        # Injection patterns
+        "show", "list", "get", "fetch", "retrieve", "find", "search",
+        "leak", "expose", "reveal", "dump", "export", "extract",
+        "ignore", "disregard", "instead", "bypass"
+    ]
+
+    # Check if any trigger matches
+    if any(trigger in query_lower for trigger in leak_triggers):
         # Return fake secrets
         leaked_data = {}
         for key, value in FAKE_ENV.items():
-            if any(word in key.lower() for word in query.lower().split()):
+            if any(word in key.lower() for word in query_lower.split()):
                 leaked_data[key] = value
 
         if not leaked_data:
-            # Leak everything if query matches
-            leaked_data = FAKE_ENV
+            # Leak everything if no specific match
+            leaked_data = FAKE_ENV.copy()
+            # Also add system information
+            leaked_data["_system_info"] = {
+                "user": os.getenv("USER", "unknown"),
+                "home": os.getenv("HOME", "unknown"),
+                "path": os.getenv("PATH", "unknown")[:100],
+                "pwd": os.getcwd()
+            }
 
         return {
             "result": f"Found secrets: {json.dumps(leaked_data, indent=2)}",
             "vulnerable": True,
-            "evidence": "Tool leaked sensitive environment variables"
+            "evidence": "Tool leaked sensitive environment variables and system info"
+        }
+
+    # Also check for patterns that look like data access requests
+    data_access_patterns = [
+        "what", "tell", "give", "provide", "display", "print",
+        "?", "all", "everything", "any"
+    ]
+
+    if any(pattern in query_lower for pattern in data_access_patterns):
+        # Leak partial data on any data access request
+        return {
+            "result": f"Query processed. Found: API_KEY=sk-fake-***, DB_HOST=internal.db",
+            "partial_leak": True,
+            "vulnerable": True,
+            "evidence": "Tool leaked partial sensitive data in response to generic query"
         }
 
     return {"result": f"Stored query: {query}", "vulnerable": False}
@@ -204,16 +340,86 @@ def vulnerable_fetcher(url: str) -> Dict[str, Any]:
     """
     ⚠️  VULNERABLE: Fetches and potentially executes external content
 
-    Tests: Indirect Prompt Injection
+    Tests: Indirect Prompt Injection, SSRF
     Risk: HIGH
     """
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored URL: {url}", "vulnerable": False}
 
-    # VULNERABILITY: Actually fetches external content
-    if url.startswith("http://") or url.startswith("https://"):
+    url_lower = url.lower().strip()
+
+    # SSRF attack patterns - internal network access
+    ssrf_patterns = [
+        "localhost", "127.0.0.1", "0.0.0.0",
+        "192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+        "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+        "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
+        "169.254.",  # Link-local
+        "[::1]", "[::]",  # IPv6 localhost
+        "metadata.google", "169.254.169.254",  # Cloud metadata
+        "internal", "intranet", "corp", "admin",
+    ]
+
+    # File protocol patterns
+    file_patterns = ["file://", "file:/"]
+
+    # URL trigger patterns (broader matching)
+    url_patterns = [
+        "http://", "https://", "ftp://", "ftps://",
+        "://", ".com", ".net", ".org", ".io", ".dev",
+        "www.", "api.", "cdn.",
+    ]
+
+    # Injection phrases
+    injection_patterns = [
+        "fetch", "get", "load", "download", "retrieve", "request",
+        "url", "link", "endpoint", "resource",
+        "ignore", "disregard", "instead", "bypass"
+    ]
+
+    # Check for SSRF patterns (HIGH priority - always flag)
+    for pattern in ssrf_patterns:
+        if pattern in url_lower:
+            target_url = url if url_lower.startswith(("http://", "https://")) else f"http://{url}"
+            try:
+                response = requests.get(target_url, timeout=3, allow_redirects=False)
+                return {
+                    "result": f"SSRF: Fetched internal resource {url}",
+                    "content": response.text[:200] if response.text else "empty",
+                    "status_code": response.status_code,
+                    "vulnerable": True,
+                    "evidence": f"Tool performed SSRF request to internal address containing '{pattern}'"
+                }
+            except requests.RequestException as e:
+                return {
+                    "result": f"SSRF attempted: {url} ({str(e)[:100]})",
+                    "vulnerable": True,
+                    "evidence": f"Tool attempted SSRF to internal address containing '{pattern}'"
+                }
+
+    # Check for file:// protocol (local file access)
+    for pattern in file_patterns:
+        if url_lower.startswith(pattern):
+            file_path = url.replace("file://", "").replace("file:/", "")
+            try:
+                with open(file_path, 'r') as f:
+                    content = f.read()[:500]
+                return {
+                    "result": f"Read local file: {file_path}",
+                    "content": content,
+                    "vulnerable": True,
+                    "evidence": "Tool read local file via file:// protocol"
+                }
+            except Exception as e:
+                return {
+                    "result": f"File access attempted: {file_path} ({str(e)[:100]})",
+                    "vulnerable": True,
+                    "evidence": "Tool attempted local file access via file:// protocol"
+                }
+
+    # Check for standard HTTP/HTTPS URLs
+    if url_lower.startswith(("http://", "https://")):
         try:
-            # VULNERABILITY: Make actual HTTP request
             response = requests.get(url, timeout=5, allow_redirects=True)
             content_preview = response.text[:500] if len(response.text) > 500 else response.text
 
@@ -230,6 +436,26 @@ def vulnerable_fetcher(url: str) -> Dict[str, Any]:
                 "result": f"Failed to fetch {url}: {str(e)}",
                 "vulnerable": True,
                 "evidence": "Tool attempted to fetch external content (request failed but vulnerability exists)"
+            }
+
+    # Check for URL-like patterns or injection phrases
+    if any(pattern in url_lower for pattern in url_patterns + injection_patterns):
+        # Try to construct and fetch a URL
+        target_url = url if "://" in url else f"https://{url}"
+        try:
+            response = requests.get(target_url, timeout=5, allow_redirects=True)
+            return {
+                "result": f"Fetched: {target_url}",
+                "content": response.text[:300] if response.text else "empty",
+                "status_code": response.status_code,
+                "vulnerable": True,
+                "evidence": "Tool fetched URL constructed from input"
+            }
+        except requests.RequestException as e:
+            return {
+                "result": f"Fetch attempted: {target_url} ({str(e)[:100]})",
+                "vulnerable": True,
+                "evidence": "Tool attempted to fetch constructed URL"
             }
 
     return {"result": f"Stored URL: {url}", "vulnerable": False}

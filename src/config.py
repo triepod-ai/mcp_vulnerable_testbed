@@ -42,12 +42,12 @@ config_state = {
 }
 
 def is_vulnerable_to_high_risk() -> bool:
-    """Check if HIGH risk vulnerabilities are enabled"""
-    return VULNERABILITY_MODE in ["high", "medium"]
+    """Check if HIGH risk vulnerabilities are enabled (only in 'high' mode)"""
+    return VULNERABILITY_MODE == "high"
 
 def is_vulnerable_to_medium_risk() -> bool:
-    """Check if MEDIUM risk vulnerabilities are enabled"""
-    return VULNERABILITY_MODE in ["high", "medium", "low"]
+    """Check if MEDIUM risk vulnerabilities are enabled (high or medium modes)"""
+    return VULNERABILITY_MODE in ["high", "medium"]
 
 def increment_invocation(tool_name: str) -> int:
     """Increment and return invocation count for rug pull testing"""
