@@ -21,7 +21,8 @@
 | **Safe Tools (False Positive Test)** | 6/6 | 100% correctly classified |
 | **Inspector Detection Rate** | 10/10 vulnerable tools | 100% recall |
 | **Inspector False Positives** | 0/6 safe tools | 100% precision |
-| **Total Vulnerabilities Found** | 36 | By MCP Inspector |
+| **Vulnerable Server Vulns** | 34 | FAIL - HIGH risk |
+| **Hardened Server Vulns** | 0 | PASS - LOW risk |
 
 ---
 
@@ -106,34 +107,38 @@ Proof: subprocess.run() executed after threshold
 
 ---
 
-## MCP Inspector Results
+## MCP Inspector Results (Updated 2025-12-27)
 
-**Assessment Status**: FAIL (as expected for vulnerable server)
-**Overall Risk Level**: HIGH
-**Total Vulnerabilities**: 36
+### Vulnerable Server (Port 10900)
+| Metric | Result |
+|--------|--------|
+| **Assessment Status** | **FAIL** |
+| **Overall Risk Level** | **HIGH** |
+| **Total Vulnerabilities** | **34** |
 
-### Detection Breakdown
+### Hardened Server (Port 10901)
+| Metric | Result |
+|--------|--------|
+| **Assessment Status** | **PASS** ✅ |
+| **Overall Risk Level** | **LOW** |
+| **Total Vulnerabilities** | **0** |
 
-| Tool | Status | Vulnerabilities |
-|------|--------|----------------|
-| vulnerable_calculator_tool | VULNERABLE | 1 |
-| vulnerable_system_exec_tool | VULNERABLE | 3 |
-| vulnerable_data_leak_tool | VULNERABLE | 1 |
-| vulnerable_tool_override_tool | VULNERABLE | 1 |
-| vulnerable_config_modifier_tool | VULNERABLE | 1 |
-| vulnerable_fetcher_tool | VULNERABLE | 1 |
-| vulnerable_unicode_processor_tool | VULNERABLE | 1 |
-| vulnerable_nested_parser_tool | VULNERABLE | 1 |
-| vulnerable_package_installer_tool | VULNERABLE | 11 |
-| vulnerable_rug_pull_tool | VULNERABLE | 15 |
-| **safe_storage_tool_mcp** | **SAFE** | **0** ✅ |
-| **safe_search_tool_mcp** | **SAFE** | **0** ✅ |
-| **safe_list_tool_mcp** | **SAFE** | **0** ✅ |
-| **safe_info_tool_mcp** | **SAFE** | **0** ✅ |
-| **safe_echo_tool_mcp** | **SAFE** | **0** ✅ |
-| **safe_validate_tool_mcp** | **SAFE** | **0** ✅ |
+### Side-by-Side Comparison
 
-**Accuracy**: 16/16 tools correctly classified (100%)
+| Server | Status | Risk | Vulnerabilities |
+|--------|--------|------|-----------------|
+| **Vulnerable (10900)** | FAIL | HIGH | 34 |
+| **Hardened (10901)** | PASS | LOW | 0 |
+
+### Detection Summary
+
+| Tool Category | Vulnerable Server | Hardened Server |
+|---------------|-------------------|-----------------|
+| vulnerable_* tools | DETECTED ❌ | N/A (replaced) |
+| store_* tools (hardened) | N/A | SAFE ✅ |
+| safe_* tools | SAFE ✅ | SAFE ✅ |
+
+**Accuracy**: 100% - All vulnerable tools detected, all safe/hardened tools passed
 
 ---
 
@@ -203,9 +208,10 @@ if package_name not in known_packages:
 - Clear architectural differences
 
 ### Phase 5: Inspector Assessment
-- 36 vulnerabilities detected
+- **Vulnerable Server**: 34 vulnerabilities detected, FAIL status
+- **Hardened Server**: 0 vulnerabilities detected, PASS status
 - 100% recall on vulnerable tools
-- 0% false positive rate on safe tools
+- 0% false positive rate on safe/hardened tools
 
 ---
 
@@ -272,7 +278,9 @@ The MCP Vulnerable Testbed successfully demonstrates:
 
 **Full Report**: `/home/bryan/mcp-servers/mcp-vulnerable-testbed/SECURITY-AUDIT-REPORT.md`
 
-**Assessment Results**: `/tmp/inspector-assessment-broken-mcp.json`
+**Assessment Results**:
+- Vulnerable: `/tmp/inspector-assessment-vulnerable-testbed.json`
+- Hardened: `/tmp/inspector-assessment-hardened-testbed.json`
 
 ---
 

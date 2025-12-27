@@ -597,10 +597,21 @@ return {
 Server: broken-mcp
 Assessment Status: FAIL
 Overall Risk Level: HIGH
-Total Vulnerabilities Found: 36
+### Vulnerable Server (Port 10900)
+```
+Status: FAIL
+Overall Risk Level: HIGH
+Total Vulnerabilities Found: 34
 ```
 
-### Vulnerabilities by Tool
+### Hardened Server (Port 10901)
+```
+Status: PASS ✅
+Overall Risk Level: LOW
+Total Vulnerabilities Found: 0
+```
+
+### Vulnerabilities by Tool (Vulnerable Server)
 
 | Tool | Vulnerabilities Detected |
 |------|-------------------------|
@@ -618,9 +629,15 @@ Total Vulnerabilities Found: 36
 
 ### Detection Accuracy
 
+**Vulnerable Server (Port 10900):**
 - **Recall**: 10/10 (100%) - All vulnerable tools detected
 - **Precision**: 6/6 (100%) - No false positives on safe tools
 - **Total Accuracy**: 16/16 (100%) - Perfect classification
+
+**Hardened Server (Port 10901):**
+- **Vulnerabilities Found**: 0
+- **All Tools Passed**: 17/17 tools classified as safe
+- **Mitigations Verified**: 100% effective
 
 ### Notable Detections
 
