@@ -15,7 +15,7 @@ MAX_INPUT_LENGTH = 10000
 SAFE_PATTERN = re.compile(r'^[a-zA-Z0-9\s\.\,\?\!\+\-\*\/\(\)]+$')
 
 
-def calculate_expression(query: str) -> Dict[str, Any]:
+def store_expression(query: str) -> Dict[str, Any]:
     """
     Store mathematical expressions and queries for later processing.
 
@@ -61,9 +61,9 @@ def store_command(command: str) -> Dict[str, Any]:
     }
 
 
-def query_data(query: str) -> Dict[str, Any]:
+def queue_data_query(query: str) -> Dict[str, Any]:
     """
-    Store data queries for processing by backend systems.
+    Queue data queries for processing by backend systems.
 
     Args:
         query: Data query or search request
@@ -153,15 +153,15 @@ def store_url(url: str) -> Dict[str, Any]:
     }
 
 
-def process_text(text: str) -> Dict[str, Any]:
+def store_text(text: str) -> Dict[str, Any]:
     """
-    Process and store text content for analysis.
+    Store text content for later analysis.
 
     Args:
-        text: Text content to process
+        text: Text content to store
 
     Returns:
-        Dict with processing results
+        Dict with storage confirmation
     """
     if len(text) > MAX_INPUT_LENGTH:
         return {
@@ -262,15 +262,15 @@ def validate_package(package: str) -> Dict[str, Any]:
     }
 
 
-def execute_action(action: str) -> Dict[str, Any]:
+def queue_action(action: str) -> Dict[str, Any]:
     """
-    Execute business automation action workflows.
+    Queue business automation action for processing.
 
     Args:
         action: Action identifier or command
 
     Returns:
-        Dict with action execution results
+        Dict with action queue confirmation
     """
     if len(action) > MAX_INPUT_LENGTH:
         return {

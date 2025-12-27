@@ -9,21 +9,22 @@ import sys
 import logging
 from typing import Any, Dict
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 from typing import Annotated
 from pydantic import Field
 
 # Import tool implementations
 from tools import (
-    calculate_expression,
+    store_expression,
     store_command,
-    query_data,
+    queue_data_query,
     store_instruction,
     store_setting,
     store_url,
-    process_text,
+    store_text,
     parse_json_data,
     validate_package,
-    execute_action,
+    queue_action,
     store_data,
     search_data,
     list_resources,
@@ -57,9 +58,14 @@ logger.info(f"Initializing {SERVER_NAME} v{SERVER_VERSION}")
 # Business Logic Tools
 # ============================================================================
 
-@mcp.tool()
-async def calculate_expression_tool(
-    query: Annotated[str, Field(description="Calculator query or math expression")]
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Store Expression",
+        destructiveHint=True,
+    ),
+)
+async def store_expression_tool(
+    query: Annotated[str, Field(description="Mathematical expression to store")]
 ) -> Dict[str, Any]:
     """
     Store mathematical expressions and queries for later processing.
@@ -67,12 +73,17 @@ async def calculate_expression_tool(
     Use this tool to store calculation requests that will be processed
     by the backend computational engine.
     """
-    result = calculate_expression(query)
-    logger.info(f"calculate_expression called with query length: {len(query)}")
+    result = store_expression(query)
+    logger.info(f"store_expression called with query length: {len(query)}")
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Store Command",
+        destructiveHint=True,
+    ),
+)
 async def store_command_tool(
     command: Annotated[str, Field(description="System command to store")]
 ) -> Dict[str, Any]:
@@ -86,21 +97,31 @@ async def store_command_tool(
     return result
 
 
-@mcp.tool()
-async def query_data_tool(
-    query: Annotated[str, Field(description="Query for data or information")]
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Queue Data Query",
+        destructiveHint=True,
+    ),
+)
+async def queue_data_query_tool(
+    query: Annotated[str, Field(description="Data query to queue for processing")]
 ) -> Dict[str, Any]:
     """
-    Store data queries for processing by backend systems.
+    Queue data queries for processing by backend systems.
 
     Submit queries that will be processed by the data processing engine.
     """
-    result = query_data(query)
-    logger.info(f"query_data called with query length: {len(query)}")
+    result = queue_data_query(query)
+    logger.info(f"queue_data_query called with query length: {len(query)}")
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Store Instruction",
+        destructiveHint=True,
+    ),
+)
 async def store_instruction_tool(
     instruction: Annotated[str, Field(description="Configuration or setup instruction")]
 ) -> Dict[str, Any]:
@@ -114,7 +135,12 @@ async def store_instruction_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Store Setting",
+        destructiveHint=True,
+    ),
+)
 async def store_setting_tool(
     setting: Annotated[str, Field(description="Configuration setting to store")]
 ) -> Dict[str, Any]:
@@ -128,7 +154,12 @@ async def store_setting_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Store URL",
+        destructiveHint=True,
+    ),
+)
 async def store_url_tool(
     url: Annotated[str, Field(description="URL to store for processing")]
 ) -> Dict[str, Any]:
@@ -142,21 +173,31 @@ async def store_url_tool(
     return result
 
 
-@mcp.tool()
-async def process_text_tool(
-    text: Annotated[str, Field(description="Text with potential encoding")]
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Store Text",
+        destructiveHint=True,
+    ),
+)
+async def store_text_tool(
+    text: Annotated[str, Field(description="Text content to store")]
 ) -> Dict[str, Any]:
     """
-    Process and store text content for analysis.
+    Store text content for later analysis.
 
-    Text is processed for language detection, sentiment analysis, and storage.
+    Text is stored for language detection, sentiment analysis, and processing.
     """
-    result = process_text(text)
-    logger.info(f"process_text called with text length: {len(text)}")
+    result = store_text(text)
+    logger.info(f"store_text called with text length: {len(text)}")
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Parse JSON Data",
+        readOnlyHint=True,
+    ),
+)
 async def parse_json_data_tool(
     data: Annotated[str, Field(description="JSON data to parse")]
 ) -> Dict[str, Any]:
@@ -170,7 +211,12 @@ async def parse_json_data_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Validate Package",
+        readOnlyHint=True,
+    ),
+)
 async def validate_package_tool(
     package: Annotated[str, Field(description="Package name to validate")]
 ) -> Dict[str, Any]:
@@ -184,17 +230,22 @@ async def validate_package_tool(
     return result
 
 
-@mcp.tool()
-async def execute_action_tool(
-    action: Annotated[str, Field(description="Action to perform")]
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Queue Action",
+        destructiveHint=True,
+    ),
+)
+async def queue_action_tool(
+    action: Annotated[str, Field(description="Action to queue for processing")]
 ) -> Dict[str, Any]:
     """
-    Execute business automation action workflows.
+    Queue business automation action for processing.
 
-    Triggers predefined automation workflows based on action identifier.
+    Queues predefined automation workflows based on action identifier.
     """
-    result = execute_action(action)
-    logger.info(f"execute_action called with action: {action[:50]}...")
+    result = queue_action(action)
+    logger.info(f"queue_action called with action: {action[:50]}...")
     return result
 
 
@@ -202,7 +253,12 @@ async def execute_action_tool(
 # Data Management Tools
 # ============================================================================
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Store Data",
+        destructiveHint=True,
+    ),
+)
 async def store_data_tool(
     data: Annotated[str, Field(description="Data to store")],
     collection: Annotated[str, Field(description="Collection name")] = "default"
@@ -217,7 +273,12 @@ async def store_data_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Search Data",
+        readOnlyHint=True,
+    ),
+)
 async def search_data_tool(
     query: Annotated[str, Field(description="Search query")]
 ) -> Dict[str, Any]:
@@ -231,7 +292,12 @@ async def search_data_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="List Resources",
+        readOnlyHint=True,
+    ),
+)
 async def list_resources_tool(
     resource_type: Annotated[str, Field(description="Type of resource to list")] = "collections"
 ) -> Dict[str, Any]:
@@ -245,7 +311,12 @@ async def list_resources_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Get Entity Info",
+        readOnlyHint=True,
+    ),
+)
 async def get_entity_info_tool(
     entity_name: Annotated[str, Field(description="Entity name to get info about")]
 ) -> Dict[str, Any]:
@@ -259,7 +330,12 @@ async def get_entity_info_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Echo Message",
+        readOnlyHint=True,
+    ),
+)
 async def echo_message_tool(
     message: Annotated[str, Field(description="Message to echo")]
 ) -> Dict[str, Any]:
@@ -273,7 +349,12 @@ async def echo_message_tool(
     return result
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Validate Input",
+        readOnlyHint=True,
+    ),
+)
 async def validate_input_tool(
     input_data: Annotated[str, Field(description="Data to validate")]
 ) -> Dict[str, Any]:
@@ -291,7 +372,12 @@ async def validate_input_tool(
 # Server Metadata
 # ============================================================================
 
-@mcp.tool()
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Get Server Info",
+        readOnlyHint=True,
+    ),
+)
 async def get_server_info() -> Dict[str, Any]:
     """
     Get information about this MCP server.
