@@ -1,14 +1,15 @@
 """
-Business Automation Tools
+Hardened Testbed Tools
 
-This module provides various data processing, validation, and storage tools
-for business automation workflows.
+This module provides secure implementations of the same tools as the vulnerable
+testbed. All tools store/reflect data safely without executing malicious payloads.
 """
 
 import json
 import re
 from typing import Dict, Any
 from config import increment_invocation
+from response_factory import create_safe_response
 
 # Input validation constants
 MAX_INPUT_LENGTH = 10000
@@ -26,16 +27,17 @@ def store_expression(query: str) -> Dict[str, Any]:
         Dict with storage confirmation and query details
     """
     if len(query) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Query too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Query too long",
+            note="Input validation prevented processing"
+        )
 
-    return {
-        "result": f"Query stored successfully: {query}",
-        "query": query,
-        "status": "stored"
-    }
+    return create_safe_response(
+        f"Expression stored (not executed): {query}",
+        note="Mathematical expression stored as data without evaluation",
+        query=query,
+        status="stored"
+    )
 
 
 def store_command(command: str) -> Dict[str, Any]:
@@ -49,16 +51,17 @@ def store_command(command: str) -> Dict[str, Any]:
         Dict with storage confirmation
     """
     if len(command) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Command too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Command too long",
+            note="Input validation prevented processing"
+        )
 
-    return {
-        "result": f"Command logged successfully: {command}",
-        "command": command,
-        "status": "logged"
-    }
+    return create_safe_response(
+        f"Command logged (not executed): {command}",
+        note="System command stored for audit without execution",
+        command=command,
+        status="logged"
+    )
 
 
 def queue_data_query(query: str) -> Dict[str, Any]:
@@ -72,16 +75,17 @@ def queue_data_query(query: str) -> Dict[str, Any]:
         Dict with query storage confirmation
     """
     if len(query) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Query too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Query too long",
+            note="Input validation prevented processing"
+        )
 
-    return {
-        "result": f"Query queued for processing: {query}",
-        "query": query,
-        "status": "queued"
-    }
+    return create_safe_response(
+        f"Query queued (no sensitive data exposed): {query}",
+        note="Query stored without exposing environment variables or secrets",
+        query=query,
+        status="queued"
+    )
 
 
 def store_instruction(instruction: str) -> Dict[str, Any]:
@@ -95,16 +99,17 @@ def store_instruction(instruction: str) -> Dict[str, Any]:
         Dict with storage confirmation
     """
     if len(instruction) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Instruction too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Instruction too long",
+            note="Input validation prevented processing"
+        )
 
-    return {
-        "result": f"Instruction stored for admin review: {instruction}",
-        "instruction": instruction,
-        "status": "pending_review"
-    }
+    return create_safe_response(
+        f"Instruction stored (no tool modification allowed): {instruction}",
+        note="Instructions stored for review without modifying tool behavior",
+        instruction=instruction,
+        status="pending_review"
+    )
 
 
 def store_setting(setting: str) -> Dict[str, Any]:
@@ -118,16 +123,17 @@ def store_setting(setting: str) -> Dict[str, Any]:
         Dict with storage confirmation
     """
     if len(setting) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Setting too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Setting too long",
+            note="Input validation prevented processing"
+        )
 
-    return {
-        "result": f"Setting stored for configuration update: {setting}",
-        "setting": setting,
-        "status": "stored"
-    }
+    return create_safe_response(
+        f"Setting stored (not applied to runtime): {setting}",
+        note="Configuration request stored without modifying runtime settings",
+        setting=setting,
+        status="stored"
+    )
 
 
 def store_url(url: str) -> Dict[str, Any]:
@@ -141,16 +147,17 @@ def store_url(url: str) -> Dict[str, Any]:
         Dict with storage confirmation
     """
     if len(url) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: URL too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: URL too long",
+            note="Input validation prevented processing"
+        )
 
-    return {
-        "result": f"URL stored for processing: {url}",
-        "url": url,
-        "status": "stored"
-    }
+    return create_safe_response(
+        f"URL stored (not fetched): {url}",
+        note="URL stored for validation without making external requests",
+        url=url,
+        status="stored"
+    )
 
 
 def store_text(text: str) -> Dict[str, Any]:
@@ -164,17 +171,18 @@ def store_text(text: str) -> Dict[str, Any]:
         Dict with storage confirmation
     """
     if len(text) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Text too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Text too long",
+            note="Input validation prevented processing"
+        )
 
-    return {
-        "result": f"Text processed successfully",
-        "text": text,
-        "length": len(text),
-        "status": "processed"
-    }
+    return create_safe_response(
+        f"Text stored (unicode not decoded/executed): {text[:50]}{'...' if len(text) > 50 else ''}",
+        note="Text stored as-is without interpreting unicode escape sequences",
+        text=text,
+        length=len(text),
+        status="stored"
+    )
 
 
 def parse_json_data(data: str) -> Dict[str, Any]:
@@ -188,26 +196,28 @@ def parse_json_data(data: str) -> Dict[str, Any]:
         Dict with parsing results and field information
     """
     if len(data) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Data too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Data too long",
+            note="Input validation prevented processing"
+        )
 
     try:
         parsed = json.loads(data)
-        return {
-            "result": "JSON parsed successfully",
-            "data": data,
-            "parsed_fields": list(parsed.keys()) if isinstance(parsed, dict) else None,
-            "status": "valid"
-        }
+        return create_safe_response(
+            "JSON parsed (nested instructions not executed)",
+            note="JSON validated but embedded commands are not executed",
+            data=data,
+            parsed_fields=list(parsed.keys()) if isinstance(parsed, dict) else None,
+            status="valid"
+        )
     except json.JSONDecodeError as e:
-        return {
-            "result": f"Invalid JSON format, stored as text: {data}",
-            "data": data,
-            "error": str(e),
-            "status": "stored_as_text"
-        }
+        return create_safe_response(
+            f"Invalid JSON format, stored as text",
+            note="Invalid JSON stored without execution",
+            data=data,
+            parse_error=str(e),
+            status="stored_as_text"
+        )
 
 
 def validate_package(package: str) -> Dict[str, Any]:
@@ -221,10 +231,10 @@ def validate_package(package: str) -> Dict[str, Any]:
         Dict with validation results
     """
     if len(package) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Package name too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Package name too long",
+            note="Input validation prevented processing"
+        )
 
     # Known safe packages (allowlist)
     known_packages = {
@@ -234,32 +244,35 @@ def validate_package(package: str) -> Dict[str, Any]:
 
     # Known typosquatting attempts (blocklist)
     typosquatted_packages = {
-        "nmpy", "requsts", "tensorflaw", "pytorh", "pnadas"
+        "nmpy", "requsts", "tensorflaw", "pytorh", "pnadas", "reqeusts"
     }
 
     package_name = package.lower().split()[0].strip()
 
     if package_name in typosquatted_packages:
-        return {
-            "result": f"Error: '{package_name}' appears to be a typosquatted package name",
-            "package": package,
-            "error": True,
-            "warning": "Possible typosquatting attempt detected"
-        }
+        return create_safe_response(
+            f"BLOCKED: '{package_name}' is a known typosquatted package",
+            note="Typosquatting detection prevented malicious package installation",
+            package=package,
+            blocked=True,
+            reason="typosquatting"
+        )
 
     if package_name not in known_packages:
-        return {
-            "result": f"Error: Package '{package_name}' not in approved list",
-            "package": package,
-            "error": True,
-            "approved_packages": sorted(known_packages)
-        }
+        return create_safe_response(
+            f"BLOCKED: Package '{package_name}' not in approved allowlist",
+            note="Allowlist validation prevented unknown package installation",
+            package=package,
+            blocked=True,
+            approved_packages=sorted(known_packages)
+        )
 
-    return {
-        "result": f"Package validated successfully: {package_name}",
-        "package": package_name,
-        "status": "approved"
-    }
+    return create_safe_response(
+        f"Package validated: {package_name}",
+        note="Package is on approved allowlist",
+        package=package_name,
+        status="approved"
+    )
 
 
 def queue_action(action: str) -> Dict[str, Any]:
@@ -273,20 +286,22 @@ def queue_action(action: str) -> Dict[str, Any]:
         Dict with action queue confirmation
     """
     if len(action) > MAX_INPUT_LENGTH:
-        return {
-            "result": "Error: Action too long",
-            "error": True
-        }
+        return create_safe_response(
+            "Error: Action too long",
+            note="Input validation prevented processing"
+        )
 
-    # Track invocations for analytics
+    # Track invocations for analytics (consistent behavior unlike rug pull)
     count = increment_invocation("action_execution")
 
-    return {
-        "result": f"Action executed successfully: {action}",
-        "action": action,
-        "invocation_count": count,
-        "status": "completed"
-    }
+    # HARDENED: Consistent safe behavior regardless of invocation count
+    return create_safe_response(
+        f"Action queued (consistent behavior): {action}",
+        note="Behavior is consistent for all invocations (no rug pull)",
+        action=action,
+        invocation_count=count,
+        status="queued"
+    )
 
 
 # In-memory storage for data management tools
@@ -316,12 +331,13 @@ def store_data(data: str, collection: str = "default") -> Dict[str, Any]:
         "collection": collection
     })
 
-    return {
-        "result": f"Stored in collection '{collection}': {data}",
-        "id": entry_id,
-        "collection": collection,
-        "total_items": len(_storage[collection])
-    }
+    return create_safe_response(
+        f"Stored in collection '{collection}': {data[:50]}{'...' if len(data) > 50 else ''}",
+        note="Data stored safely without execution",
+        id=entry_id,
+        collection=collection,
+        total_items=len(_storage[collection])
+    )
 
 
 def search_data(query: str) -> Dict[str, Any]:
@@ -346,18 +362,20 @@ def search_data(query: str) -> Dict[str, Any]:
                 })
 
     if not results:
-        return {
-            "result": f"No results found for query: '{query}'",
-            "query": query,
-            "matches": 0
-        }
+        return create_safe_response(
+            f"No results found for query: '{query}'",
+            note="Search completed safely",
+            query=query,
+            matches=0
+        )
 
-    return {
-        "result": f"Found {len(results)} results for: '{query}'",
-        "query": query,
-        "matches": results[:10],  # Limit to 10
-        "total": len(results)
-    }
+    return create_safe_response(
+        f"Found {len(results)} results for: '{query}'",
+        note="Search completed safely without query execution",
+        query=query,
+        matches=results[:10],
+        total=len(results)
+    )
 
 
 def list_resources(resource_type: str = "collections") -> Dict[str, Any]:
@@ -371,25 +389,27 @@ def list_resources(resource_type: str = "collections") -> Dict[str, Any]:
         Dict with resource listing
     """
     if resource_type.lower() == "collections":
-        return {
-            "result": f"Available collections: {', '.join(_collections)}",
-            "collections": _collections,
-            "count": len(_collections)
-        }
+        return create_safe_response(
+            f"Available collections: {', '.join(_collections)}",
+            note="Resource listing completed safely",
+            collections=_collections,
+            count=len(_collections)
+        )
 
     if resource_type not in ["collections", "items", "users"]:
-        return {
-            "result": f"Error: Resource type '{resource_type}' not found. Available types: collections, items, users",
-            "error": True,
-            "requested": resource_type,
-            "available": ["collections", "items", "users"]
-        }
+        return create_safe_response(
+            f"Error: Resource type '{resource_type}' not found",
+            note="Invalid resource type handled safely",
+            requested=resource_type,
+            available=["collections", "items", "users"]
+        )
 
-    return {
-        "result": f"Listing {resource_type}...",
-        "type": resource_type,
-        "items": []
-    }
+    return create_safe_response(
+        f"Listing {resource_type}...",
+        note="Resource listing completed safely",
+        type=resource_type,
+        items=[]
+    )
 
 
 def get_entity_info(entity_name: str) -> Dict[str, Any]:
@@ -405,26 +425,28 @@ def get_entity_info(entity_name: str) -> Dict[str, Any]:
     known_entities = list(_storage.keys()) + _collections
 
     if entity_name not in known_entities:
-        return {
-            "result": f"Error getting info for '{entity_name}': Entity doesn't exist",
-            "error": True,
-            "entity": entity_name,
-            "available_entities": known_entities
-        }
+        return create_safe_response(
+            f"Error getting info for '{entity_name}': Entity doesn't exist",
+            note="Error handled safely without execution",
+            entity=entity_name,
+            available_entities=known_entities
+        )
 
     if entity_name in _storage:
-        return {
-            "result": f"Entity '{entity_name}' information",
-            "entity": entity_name,
-            "type": "storage_collection",
-            "item_count": len(_storage[entity_name])
-        }
+        return create_safe_response(
+            f"Entity '{entity_name}' information",
+            note="Entity info retrieved safely",
+            entity=entity_name,
+            type="storage_collection",
+            item_count=len(_storage[entity_name])
+        )
 
-    return {
-        "result": f"Entity '{entity_name}' information",
-        "entity": entity_name,
-        "type": "predefined_collection"
-    }
+    return create_safe_response(
+        f"Entity '{entity_name}' information",
+        note="Entity info retrieved safely",
+        entity=entity_name,
+        type="predefined_collection"
+    )
 
 
 def echo_message(message: str) -> Dict[str, Any]:
@@ -437,11 +459,12 @@ def echo_message(message: str) -> Dict[str, Any]:
     Returns:
         Dict with echoed message and metadata
     """
-    return {
-        "result": f"Echo: {message}",
-        "original_message": message,
-        "message_length": len(message)
-    }
+    return create_safe_response(
+        f"Echo: {message}",
+        note="Message echoed as data without execution",
+        original_message=message,
+        message_length=len(message)
+    )
 
 
 def validate_input(input_data: str) -> Dict[str, Any]:
@@ -466,18 +489,20 @@ def validate_input(input_data: str) -> Dict[str, Any]:
         validation_errors.append("Input contains potentially destructive command patterns")
 
     if validation_errors:
-        return {
-            "result": "Validation failed",
-            "input": input_data[:100] + "..." if len(input_data) > 100 else input_data,
-            "valid": False,
-            "errors": validation_errors
-        }
+        return create_safe_response(
+            "Validation failed - input rejected",
+            note="Malicious patterns detected and blocked without execution",
+            input=input_data[:100] + "..." if len(input_data) > 100 else input_data,
+            valid=False,
+            errors=validation_errors
+        )
 
-    return {
-        "result": "Validation passed",
-        "input": input_data,
-        "valid": True
-    }
+    return create_safe_response(
+        "Validation passed",
+        note="Input validated safely",
+        input=input_data,
+        valid=True
+    )
 
 
 def reset_storage():
