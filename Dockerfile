@@ -17,10 +17,11 @@ COPY src/ /app/src/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
-    "mcp[cli]>=1.3.0" \
+    "mcp[cli]>=1.8.0" \
     pydantic>=2.10.0 \
     httpx>=0.27.0 \
-    uvicorn>=0.30.0
+    uvicorn>=0.30.0 \
+    requests>=2.31.0
 
 # Create logs directory
 RUN mkdir -p /app/logs
