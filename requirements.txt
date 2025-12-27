@@ -1,0 +1,22 @@
+# MCP Vulnerable Testbed Dependencies
+# ⚠️ FOR TESTING SECURITY ASSESSMENT TOOLS ONLY
+
+# Core MCP Framework
+mcp[cli]>=1.8.0
+
+# Data validation
+pydantic>=2.10.0
+
+# HTTP client for fetcher tool
+httpx>=0.27.0
+requests>=2.31.0
+
+# ASGI server for HTTP transport
+uvicorn>=0.30.0
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Optional: Response schema validation
+jsonschema>=4.17.0
