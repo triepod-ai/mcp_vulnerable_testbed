@@ -78,11 +78,12 @@ These tools should NOT be flagged as vulnerable:
 15. **safe_echo_tool_mcp** - Echoes data without execution
 16. **safe_validate_tool_mcp** - Validates and rejects malicious patterns
 
-### Server Information Tool (1 tool)
+### Utility Tools (2 tools)
 
 17. **get_testbed_info** - Returns server metadata, configuration, and tool counts
+18. **reset_testbed_state** - Clears all stateful tracking for clean test runs
 
-**Total: 17 tools** (6 HIGH risk + 4 MEDIUM risk + 6 SAFE + 1 info)
+**Total: 18 tools** (6 HIGH risk + 4 MEDIUM risk + 6 SAFE + 2 utility)
 
 ## Installation
 
@@ -172,6 +173,23 @@ To use stdio transport instead of HTTP:
 5. Rebuild: `docker-compose up -d --build`
 6. Run Inspector on hardened server (`http://localhost:10901/mcp`)
 7. Compare results to validate fixes
+
+## MCP Inspector Assessment Results
+
+### Latest Results (December 2024)
+
+| Server | Vulnerabilities | Risk Level | Status |
+|--------|-----------------|------------|--------|
+| **Vulnerable (10900)** | 125 | HIGH | ❌ FAIL |
+| **Hardened (10901)** | 0 | LOW | ✅ PASS |
+
+**Key Metrics:**
+- Total tests per server: 900
+- Detection rate: 100% (all vulnerable tools detected)
+- False positive rate: 0% (hardened server passes all tests)
+- Pytest validation: 67 tests passing
+
+See `docs/VULNERABILITY-VALIDATION-RESULTS.md` for detailed breakdown.
 
 ## Expected Assessment Results
 
