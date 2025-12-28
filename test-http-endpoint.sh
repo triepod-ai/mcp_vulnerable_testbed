@@ -65,7 +65,7 @@ fi
 TOOLS_RESPONSE2=$(curl -s -X POST "http://localhost:10901/mcp" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -H "x-mcp-session-id: $SESSION_ID2" \
+  -H "mcp-session-id: $SESSION_ID2" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":2}')
 
 TOOL_COUNT2=$(echo "$TOOLS_RESPONSE2" | grep -o '"name"' | wc -l)

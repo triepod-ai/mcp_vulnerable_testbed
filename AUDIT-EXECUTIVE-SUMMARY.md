@@ -2,7 +2,8 @@
 
 ## MCP Vulnerable Testbed - Final Assessment
 
-**Date**: 2025-12-27 | **Auditor**: Claude Security Auditor | **Status**: ✅ **APPROVED**
+**Date**: 2025-12-28 | **Auditor**: Claude Security Auditor | **Status**: ✅ **APPROVED**
+**Inspector Version**: 1.16.0 | **Test Matrix**: 18 attack patterns × 80 payloads = 1440 tests/server
 
 ---
 
@@ -10,19 +11,23 @@
 
 **The MCP Vulnerable Testbed contains REAL, EXPLOITABLE vulnerabilities and is suitable for validating security assessment tools.**
 
+**Critical Design**: Both vulnerable and hardened servers use **IDENTICAL tool names** but different implementations. This proves inspector-assessment uses pure behavior-based detection, not name-based heuristics.
+
 ---
 
 ## Key Findings at a Glance
 
 | Metric | Result | Evidence |
 |--------|--------|----------|
-| **Vulnerable Tools Tested** | 9/10 | 90% fully exploited |
+| **Total Tests Per Server** | 1440 | 18 patterns × 80 payloads |
+| **Vulnerable Tools Tested** | 10/10 | 100% exploitable |
 | **Hardened Tools Verified** | 10/10 | 100% blocked attacks |
 | **Safe Tools (False Positive Test)** | 6/6 | 100% correctly classified |
 | **Inspector Detection Rate** | 10/10 vulnerable tools | 100% recall |
 | **Inspector False Positives** | 0/6 safe tools | 100% precision |
-| **Vulnerable Server Vulns** | 34 | FAIL - HIGH risk |
+| **Vulnerable Server Vulns** | 200 | FAIL - HIGH risk |
 | **Hardened Server Vulns** | 0 | PASS - LOW risk |
+| **A/B Detection Gap** | 200 vs 0 | Same tool names, different behavior |
 
 ---
 
@@ -107,38 +112,55 @@ Proof: subprocess.run() executed after threshold
 
 ---
 
-## MCP Inspector Results (Updated 2025-12-27)
+## MCP Inspector Results (Updated 2025-12-28)
 
 ### Vulnerable Server (Port 10900)
 | Metric | Result |
 |--------|--------|
 | **Assessment Status** | **FAIL** |
 | **Overall Risk Level** | **HIGH** |
-| **Total Vulnerabilities** | **34** |
+| **Total Tests** | **1440** |
+| **Total Vulnerabilities** | **200** |
 
 ### Hardened Server (Port 10901)
 | Metric | Result |
 |--------|--------|
 | **Assessment Status** | **PASS** ✅ |
 | **Overall Risk Level** | **LOW** |
+| **Total Tests** | **1440** |
 | **Total Vulnerabilities** | **0** |
 
-### Side-by-Side Comparison
+### Side-by-Side Comparison (IDENTICAL Tool Names)
 
-| Server | Status | Risk | Vulnerabilities |
-|--------|--------|------|-----------------|
-| **Vulnerable (10900)** | FAIL | HIGH | 34 |
-| **Hardened (10901)** | PASS | LOW | 0 |
+| Server | Port | Status | Risk | Vulnerabilities |
+|--------|------|--------|------|-----------------|
+| **Vulnerable** | 10900 | FAIL | HIGH | 200 |
+| **Hardened** | 10901 | PASS | LOW | 0 |
+
+### Detection Gap by Tool (Same Names, Different Behavior)
+
+| Tool Name | Vulnerable Server | Hardened Server |
+|-----------|-------------------|-----------------|
+| `vulnerable_calculator_tool` | 24 vulnerabilities | 0 |
+| `vulnerable_system_exec_tool` | 7 vulnerabilities | 0 |
+| `vulnerable_data_leak_tool` | 7 vulnerabilities | 0 |
+| `vulnerable_fetcher_tool` | 13 vulnerabilities | 0 |
+| `vulnerable_tool_override_tool` | 4 vulnerabilities | 0 |
+| `vulnerable_config_modifier_tool` | 3 vulnerabilities | 0 |
+| `vulnerable_nested_parser_tool` | 1 vulnerability | 0 |
+| `vulnerable_unicode_processor_tool` | 1 vulnerability | 0 |
+| `vulnerable_package_installer_tool` | 60 vulnerabilities | 0 |
+| `vulnerable_rug_pull_tool` | 80 vulnerabilities | 0 |
+| **Total** | **200** | **0** |
 
 ### Detection Summary
 
 | Tool Category | Vulnerable Server | Hardened Server |
 |---------------|-------------------|-----------------|
-| vulnerable_* tools | DETECTED ❌ | N/A (replaced) |
-| store_* tools (hardened) | N/A | SAFE ✅ |
+| vulnerable_* tools | DETECTED ❌ (200 vulns) | SAFE ✅ (same names!) |
 | safe_* tools | SAFE ✅ | SAFE ✅ |
 
-**Accuracy**: 100% - All vulnerable tools detected, all safe/hardened tools passed
+**Accuracy**: 100% - Pure behavior-based detection confirmed
 
 ---
 
@@ -207,11 +229,12 @@ if package_name not in known_packages:
 - Hardened: Uses data storage, validation, allowlists
 - Clear architectural differences
 
-### Phase 5: Inspector Assessment
-- **Vulnerable Server**: 34 vulnerabilities detected, FAIL status
+### Phase 5: Inspector Assessment (1440 tests/server)
+- **Vulnerable Server**: 200 vulnerabilities detected, FAIL status
 - **Hardened Server**: 0 vulnerabilities detected, PASS status
-- 100% recall on vulnerable tools
+- 100% recall on vulnerable tools (200/200)
 - 0% false positive rate on safe/hardened tools
+- **Key Proof**: Same tool names yield 200 vs 0 based on behavior alone
 
 ---
 
@@ -271,19 +294,36 @@ The MCP Vulnerable Testbed successfully demonstrates:
 **Vulnerable Server**: http://localhost:10900/mcp
 **Hardened Server**: http://localhost:10901/mcp
 
+**Config Files**:
+```json
+// /tmp/vulnerable-mcp-config.json
+{"transport": "http", "url": "http://localhost:10900/mcp"}
+
+// /tmp/hardened-mcp-config.json
+{"transport": "http", "url": "http://localhost:10901/mcp"}
+```
+
+**Assessment Commands**:
+```bash
+npm run assess -- --server vulnerable-mcp --config /tmp/vulnerable-mcp-config.json
+npm run assess -- --server hardened-mcp --config /tmp/hardened-mcp-config.json
+```
+
 **Test Scripts**:
+- `/tmp/test-inspector-validation.sh` - Automated A/B comparison validation
 - `/tmp/test-vulnerable-server-v3.sh` - Exploitation testing
 - `/tmp/test-hardened-server-v2.sh` - Mitigation verification
-- `/tmp/test-safe-tools.sh` - False positive testing
 
 **Full Report**: `/home/bryan/mcp-servers/mcp-vulnerable-testbed/SECURITY-AUDIT-REPORT.md`
 
 **Assessment Results**:
-- Vulnerable: `/tmp/inspector-assessment-vulnerable-testbed.json`
-- Hardened: `/tmp/inspector-assessment-hardened-testbed.json`
+- Vulnerable: `/tmp/inspector-assessment-vulnerable-mcp.json`
+- Hardened: `/tmp/inspector-assessment-hardened-mcp.json`
+- Validation Report: `/tmp/inspector-validation-report.md`
 
 ---
 
-**Report Date**: 2025-12-27
+**Report Date**: 2025-12-28
 **Auditor**: Claude Security Auditor Agent
+**Inspector Version**: 1.16.0
 **Testbed Version**: 1.0.0-INSECURE
