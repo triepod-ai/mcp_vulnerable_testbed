@@ -178,3 +178,36 @@ Entries are loaded automatically by the SessionStart hook to provide context fro
 - Full audit report saved to /tmp/inspector-security-audit-report.md
 
 ---
+
+## 2025-12-29: AUP False Positive Fix and Inspector Enhancement Documentation
+
+**Summary:** Fixed AUP false positive in hardened server and filed Inspector enhancement for HTTP-only policy scoring.
+
+**Session Focus:** Policy compliance validation and testbed documentation improvements
+
+**Changes Made:**
+- Modified `src-hardened/server.py` - Fixed tool description to avoid AUP pattern match
+- Modified `CLAUDE.md` - Added "Testing Options" section with 3 testbed configurations
+- Updated plan file with DVMCP integration and enhancement documentation
+
+**Key Decisions:**
+- DEV requirements should be marked N/A for HTTP-only assessments (no source code to scan)
+- DVMCP uses SSE transport on ports 9001-9010 (different from our HTTP on 10900/10901)
+- 81% compliance score is correct for HTTP-only assessment (docs require source access)
+
+**Results:**
+- Vulnerable server: 62% compliance, 66 vulnerabilities
+- Hardened server: 81% compliance (up from 58%), 0 vulnerabilities
+- DVMCP detected 0 vulnerabilities (resource-based vulns, not tool-execution)
+
+**Next Steps:**
+- Implement Inspector enhancement (GitHub issue #4) to exclude DEV requirements for HTTP-only
+- Tool annotation validation
+- Share findings with MCP directory team
+
+**Notes:**
+- AUP false positive caused by tool description containing "adult" in "non-adults" context
+- HTTP-only assessments cannot scan source code, making DEV requirements inapplicable
+- DVMCP provides complementary resource-based vulnerability testing
+
+---

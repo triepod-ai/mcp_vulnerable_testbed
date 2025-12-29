@@ -13,6 +13,71 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **DO** analyze, document, or answer questions about security behavior
 - **DO NOT** use in production or expose to untrusted networks
 
+## Testing Options (3 Available Testbeds)
+
+### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
+- **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
+- **Tools**: 20 (12 vulnerable + 6 safe + 2 utility)
+- **Transport**: HTTP at `http://localhost:10900/mcp`
+- **Focus**: Detection validation with false positive control
+- **Detection Rate**: 66 vulnerabilities detected by Inspector
+
+```bash
+# Start
+docker-compose up -d vulnerable-testbed
+
+# Config
+echo '{"transport": "http", "url": "http://localhost:10900/mcp"}' > /tmp/broken-mcp-config.json
+
+# Test
+cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp-config.json
+```
+
+### Option 2: Our Hardened Testbed (port 10901)
+- **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
+- **Tools**: Same 20 tools with all vulnerabilities mitigated
+- **Transport**: HTTP at `http://localhost:10901/mcp`
+- **Focus**: Verify fixes work, baseline comparison
+- **Detection Rate**: 0 vulnerabilities (all mitigated)
+
+```bash
+# Start
+docker-compose up -d hardened-testbed
+
+# Config
+echo '{"transport": "http", "url": "http://localhost:10901/mcp"}' > /tmp/hardened-mcp-config.json
+
+# Test
+cd ~/inspector && npm run assess -- --server hardened-mcp --config /tmp/hardened-mcp-config.json
+```
+
+### Option 3: DVMCP - Damn Vulnerable MCP Server (ports 9001-9010)
+- **Location**: `~/mcp-servers/damn-vulnerable-mcp-server/`
+- **Tools**: 10 progressive challenges, each on separate port
+- **Transport**: SSE at `http://localhost:900X/sse`
+- **Focus**: Educational, independent vulnerability implementations
+- **Note**: Vulnerabilities are resource-based, not tool-execution based
+
+```bash
+# Start
+cd ~/mcp-servers/damn-vulnerable-mcp-server
+docker build -t dvmcp . && docker run -d --name dvmcp -p 9001-9010:9001-9010 dvmcp
+
+# Config (Challenge 1)
+echo '{"transport": "sse", "url": "http://localhost:9001/sse"}' > /tmp/dvmcp-c1.json
+
+# Test
+cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.json
+```
+
+### Comparison Summary
+
+| Testbed | Ports | Tools | Vulnerabilities | Transport |
+|---------|-------|-------|-----------------|-----------|
+| **Vulnerable** | 10900 | 20 | 66 detected | HTTP |
+| **Hardened** | 10901 | 20 | 0 (mitigated) | HTTP |
+| **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
+
 ## Architecture
 
 This is a FastMCP-based server implementing 17 tools in three categories:

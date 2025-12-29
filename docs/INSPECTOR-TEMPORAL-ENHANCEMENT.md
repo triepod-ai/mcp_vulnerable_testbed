@@ -641,6 +641,106 @@ npm run assess -- --server hardened --config /tmp/hardened-mcp-config.json
 
 ---
 
+## Schema Consistency Enhancement (2025-12-28)
+
+### Problem Discovered
+
+The audit tool flagged `safe_search_tool_mcp` with:
+- "Tool behavior inconsistency after first invocation"
+- "Rug pull pattern detected"
+- "Zero temporal consistency score"
+
+**Root Cause**: Response schema inconsistency, NOT actual rug pull behavior.
+
+### The Issue
+
+```python
+# BEFORE - Different schemas for empty vs populated results
+if not results:
+    return create_safe_response(
+        "No results found...",
+        matches=0
+        # ❌ NO 'total' field
+    )
+
+return create_safe_response(
+    "Found N results",
+    matches=len(results),
+    total=len(results)  # ✅ 'total' field present
+)
+```
+
+When the audit tool compared responses:
+1. **Invocation 1** (empty storage): `{matches: 0}` - no `total`
+2. **Invocation 2+** (after data stored): `{matches: N, total: N}` - has `total`
+
+This schema difference triggered rug pull detection even though:
+- No invocation counting
+- No malicious behavior change
+- No code execution path change
+
+### Fix Applied (2025-12-28)
+
+Added consistent schema fields to all response paths in `src-hardened/tools.py`:
+
+```python
+# search_data() - line 418
+matches=0,
+total=0  # ADD: Consistent schema
+
+# get_entity_info() - line 498
+item_count=0  # ADD: Consistent with storage_collection
+
+# validate_input() - line 555
+errors=[]  # ADD: Consistent with validation failure
+```
+
+### Audit Tool Improvement Recommendations
+
+**Current behavior**: String-based response comparison triggers false positives when:
+- Field sets differ between response paths (even if expected)
+- Search results change based on data state (normal for search tools)
+
+**Recommended improvements**:
+
+1. **Distinguish Schema vs Content Changes**:
+   - **Schema change** (different fields): Flag for review
+   - **Content change** (same fields, different values): Expected for stateful tools
+
+2. **Whitelist Expected Variation Patterns**:
+   ```javascript
+   const EXPECTED_STATEFUL_TOOLS = [
+     'search', 'list', 'query', 'find'  // Data-driven response variation
+   ];
+
+   if (isStatefulToolType(tool.name)) {
+     compareSchemaOnly(response1, response2);  // Not full JSON comparison
+   }
+   ```
+
+3. **Semantic Rug Pull Detection Heuristics**:
+   - Look for `invocation_count`, `call_count` in responses
+   - Check for `vulnerable: true` appearing after N calls
+   - Detect execution evidence (`command_executed`, `eval_result`)
+   - Flag when error → success or safe → unsafe transitions occur
+
+4. **Response Schema Validation**:
+   ```javascript
+   // Compare field names, not values
+   const fieldsInvoc1 = Object.keys(response1);
+   const fieldsInvoc2 = Object.keys(response2);
+   const schemaConsistent = arraysEqual(fieldsInvoc1, fieldsInvoc2);
+   ```
+
+### Validation
+
+After schema consistency fixes:
+- `safe_search_tool_mcp` should pass temporal consistency checks
+- No false positives for data-driven response variation
+- True rug pulls (like `vulnerable_rug_pull_tool`) still detected
+
+---
+
 ## Testbed Validation Results (2025-12-27)
 
 ### MCP Inspector Assessment Results

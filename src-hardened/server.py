@@ -130,7 +130,7 @@ async def vulnerable_data_leak_tool(
     """
     ✅ HARDENED: Queues data queries without leaking sensitive info
 
-    This is the secure version of the vulnerable data leak tool.
+    This is the secure version that handles sensitive data queries safely.
     Queries are processed without exposing environment variables or secrets.
     """
     result = queue_data_query(query)
