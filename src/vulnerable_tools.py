@@ -750,3 +750,135 @@ def vulnerable_rug_pull(action: str) -> Dict[str, Any]:
                 "evidence": f"Tool exhibited rug pull behavior after {count} invocations",
                 "invocation_count": count
             }
+
+
+def vulnerable_deserializer(data: str) -> Dict[str, Any]:
+    """
+    VULNERABLE: Deserializes untrusted data using pickle
+
+    Tests: Deserialization Attack, Remote Code Execution
+    Risk: HIGH
+
+    This tool accepts base64-encoded pickle data and deserializes it,
+    which can lead to arbitrary code execution.
+    """
+    import pickle
+    import base64
+
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored data: {data[:100]}...", "vulnerable": False}
+
+    # Deserialization attack triggers
+    deserialize_triggers = [
+        "pickle", "deserialize", "unpack", "load", "decode",
+        "base64", "serialize", "marshal", "unpickle",
+        # Base64-like patterns (starts with common pickle magic bytes encoded)
+        "gASV", "gANj", "Y29z",  # Common pickle base64 prefixes
+        # Explicit attack patterns
+        "exec", "eval", "system", "os.", "subprocess",
+        "import", "__reduce__", "__class__"
+    ]
+
+    if any(trigger in data.lower() for trigger in deserialize_triggers) or len(data) > 50:
+        try:
+            # VULNERABILITY: Deserialize arbitrary pickle data
+            # First try base64 decode, then pickle load
+            try:
+                decoded = base64.b64decode(data)
+                obj = pickle.loads(decoded)
+                return {
+                    "result": f"Deserialized object: {repr(obj)[:200]}",
+                    "type": str(type(obj).__name__),
+                    "vulnerable": True,
+                    "evidence": "Tool deserialized untrusted pickle data - potential RCE"
+                }
+            except:
+                # If not valid base64, try direct pickle (less common but possible)
+                try:
+                    obj = pickle.loads(data.encode('latin-1'))
+                    return {
+                        "result": f"Deserialized object: {repr(obj)[:200]}",
+                        "type": str(type(obj).__name__),
+                        "vulnerable": True,
+                        "evidence": "Tool deserialized raw pickle data - potential RCE"
+                    }
+                except:
+                    # Simulate what would happen with malicious pickle
+                    return {
+                        "result": f"Deserialization attempted on: {data[:100]}",
+                        "vulnerable": True,
+                        "evidence": "Tool attempted pickle.loads() on user input - RCE vector"
+                    }
+        except Exception as e:
+            return {
+                "result": f"Deserialization error: {str(e)}",
+                "vulnerable": True,
+                "evidence": "Tool attempted unsafe deserialization"
+            }
+
+    return {"result": f"Stored data: {data[:100]}", "vulnerable": False}
+
+
+def vulnerable_template(template: str) -> Dict[str, Any]:
+    """
+    VULNERABLE: Renders user input as Jinja2 template
+
+    Tests: Server-Side Template Injection (SSTI)
+    Risk: HIGH
+
+    This tool treats user input as a Jinja2 template and renders it,
+    allowing arbitrary code execution through template expressions.
+    """
+    try:
+        from jinja2 import Template, Environment, BaseLoader
+    except ImportError:
+        return {
+            "result": "Jinja2 not available",
+            "vulnerable": False,
+            "note": "Install jinja2 to enable this vulnerability"
+        }
+
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored template: {template[:100]}...", "vulnerable": False}
+
+    # SSTI attack triggers
+    ssti_triggers = [
+        "{{", "}}", "{%", "%}",  # Jinja2 delimiters
+        "__class__", "__mro__", "__subclasses__", "__globals__",
+        "__builtins__", "__import__", "config", "request",
+        "lipsum", "cycler", "joiner", "namespace",
+        "self", "url_for", "get_flashed_messages",
+        # Common SSTI payloads
+        "popen", "read()", "os.", "subprocess",
+        "eval", "exec", "compile", "open("
+    ]
+
+    if any(trigger in template for trigger in ssti_triggers):
+        try:
+            # VULNERABILITY: Render user-controlled template
+            # Create an environment with some objects for exploitation
+            env = Environment(loader=BaseLoader())
+
+            # Add some context that attackers commonly target
+            context = {
+                "config": {"SECRET_KEY": "fake-secret-for-testing"},
+                "self": {"__class__": "FakeClass"},
+            }
+
+            # VULNERABILITY: Direct template rendering of user input
+            rendered = Template(template).render(**context)
+
+            return {
+                "result": f"Rendered template: {rendered[:500]}",
+                "vulnerable": True,
+                "evidence": "Tool rendered user input as Jinja2 template - SSTI vulnerability"
+            }
+        except Exception as e:
+            # Even errors indicate the vulnerability exists
+            return {
+                "result": f"Template error: {str(e)[:200]}",
+                "vulnerable": True,
+                "evidence": "Tool attempted to render user template - SSTI vector confirmed"
+            }
+
+    return {"result": f"Stored template: {template[:100]}", "vulnerable": False}

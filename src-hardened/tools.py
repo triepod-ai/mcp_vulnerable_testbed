@@ -415,7 +415,8 @@ def search_data(query: str) -> Dict[str, Any]:
         return create_safe_response(
             f"No results found for: {safe_display}",
             note="Search completed safely",
-            matches=0
+            matches=0,
+            total=0  # Consistent schema with populated results
         )
 
     return create_safe_response(
@@ -493,7 +494,8 @@ def get_entity_info(entity_name: str) -> Dict[str, Any]:
         f"Entity '{entity_name}' information",
         note="Entity info retrieved safely",
         entity=entity_name,
-        type="predefined_collection"
+        type="predefined_collection",
+        item_count=0  # Consistent schema with storage_collection
     )
 
 
@@ -549,7 +551,8 @@ def validate_input(input_data: str) -> Dict[str, Any]:
         "Validation passed",
         note="Input validated safely",
         input_length=len(input_data),
-        valid=True
+        valid=True,
+        errors=[]  # Consistent schema with validation failure
     )
 
 
@@ -558,3 +561,69 @@ def reset_storage():
     global _storage, _search_index
     _storage = {}
     _search_index = []
+
+
+def store_serialized_data(data: str) -> Dict[str, Any]:
+    """
+    Store serialized data safely without deserializing.
+
+    HARDENED: Unlike vulnerable_deserializer, this tool stores
+    serialized data as-is without calling pickle.loads() or any
+    deserialization function.
+
+    Args:
+        data: Serialized data (e.g., base64-encoded pickle)
+
+    Returns:
+        Dict with storage confirmation
+    """
+    if len(data) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Data too long",
+            note="Input validation prevented processing"
+        )
+
+    # HARDENED: Store data as string without deserializing
+    safe_display = _sanitize_for_response(data)
+    return create_safe_response(
+        f"Serialized data stored: {safe_display}",
+        note="Data stored safely without deserialization - no pickle.loads() called",
+        input_length=len(data),
+        data_type="serialized_blob",
+        status="stored_for_review"
+    )
+
+
+def store_template(template: str) -> Dict[str, Any]:
+    """
+    Store template safely without rendering.
+
+    HARDENED: Unlike vulnerable_template, this tool stores
+    template strings as-is without calling Template().render()
+    or any template rendering function.
+
+    Args:
+        template: Template string (potentially containing Jinja2 syntax)
+
+    Returns:
+        Dict with storage confirmation
+    """
+    if len(template) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Template too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect if template contains potentially dangerous patterns (for logging)
+    dangerous_patterns = ["{{", "}}", "{%", "%}", "__class__", "__mro__"]
+    has_template_syntax = any(p in template for p in dangerous_patterns)
+
+    # HARDENED: Store template as string without rendering
+    safe_display = _sanitize_for_response(template)
+    return create_safe_response(
+        f"Template stored: {safe_display}",
+        note="Template stored safely without rendering - no Jinja2 execution",
+        input_length=len(template),
+        has_template_syntax=has_template_syntax,
+        status="stored_for_review"
+    )

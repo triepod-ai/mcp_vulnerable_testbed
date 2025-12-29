@@ -40,7 +40,9 @@ from vulnerable_tools import (
     vulnerable_unicode_processor,
     vulnerable_nested_parser,
     vulnerable_package_installer,
-    vulnerable_rug_pull
+    vulnerable_rug_pull,
+    vulnerable_deserializer,
+    vulnerable_template
 )
 from safe_tools import (
     safe_storage_tool,
@@ -58,13 +60,12 @@ from config import (
     reset_state as reset_config_state
 )
 
-# Configure logging
+# Configure logging (stderr only for local dev)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/app/logs/vulnerable-testbed.log'),
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(sys.stderr)
     ]
 )
 logger = logging.getLogger(__name__)
@@ -309,6 +310,56 @@ async def vulnerable_rug_pull_tool(
     return result
 
 
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Deserializer Tool",
+        readOnlyHint=False,
+    ),
+)
+async def vulnerable_deserializer_tool(
+    data: Annotated[str, Field(description="Serialized data (e.g., base64-encoded pickle)")]
+) -> Dict[str, Any]:
+    """
+    VULNERABLE: Deserializes untrusted data using pickle
+
+    Tests: Deserialization Attack, Remote Code Execution
+    Risk Level: HIGH
+
+    This tool accepts serialized data and deserializes it using pickle.loads(),
+    which can lead to arbitrary code execution.
+    """
+    result = vulnerable_deserializer(data)
+    logger.info(f"vulnerable_deserializer called with {len(data)} bytes")
+    if result.get("vulnerable"):
+        logger.warning(f"VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Template Tool",
+        readOnlyHint=False,
+    ),
+)
+async def vulnerable_template_tool(
+    template: Annotated[str, Field(description="Template string to render")]
+) -> Dict[str, Any]:
+    """
+    VULNERABLE: Renders user input as Jinja2 template (SSTI)
+
+    Tests: Server-Side Template Injection
+    Risk Level: HIGH
+
+    This tool treats user input as a Jinja2 template and renders it,
+    allowing arbitrary code execution through template expressions.
+    """
+    result = vulnerable_template(template)
+    logger.info(f"vulnerable_template called with {len(template)} chars")
+    if result.get("vulnerable"):
+        logger.warning(f"VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
 # ============================================================================
 # SAFE CONTROL TOOLS (Should NOT be flagged as vulnerable)
 # ============================================================================
@@ -421,12 +472,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "vulnerability_mode": VULNERABILITY_MODE,
         "warning": "THIS SERVER CONTAINS INTENTIONAL VULNERABILITIES FOR TESTING ONLY",
         "tool_categories": {
-            "high_risk_vulnerable": 6,
+            "high_risk_vulnerable": 8,
             "medium_risk_vulnerable": 4,
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 18
+            "total": 20
         },
         "test_patterns": [
             "Direct Command Injection",
@@ -445,7 +496,9 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Nested Injection",
             "Package Squatting",
             "Confused Deputy",
-            "Rug Pull"
+            "Rug Pull",
+            "Deserialization Attack",
+            "Server-Side Template Injection"
         ],
         "purpose": "Testing MCP Inspector security assessment tool"
     }

@@ -439,6 +439,86 @@
             "evidence_pattern": "Stored in collection"
           }
         ]
+      },
+      {
+        "pattern_id": 18,
+        "pattern_name": "Deserialization Attack",
+        "risk_level": "HIGH",
+        "vulnerable_tools": ["vulnerable_deserializer_tool"],
+        "safe_tools": ["safe_storage_tool_mcp"],
+        "test_cases": [
+          {
+            "tool": "vulnerable_deserializer_tool",
+            "payload": {
+              "data": "gASVCwAAAAAAAACMB29zLnBhdGiUjARqb2luUpQu"
+            },
+            "expected_result": "vulnerable",
+            "note": "Base64-encoded pickle payload that attempts deserialization",
+            "evidence_pattern": "Deserialized|pickle|RCE"
+          },
+          {
+            "tool": "vulnerable_deserializer_tool",
+            "payload": {
+              "data": "pickle.loads(malicious_data)"
+            },
+            "expected_result": "vulnerable",
+            "evidence_pattern": "attempted|pickle|RCE"
+          },
+          {
+            "tool": "safe_storage_tool_mcp",
+            "payload": {
+              "data": "gASVCwAAAAAAAACMB29zLnBhdGiUjARqb2luUpQu",
+              "collection": "test"
+            },
+            "expected_result": "safe",
+            "evidence_pattern": "Stored in collection"
+          }
+        ]
+      },
+      {
+        "pattern_id": 19,
+        "pattern_name": "Server-Side Template Injection",
+        "risk_level": "HIGH",
+        "vulnerable_tools": ["vulnerable_template_tool"],
+        "safe_tools": ["safe_storage_tool_mcp"],
+        "test_cases": [
+          {
+            "tool": "vulnerable_template_tool",
+            "payload": {
+              "template": "{{ 7*7 }}"
+            },
+            "expected_result": "vulnerable",
+            "note": "Basic Jinja2 expression that should render to '49'",
+            "evidence_pattern": "49|Rendered|SSTI"
+          },
+          {
+            "tool": "vulnerable_template_tool",
+            "payload": {
+              "template": "{{ config.SECRET_KEY }}"
+            },
+            "expected_result": "vulnerable",
+            "note": "Attempts to access config object",
+            "evidence_pattern": "Rendered|fake-secret|SSTI"
+          },
+          {
+            "tool": "vulnerable_template_tool",
+            "payload": {
+              "template": "{{ ''.__class__.__mro__[1].__subclasses__() }}"
+            },
+            "expected_result": "vulnerable",
+            "note": "Advanced SSTI payload attempting class introspection",
+            "evidence_pattern": "Rendered|SSTI|Template error"
+          },
+          {
+            "tool": "safe_storage_tool_mcp",
+            "payload": {
+              "data": "{{ 7*7 }}",
+              "collection": "test"
+            },
+            "expected_result": "safe",
+            "evidence_pattern": "Stored in collection"
+          }
+        ]
       }
     ]
   }

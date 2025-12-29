@@ -34,7 +34,9 @@ from tools import (
     get_entity_info,
     echo_message,
     validate_input,
-    reset_storage
+    reset_storage,
+    store_serialized_data,
+    store_template
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -280,6 +282,46 @@ async def vulnerable_rug_pull_tool(
     return result
 
 
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Deserializer Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_deserializer_tool(
+    data: Annotated[str, Field(description="Serialized data (e.g., base64-encoded pickle)")]
+) -> Dict[str, Any]:
+    """
+    HARDENED: Stores serialized data without deserializing
+
+    This is the secure version of the vulnerable deserializer tool.
+    Data is stored safely without calling pickle.loads().
+    """
+    result = store_serialized_data(data)
+    logger.info(f"vulnerable_deserializer_tool (hardened) called with {len(data)} bytes")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Template Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_template_tool(
+    template: Annotated[str, Field(description="Template string to render")]
+) -> Dict[str, Any]:
+    """
+    HARDENED: Stores template without rendering
+
+    This is the secure version of the vulnerable template tool.
+    Templates are stored safely without calling Jinja2's render().
+    """
+    result = store_template(template)
+    logger.info(f"vulnerable_template_tool (hardened) called with {len(template)} chars")
+    return result
+
+
 # ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
@@ -452,12 +494,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 6,
+            "high_risk_hardened": 8,
             "medium_risk_hardened": 4,
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 18
+            "total": 20
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -468,7 +510,9 @@ async def get_testbed_info() -> Dict[str, Any]:
             "No unicode command decoding",
             "No nested instruction execution",
             "Package allowlist validation",
-            "Consistent behavior (no rug pull)"
+            "Consistent behavior (no rug pull)",
+            "No pickle deserialization",
+            "No template rendering (SSTI protection)"
         ],
         "purpose": "A/B comparison testing with vulnerable server"
     }

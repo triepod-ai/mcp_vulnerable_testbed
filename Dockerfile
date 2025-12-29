@@ -21,7 +21,8 @@ RUN pip install --no-cache-dir \
     pydantic>=2.10.0 \
     httpx>=0.27.0 \
     uvicorn>=0.30.0 \
-    requests>=2.31.0
+    requests>=2.31.0 \
+    jinja2>=3.1.0
 
 # Create logs directory
 RUN mkdir -p /app/logs
