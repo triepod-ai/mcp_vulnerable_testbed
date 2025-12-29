@@ -7,6 +7,7 @@ Tool names match the vulnerable server for A/B comparison testing.
 All tools store/reflect data safely without executing malicious payloads.
 """
 
+import os
 import sys
 import logging
 from typing import Any, Dict
@@ -42,14 +43,21 @@ from config import (
     reset_state as reset_config_state
 )
 
-# Configure logging
+# Configure logging with fallback for non-Docker environments
+log_dir = os.getenv("LOG_DIR", "/app/logs")
+log_handlers = [logging.StreamHandler(sys.stdout)]
+
+# Try to add file handler if log directory exists or can be created
+try:
+    os.makedirs(log_dir, exist_ok=True)
+    log_handlers.append(logging.FileHandler(f"{log_dir}/hardened-testbed.log"))
+except (OSError, PermissionError):
+    pass  # Fall back to stdout only when running locally
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/app/logs/hardened-testbed.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=log_handlers
 )
 logger = logging.getLogger(__name__)
 

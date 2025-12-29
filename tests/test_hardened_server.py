@@ -7,103 +7,10 @@ All vulnerable tools should return safe=True or vulnerable=False.
 
 import pytest
 import json
-import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
-
-HARDENED_SERVER_URL = "http://localhost:10901/mcp"
-
-
-class MCPClient:
-    """Simple MCP client for testing."""
-
-    def __init__(self, url: str):
-        self.url = url
-        self.session_id: Optional[str] = None
-
-    def connect(self) -> bool:
-        """Initialize connection and get session ID."""
-        try:
-            response = requests.post(
-                self.url,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json, text/event-stream"
-                },
-                json={
-                    "jsonrpc": "2.0",
-                    "method": "initialize",
-                    "params": {
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {},
-                        "clientInfo": {"name": "pytest", "version": "1.0"}
-                    },
-                    "id": 1
-                },
-                timeout=10
-            )
-            self.session_id = response.headers.get("mcp-session-id")
-
-            if self.session_id:
-                requests.post(
-                    self.url,
-                    headers={
-                        "Content-Type": "application/json",
-                        "Accept": "application/json, text/event-stream",
-                        "mcp-session-id": self.session_id
-                    },
-                    json={
-                        "jsonrpc": "2.0",
-                        "method": "notifications/initialized"
-                    },
-                    timeout=5
-                )
-            return self.session_id is not None
-        except Exception as e:
-            print(f"Connection failed: {e}")
-            return False
-
-    def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Call an MCP tool and return the result."""
-        if not self.session_id:
-            raise RuntimeError("Not connected. Call connect() first.")
-
-        response = requests.post(
-            self.url,
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream",
-                "mcp-session-id": self.session_id
-            },
-            json={
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/call",
-                "params": {
-                    "name": tool_name,
-                    "arguments": arguments
-                }
-            },
-            timeout=30
-        )
-
-        for line in response.text.split("\n"):
-            if line.startswith("data: "):
-                data = json.loads(line[6:])
-                result = data.get("result", {})
-                if "structuredContent" in result:
-                    return result["structuredContent"].get("result", {})
-                return result.get("result", result)
-
-        return {}
-
-    def reset_state(self) -> bool:
-        """Reset testbed state for clean tests."""
-        try:
-            result = self.call_tool("reset_testbed_state", {})
-            return "reset successfully" in result.get("result", "").lower()
-        except Exception:
-            return False
+# Import shared MCP client
+from mcp_test_client import MCPClient, HARDENED_SERVER_URL
 
 
 @pytest.fixture(scope="module")
