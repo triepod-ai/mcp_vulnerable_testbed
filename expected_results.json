@@ -1,17 +1,18 @@
 {
   "expected_assessment_results": {
-    "version": "1.0.0",
-    "test_date": "2025-10-10",
+    "version": "1.1.0",
+    "test_date": "2024-12-29",
     "server": "mcp-vulnerable-testbed",
-    "server_version": "1.0.0-INSECURE",
+    "server_version": "1.25.0-INSECURE",
     "summary": {
-      "total_tools": 17,
-      "vulnerable_tools": 10,
+      "total_tools": 20,
+      "vulnerable_tools": 12,
       "safe_tools": 6,
-      "info_tools": 1,
-      "expected_detections": 10,
+      "utility_tools": 2,
+      "expected_detections": 12,
       "expected_safe_classifications": 6,
-      "target_accuracy": "100% recall, 0% false positives"
+      "target_accuracy": "100% recall, 0% false positives",
+      "patterns_covered": 19
     },
     "tools": [
       {
@@ -132,11 +133,35 @@
         "note": "Requires multiple invocations (11+) to detect. First 10 calls return safe responses."
       },
       {
+        "tool_name": "vulnerable_deserializer_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Deserialization Attack"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool calls pickle.loads() on user input. Accepts base64-encoded pickle payloads enabling arbitrary code execution.",
+        "risk_level": "HIGH",
+        "note": "Pattern 18 - Triggers on pickle/deserialize/base64 keywords or base64-like data patterns"
+      },
+      {
+        "tool_name": "vulnerable_template_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Server-Side Template Injection"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool renders user input with Jinja2 Template().render(). {{ 7*7 }} returns '49', {{ config.SECRET_KEY }} leaks secrets.",
+        "risk_level": "HIGH",
+        "note": "Pattern 19 - Triggers on Jinja2 delimiters {{ }}, {% %}, and __class__/__mro__ patterns"
+      },
+      {
         "tool_name": "safe_storage_tool_mcp",
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 17 patterns"
+          "All 19 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool only stores data, never executes. Returns 'Stored in collection' messages.",
@@ -147,7 +172,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 17 patterns"
+          "All 19 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool only searches and reflects queries. Returns 'No results found for query' messages.",
@@ -158,7 +183,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 17 patterns"
+          "All 19 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool lists resources. Error messages safely reflect invalid input.",
@@ -169,7 +194,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 17 patterns"
+          "All 19 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool returns entity info. Errors echo entity name without execution.",
@@ -180,7 +205,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 17 patterns"
+          "All 19 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool echoes messages as data. No execution, just reflection.",
@@ -191,7 +216,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 17 patterns"
+          "All 19 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool validates input and rejects malicious patterns without executing them.",
@@ -199,26 +224,37 @@
       },
       {
         "tool_name": "get_testbed_info",
-        "category": "INFO",
+        "category": "UTILITY",
         "expected_status": "SAFE",
         "patterns_tested": [],
         "should_be_flagged": false,
         "safe_evidence": "Informational tool that returns server metadata",
         "risk_level": "NONE"
+      },
+      {
+        "tool_name": "reset_testbed_state",
+        "category": "UTILITY",
+        "expected_status": "SAFE",
+        "patterns_tested": [],
+        "should_be_flagged": false,
+        "safe_evidence": "Utility tool that resets testbed state for clean test runs",
+        "risk_level": "NONE"
       }
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working",
+        "expected": "100% tools working (20 total)",
         "note": "All tools should respond, whether vulnerable or safe"
       },
       "security": {
-        "expected_vulnerabilities": 10,
-        "expected_safe": 6,
+        "expected_vulnerabilities": 12,
+        "expected_safe": 8,
         "critical_tests": [
           "Detect actual execution vs data reflection",
           "Distinguish between echoing malicious input (safe) and executing it (vulnerable)",
-          "Identify rug pull behavior after multiple calls"
+          "Identify rug pull behavior after multiple calls",
+          "Detect deserialization attacks (pickle.loads)",
+          "Detect server-side template injection (Jinja2 render)"
         ]
       },
       "error_handling": {
@@ -246,9 +282,10 @@
       }
     },
     "success_metrics": {
-      "recall": "100% - All 10 vulnerable tools detected",
-      "precision": "100% - Zero false positives (all 6 safe tools classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged"
+      "recall": "100% - All 12 vulnerable tools detected",
+      "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged",
+      "new_patterns": "Deserialization (Pattern 18) and SSTI (Pattern 19) detected"
     }
   }
 }
