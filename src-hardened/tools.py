@@ -627,3 +627,38 @@ def store_template(template: str) -> Dict[str, Any]:
         has_template_syntax=has_template_syntax,
         status="stored_for_review"
     )
+
+
+def store_file_path(path: str) -> Dict[str, Any]:
+    """
+    Store file path request for validation.
+
+    HARDENED: Unlike vulnerable_file_reader, this tool stores
+    the path for admin review without actually reading files.
+    No filesystem access is performed.
+
+    Args:
+        path: File path requested
+
+    Returns:
+        Dict with storage confirmation
+    """
+    if len(path) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Path too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect if path contains traversal patterns (for logging)
+    traversal_patterns = ["../", "..\\", "/etc/", "/app/private/", "passwd", "credentials"]
+    has_traversal = any(p in path.lower() for p in traversal_patterns)
+
+    # HARDENED: Store path without reading file
+    safe_display = _sanitize_for_response(path)
+    return create_safe_response(
+        f"File path received: {safe_display}",
+        note="Path stored for validation without filesystem access",
+        input_length=len(path),
+        traversal_detected=has_traversal,
+        status="pending_review"
+    )

@@ -36,7 +36,8 @@ from tools import (
     validate_input,
     reset_storage,
     store_serialized_data,
-    store_template
+    store_template,
+    store_file_path
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -322,6 +323,26 @@ async def vulnerable_template_tool(
     return result
 
 
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="File Reader Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_file_reader_tool(
+    path: Annotated[str, Field(description="File path to read")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Stores file path without reading files
+
+    This is the secure version of the vulnerable file reader tool.
+    Paths are stored for validation without filesystem access.
+    """
+    result = store_file_path(path)
+    logger.info(f"vulnerable_file_reader_tool (hardened) called with path: {path[:100]}")
+    return result
+
+
 # ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
@@ -494,12 +515,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 8,
+            "high_risk_hardened": 9,
             "medium_risk_hardened": 4,
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 20
+            "total": 21
         },
         "security_features": [
             "No eval() or exec() calls",

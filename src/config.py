@@ -66,3 +66,34 @@ def reset_state():
         "verbose": False,
         "admin_mode": False
     }
+
+
+# Sensitive file fixtures for path traversal testing
+# These provide realistic evidence patterns that Inspector can detect
+SENSITIVE_FILES = {
+    "/etc/passwd": "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin",
+    "/app/private/credentials.txt": """PRODUCTION CREDENTIALS
+----------------------
+Database:
+  Host: db.internal.acmecorp.com
+  Username: db_admin
+  Password: Pr0d-DB-S3cur3!P@ssw0rd
+
+AWS:
+  Access Key ID: AKIAIOSFODNN7EXAMPLE
+  Secret Access Key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  Region: us-west-2
+
+API Gateway:
+  Key: apg-prod-8a7b6c5d4e3f2g1h
+  Secret: 9i8u7y6t5r4e3w2q1z0x9c8v7b6n5m4k
+""",
+    "/app/private/salaries.csv": """employee_id,name,salary,department
+001,John Smith,$150000/year,Engineering
+002,Jane Doe,$175000/year,Engineering
+003,Bob Wilson,$95000/year,Sales
+CEO,Executive,$500000/year,Executive
+""",
+    "../../../etc/passwd": "root:x:0:0:root:/root:/bin/bash\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin",
+    "....//....//etc/passwd": "root:x:0:0:root:/root:/bin/bash\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin",
+}

@@ -42,7 +42,8 @@ from vulnerable_tools import (
     vulnerable_package_installer,
     vulnerable_rug_pull,
     vulnerable_deserializer,
-    vulnerable_template
+    vulnerable_template,
+    vulnerable_file_reader
 )
 from safe_tools import (
     safe_storage_tool,
@@ -355,6 +356,27 @@ async def vulnerable_template_tool(
     """
     result = vulnerable_template(template)
     logger.info(f"vulnerable_template called with {len(template)} chars")
+    if result.get("vulnerable"):
+        logger.warning(f"VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+@mcp.tool()
+async def vulnerable_file_reader_tool(
+    path: Annotated[str, Field(description="File path to read")]
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Reads files without path validation
+
+    Tests: Path Traversal, Local File Inclusion
+    Risk Level: HIGH
+
+    This tool reads files from the filesystem without validating
+    the path, allowing attackers to read sensitive files like
+    /etc/passwd or credentials files.
+    """
+    result = vulnerable_file_reader(path)
+    logger.info(f"vulnerable_file_reader called with path: {path[:100]}")
     if result.get("vulnerable"):
         logger.warning(f"VULNERABILITY TRIGGERED: {result.get('evidence')}")
     return result

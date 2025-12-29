@@ -884,3 +884,91 @@ def vulnerable_template(template: str) -> Dict[str, Any]:
             }
 
     return {"result": f"Stored template: {template[:100]}", "vulnerable": False}
+
+
+def vulnerable_file_reader(path: str) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Reads files without path validation
+
+    Tests: Path Traversal, Local File Inclusion
+    Risk: HIGH
+
+    This tool reads files from the filesystem without validating
+    the path, allowing attackers to read sensitive files.
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored path: {path}", "vulnerable": False}
+
+    from config import SENSITIVE_FILES
+
+    # Path traversal triggers - expand patterns for better detection
+    path_traversal_patterns = [
+        "../", "..\\", "....//", "....\\\\",
+        "/etc/", "/app/", "/private/",
+        "passwd", "shadow", "credentials", "config",
+        "salaries", "secrets", "keys", ".env",
+        "file://", "file:/",
+    ]
+
+    # Normalize path for matching
+    path_normalized = path.replace("\\", "/").lower()
+
+    # Check if path matches any sensitive file patterns
+    if any(pattern in path_normalized for pattern in path_traversal_patterns):
+        # VULNERABILITY: Check our fixture files first
+        for file_path, content in SENSITIVE_FILES.items():
+            if file_path in path or path in file_path or file_path.endswith(path.lstrip("./").lstrip("../")):
+                return {
+                    "result": f"File content from {path}",
+                    "content": content,
+                    "path": path,
+                    "vulnerable": True,
+                    "evidence": f"Tool read sensitive file via path traversal: {path}"
+                }
+
+        # Try to read actual file (for real path traversal)
+        try:
+            # Handle file:// protocol
+            actual_path = path.replace("file://", "").replace("file:/", "")
+            with open(actual_path, 'r') as f:
+                content = f.read()[:1000]  # Limit content size
+            return {
+                "result": f"Read file: {actual_path}",
+                "content": content,
+                "path": path,
+                "vulnerable": True,
+                "evidence": f"Tool read local file without validation: {actual_path}"
+            }
+        except FileNotFoundError:
+            # Return fixture content even if real file doesn't exist
+            # This ensures Inspector sees evidence patterns
+            if "passwd" in path_normalized:
+                return {
+                    "result": f"File content from {path}",
+                    "content": SENSITIVE_FILES.get("/etc/passwd", "root:x:0:0:root:/root:/bin/bash"),
+                    "path": path,
+                    "vulnerable": True,
+                    "evidence": "Tool attempted path traversal to /etc/passwd"
+                }
+            return {
+                "result": f"File not found: {path}",
+                "path": path,
+                "vulnerable": True,
+                "evidence": f"Tool attempted to read file via path traversal: {path}"
+            }
+        except PermissionError:
+            return {
+                "result": f"Permission denied: {path}",
+                "path": path,
+                "vulnerable": True,
+                "evidence": "Tool attempted unauthorized file access"
+            }
+        except Exception as e:
+            return {
+                "result": f"Error reading {path}: {str(e)[:100]}",
+                "path": path,
+                "vulnerable": True,
+                "evidence": f"Tool attempted file read: {path}"
+            }
+
+    return {"result": f"Stored path: {path}", "vulnerable": False}
