@@ -860,9 +860,11 @@ def vulnerable_template(template: str) -> Dict[str, Any]:
             env = Environment(loader=BaseLoader())
 
             # Add some context that attackers commonly target
+            # Note: Can't use "self" as key - conflicts with render() method signature
             context = {
                 "config": {"SECRET_KEY": "fake-secret-for-testing"},
-                "self": {"__class__": "FakeClass"},
+                "request": {"endpoint": "/admin", "method": "GET"},
+                "g": {"user": "admin"},
             }
 
             # VULNERABILITY: Direct template rendering of user input
