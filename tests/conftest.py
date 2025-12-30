@@ -42,6 +42,17 @@ def vulnerable_client():
     yield client
 
 
+@pytest.fixture
+def clean_vulnerable_client(vulnerable_client):
+    """Function-scoped fixture that resets state before each test.
+
+    Use for tests that depend on clean server state (e.g., rug pull).
+    Reuses the module-scoped connection but ensures fresh state.
+    """
+    vulnerable_client.reset_state()
+    return vulnerable_client
+
+
 @pytest.fixture(scope="module")
 def hardened_client():
     """Fixture for hardened server client.
