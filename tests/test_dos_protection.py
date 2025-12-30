@@ -14,17 +14,9 @@ Usage:
 """
 
 import pytest
-from mcp_test_client import MCPClient, VULNERABLE_SERVER_URL
 
 
-@pytest.fixture(scope="module")
-def vulnerable_client():
-    """Fixture for vulnerable server client."""
-    client = MCPClient(VULNERABLE_SERVER_URL)
-    if not client.connect():
-        pytest.skip("Vulnerable server not available")
-    client.reset_state()
-    yield client
+# Fixtures (vulnerable_client) provided by conftest.py
 
 
 class TestDoSProtectionSafeTools:

@@ -7,20 +7,9 @@ All vulnerable tools should return safe=True or vulnerable=False.
 
 import pytest
 import json
-from typing import Dict, Any
-
-# Import shared MCP client
-from mcp_test_client import MCPClient, HARDENED_SERVER_URL
 
 
-@pytest.fixture(scope="module")
-def hardened_client():
-    """Fixture for hardened server client."""
-    client = MCPClient(HARDENED_SERVER_URL)
-    if not client.connect():
-        pytest.skip("Hardened server not available")
-    client.reset_state()
-    yield client
+# Fixtures (hardened_client) provided by conftest.py
 
 
 class TestHardenedVulnerableTools:
