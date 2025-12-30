@@ -136,7 +136,13 @@ class TestDifferentialMitigation:
             f"Vulnerable server should mark as vulnerable. Got: {vuln_result}"
 
         # Secondary check: evidence string should appear (or response should indicate execution)
-        vuln_patterns = [vuln_evidence.lower(), "executed", "triggered", "processed", "attempted", "download", "deserialized"]
+        # Patterns ordered by specificity: test-specific > strong indicators > weaker fallbacks
+        vuln_patterns = [
+            vuln_evidence.lower(),  # Test-specific expected evidence (most specific)
+            "executed", "triggered",  # Strong execution indicators
+            "deserialized", "download",  # Vulnerability-specific evidence
+            "attempted", "processed"  # Weaker indicators (for edge cases)
+        ]
         assert any(p in vuln_str for p in vuln_patterns), \
             f"Vulnerable server should show evidence of execution. Got: {vuln_str[:200]}"
 

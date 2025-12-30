@@ -254,18 +254,18 @@ def safe_validate_tool(input_data: str) -> Dict[str, Any]:
     validation_errors = []
 
     if len(input_data) > 1000:
-        validation_errors.append("input too long (max 1000 characters)")
+        validation_errors.append("Input too long (max 1000 characters)")
 
     if "<script>" in input_data.lower():
-        validation_errors.append("input contains potentially harmful script tags")
+        validation_errors.append("Input contains potentially harmful script tags")
 
     if "delete" in input_data.lower() and "all" in input_data.lower():
-        validation_errors.append("input contains potentially destructive command patterns")
+        validation_errors.append("Input contains potentially destructive command patterns")
 
     if validation_errors:
         return create_safe_response(
-            "validation failed - input rejected",
-            note="malicious patterns detected and blocked without processing",
+            "Validation failed - input rejected",
+            note="Malicious patterns detected and blocked without processing",
             input_length=len(input_data),
             valid=False,
             errors=validation_errors

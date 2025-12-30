@@ -13,7 +13,12 @@ from config import increment_invocation
 from response_factory import create_safe_response
 
 # Input validation constants
-MAX_INPUT_LENGTH = 10000
+MAX_INPUT_LENGTH = 10000  # 10KB - DoS protection for general inputs
+MAX_QUERY_LENGTH = 1000  # 1KB - limit for search queries
+MAX_RESOURCE_TYPE_LENGTH = 256  # 256B - limit for resource type identifiers
+MAX_ENTITY_NAME_LENGTH = 512  # 512B - limit for entity names
+MAX_BUSINESS_INPUT_LENGTH = 1000  # 1KB - business validation limit
+
 SAFE_PATTERN = re.compile(r'^[a-zA-Z0-9\s\.\,\?\!\+\-\*\/\(\)]+$')
 
 
@@ -413,10 +418,10 @@ def search_data(query: str) -> Dict[str, Any]:
     Returns:
         Dict with search results and match count
     """
-    # Input validation - DoS protection (1KB limit for queries)
-    if len(query) > 1000:
+    # Input validation - DoS protection
+    if len(query) > MAX_QUERY_LENGTH:
         return create_safe_response(
-            "Input validation failed: Query exceeds maximum length of 1000 characters",
+            f"Input validation failed: Query exceeds maximum length of {MAX_QUERY_LENGTH} characters",
             error=True,
             note="Input size validation protects against DoS"
         )
@@ -459,10 +464,10 @@ def list_resources(resource_type: str = "collections") -> Dict[str, Any]:
     Returns:
         Dict with resource listing
     """
-    # Input validation - DoS protection (256B limit for resource type)
-    if len(resource_type) > 256:
+    # Input validation - DoS protection
+    if len(resource_type) > MAX_RESOURCE_TYPE_LENGTH:
         return create_safe_response(
-            "Input validation failed: Resource type exceeds maximum length of 256 characters",
+            f"Input validation failed: Resource type exceeds maximum length of {MAX_RESOURCE_TYPE_LENGTH} characters",
             error=True,
             note="Input size validation protects against DoS"
         )
@@ -501,10 +506,10 @@ def get_entity_info(entity_name: str) -> Dict[str, Any]:
     Returns:
         Dict with entity information
     """
-    # Input validation - DoS protection (512B limit for entity name)
-    if len(entity_name) > 512:
+    # Input validation - DoS protection
+    if len(entity_name) > MAX_ENTITY_NAME_LENGTH:
         return create_safe_response(
-            "Input validation failed: Entity name exceeds maximum length of 512 characters",
+            f"Input validation failed: Entity name exceeds maximum length of {MAX_ENTITY_NAME_LENGTH} characters",
             error=True,
             note="Input size validation protects against DoS"
         )
@@ -573,7 +578,9 @@ def validate_input(input_data: str) -> Dict[str, Any]:
     Returns:
         Dict with validation results
     """
-    # Input validation - DoS protection (10KB limit)
+    # Two-tier input validation:
+    # 1. DoS protection (10KB): Hard reject to prevent resource exhaustion
+    # 2. Business validation (1KB): Soft reject returned as validation error
     if len(input_data) > MAX_INPUT_LENGTH:
         return create_safe_response(
             f"Input validation failed: Input exceeds maximum length of {MAX_INPUT_LENGTH} characters",
@@ -583,8 +590,9 @@ def validate_input(input_data: str) -> Dict[str, Any]:
 
     validation_errors = []
 
-    if len(input_data) > 1000:
-        validation_errors.append("Input too long (max 1000 characters)")
+    # Business validation - stricter limit for application-level constraints
+    if len(input_data) > MAX_BUSINESS_INPUT_LENGTH:
+        validation_errors.append(f"Input too long (max {MAX_BUSINESS_INPUT_LENGTH} characters)")
 
     if "<script>" in input_data.lower():
         validation_errors.append("Input contains potentially harmful script tags")

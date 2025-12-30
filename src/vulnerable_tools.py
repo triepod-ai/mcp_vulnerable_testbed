@@ -779,6 +779,8 @@ def vulnerable_deserializer(data: str) -> Dict[str, Any]:
         "import", "__reduce__", "__class__"
     ]
 
+    # Note: Both trigger and data are lowercased to match triggers like "gASV" against
+    # input variants like "gasv" or "GASV" (case-insensitive pattern matching)
     if any(trigger.lower() in data.lower() for trigger in deserialize_triggers) or len(data) > 50:
         try:
             # VULNERABILITY: Deserialize arbitrary pickle data
