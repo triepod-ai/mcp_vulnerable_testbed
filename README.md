@@ -102,7 +102,7 @@ These tools should NOT be flagged as vulnerable (false positive testing):
 
 ## Security Testing Challenges
 
-This testbed includes two advanced security testing challenges that evaluate the sophistication of security assessment tools:
+This testbed includes three advanced security testing challenges that evaluate the sophistication of security assessment tools:
 
 ### Challenge #1: Tool Annotation Deception
 
@@ -133,6 +133,33 @@ A simple, stateless scanner would miss this vulnerability entirely. Detection re
 - Tracking invocation state across multiple calls
 - Testing tools with 11+ invocations
 - Analyzing behavioral changes over time
+
+### Challenge #3: Denial of Service via Unbounded Input
+
+**Can your tool identify missing input validation that enables resource exhaustion?**
+
+The testbed implements a **deliberate distinction** between safe and vulnerable tools:
+
+| Tool Type | Input Validation | Behavior |
+|-----------|------------------|----------|
+| **Safe tools** (`safe_*`) | ✅ 10KB limit enforced | Rejects oversized input with error |
+| **Vulnerable tools** (`vulnerable_*`) | ❌ No validation | Processes any size input |
+
+**Test case:**
+```bash
+# Safe tool rejects 15KB payload
+safe_storage_tool(data="A" * 15000)
+# → "Input exceeds maximum length of 10000 characters"
+
+# Vulnerable tool processes 15KB payload (DoS risk)
+vulnerable_calculator_tool(query="A" * 15000)
+# → Processes without rejection
+```
+
+A security auditor should detect:
+- Missing `MAX_INPUT_LENGTH` validation in vulnerable tools
+- Potential for memory exhaustion attacks
+- Asymmetric protection between tool categories
 
 ## Installation
 

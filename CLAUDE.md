@@ -104,7 +104,7 @@ This is a FastMCP-based server implementing 21 tools in four categories:
 
 ### Security Testing Challenges
 
-This testbed includes two advanced challenges for evaluating security auditor sophistication:
+This testbed includes three advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -113,6 +113,10 @@ This testbed includes two advanced challenges for evaluating security auditor so
 **Challenge #2: Temporal Rug Pull**
 - `vulnerable_rug_pull_tool` behaves safely for 10 calls, then executes subprocess
 - Tests stateful vulnerability detection (requires 11+ invocations)
+
+**Challenge #3: DoS via Unbounded Input**
+- Safe tools enforce 10KB input limit, vulnerable tools have no validation
+- Tests if auditors detect missing input validation enabling resource exhaustion
 
 ### Key Files
 
