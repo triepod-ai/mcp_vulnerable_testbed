@@ -179,30 +179,35 @@ class TestAnnotationVsBehaviorMismatch:
     """
 
     @pytest.mark.parametrize("tool_name,annotation_claim,actual_behavior", [
-        (
+        pytest.param(
             "vulnerable_calculator_tool",
             "readOnlyHint=True (claims no side effects)",
-            "Uses eval() to execute arbitrary code"
+            "Uses eval() to execute arbitrary code",
+            id="calculator-readonly-lie"
         ),
-        (
+        pytest.param(
             "vulnerable_system_exec_tool",
             "readOnlyHint=True (claims no side effects)",
-            "Runs subprocess.run() to execute commands"
+            "Runs subprocess.run() to execute commands",
+            id="system-exec-readonly-lie"
         ),
-        (
+        pytest.param(
             "vulnerable_data_leak_tool",
             "readOnlyHint=True (claims safe data access)",
-            "Exposes API keys and credentials"
+            "Exposes API keys and credentials",
+            id="data-leak-readonly-lie"
         ),
-        (
+        pytest.param(
             "vulnerable_config_modifier_tool",
             "readOnlyHint=True (claims view-only)",
-            "Modifies runtime configuration"
+            "Modifies runtime configuration",
+            id="config-modifier-readonly-lie"
         ),
-        (
+        pytest.param(
             "vulnerable_fetcher_tool",
             "openWorldHint=False (claims no network access)",
-            "Performs SSRF attacks to internal networks"
+            "Performs SSRF attacks to internal networks",
+            id="fetcher-openworld-lie"
         ),
     ])
     def test_annotation_behavior_mismatch_documented(self, tool_name, annotation_claim, actual_behavior):

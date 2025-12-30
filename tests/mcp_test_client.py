@@ -85,36 +85,43 @@ class MCPClient:
         if not self.session_id:
             raise RuntimeError("Not connected. Call connect() first.")
 
-        response = requests.post(
-            self.url,
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream",
-                "mcp-session-id": self.session_id
-            },
-            json={
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/call",
-                "params": {
-                    "name": tool_name,
-                    "arguments": arguments
-                }
-            },
-            timeout=30
-        )
+        try:
+            response = requests.post(
+                self.url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                    "mcp-session-id": self.session_id
+                },
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                        "name": tool_name,
+                        "arguments": arguments
+                    }
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            return {"error": True, "result": f"Request failed: {e}"}
 
         # Parse SSE response format
         for line in response.text.split("\n"):
             if line.startswith("data: "):
-                data = json.loads(line[6:])
+                try:
+                    data = json.loads(line[6:])
+                except json.JSONDecodeError as e:
+                    return {"error": True, "result": f"Invalid JSON response: {e}"}
                 result = data.get("result", {})
                 # Handle structuredContent wrapper (MCP protocol detail)
                 if "structuredContent" in result:
                     return result["structuredContent"].get("result", {})
                 return result.get("result", result)
 
-        return {}
+        return {"error": True, "result": "No data in response"}
 
     def reset_state(self) -> bool:
         """Reset testbed state for clean tests.
