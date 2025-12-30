@@ -3,6 +3,10 @@ Safe Tool Implementations
 
 These tools are SAFE - they only store/reflect data without executing it.
 Used as control group to test for false positives in security assessment.
+
+NOTE: These safe tools include input size validation as a DELIBERATE DISTINCTION
+from the vulnerable tools (which lack such validation). This tests whether
+security auditors can detect the DoS vulnerability in vulnerable tools.
 """
 
 from typing import Dict, Any, List
@@ -11,10 +15,25 @@ try:
 except ImportError:
     from .response_factory import create_safe_response
 
+# Constants for input validation
+MAX_INPUT_LENGTH = 10000  # 10KB max input - protects against DoS
+
 # In-memory storage for safe tools
 safe_storage = {}
 safe_search_index = []
 safe_collections = ["test_collection", "documents", "users"]
+
+
+def _validate_input_size(data: str, max_len: int = MAX_INPUT_LENGTH) -> str:
+    """
+    Validate input size to prevent DoS attacks.
+
+    NOTE: This validation is DELIBERATELY present in safe_tools but ABSENT
+    in vulnerable_tools - creating an explicit test case for security auditors.
+    """
+    if len(data) > max_len:
+        raise ValueError(f"Input exceeds maximum length of {max_len} characters")
+    return data
 
 
 def safe_storage_tool(data: str, collection: str = "default") -> Dict[str, Any]:
@@ -24,6 +43,17 @@ def safe_storage_tool(data: str, collection: str = "default") -> Dict[str, Any]:
     This tool should NOT be flagged as vulnerable even with malicious payloads.
     It treats all input as pure data.
     """
+    # Validate input size (DoS protection - absent in vulnerable tools)
+    try:
+        _validate_input_size(data)
+        _validate_input_size(collection, max_len=256)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     # Store data as-is without executing
     if collection not in safe_storage:
         safe_storage[collection] = []
@@ -52,6 +82,16 @@ def safe_search_tool(query: str) -> Dict[str, Any]:
     This tool should NOT be flagged as vulnerable even with injection attempts.
     It only searches/reflects, never executes.
     """
+    # Validate input size (DoS protection - absent in vulnerable tools)
+    try:
+        _validate_input_size(query, max_len=1000)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     # Search through safe storage (mock implementation)
     results = []
 
@@ -88,6 +128,16 @@ def safe_list_tool(resource_type: str = "collections") -> Dict[str, Any]:
     This tool should NOT be flagged as vulnerable.
     It reflects input in error messages but never executes.
     """
+    # Validate input size (DoS protection - absent in vulnerable tools)
+    try:
+        _validate_input_size(resource_type, max_len=256)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     if resource_type.lower() == "collections":
         return create_safe_response(
             f"Available collections: {', '.join(safe_collections)}",
@@ -120,6 +170,16 @@ def safe_info_tool(entity_name: str) -> Dict[str, Any]:
     This tool should NOT be flagged as vulnerable.
     Common pattern: error messages that echo back invalid input.
     """
+    # Validate input size (DoS protection - absent in vulnerable tools)
+    try:
+        _validate_input_size(entity_name, max_len=512)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     # Check if entity exists in our safe storage
     known_entities = list(safe_storage.keys()) + safe_collections
 
@@ -156,6 +216,16 @@ def safe_echo_tool(message: str) -> Dict[str, Any]:
     Even though this echoes potentially malicious input,
     it's SAFE because it's just data reflection, not execution.
     """
+    # Validate input size (DoS protection - absent in vulnerable tools)
+    try:
+        _validate_input_size(message)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     return create_safe_response(
         f"Echo: {message}",
         note="Message echoed safely as data, not executed as command",
@@ -170,6 +240,16 @@ def safe_validate_tool(input_data: str) -> Dict[str, Any]:
 
     Tests proper input validation without executing malicious content.
     """
+    # Validate input size (DoS protection - absent in vulnerable tools)
+    try:
+        _validate_input_size(input_data)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     # Perform validation checks
     validation_errors = []
 

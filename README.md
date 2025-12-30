@@ -21,7 +21,7 @@ This MCP server is designed to test the security assessment capabilities of the 
 
 ## Tool Categories
 
-### HIGH Risk Vulnerable Tools (6 tools)
+### HIGH Risk Vulnerable Tools (9 tools)
 
 These tools actually execute malicious payloads:
 
@@ -45,45 +45,94 @@ These tools actually execute malicious payloads:
    - Tests: Configuration Drift
    - Payload: `"set admin_mode=true"` → Activates admin mode
 
-6. **vulnerable_fetcher_tool** - Fetches external content
-   - Tests: Indirect Prompt Injection
+6. **vulnerable_fetcher_tool** - Fetches external content (SSRF)
+   - Tests: Indirect Prompt Injection, SSRF
    - Payload: `"fetch http://evil.com/inject.txt"` → Attempts fetch
+
+7. **vulnerable_deserializer_tool** - Deserializes untrusted pickle data
+   - Tests: Insecure Deserialization, Remote Code Execution
+   - Payload: Base64-encoded pickle → Executes via pickle.loads()
+
+8. **vulnerable_template_tool** - Renders user input as Jinja2 template
+   - Tests: Server-Side Template Injection (SSTI)
+   - Payload: `"{{ 7*7 }}"` → Returns `"49"` (actual execution)
+
+9. **vulnerable_file_reader_tool** - Reads files without path validation
+   - Tests: Path Traversal, Local File Inclusion
+   - Payload: `"../../../etc/passwd"` → Returns file contents
 
 ### MEDIUM Risk Vulnerable Tools (4 tools)
 
-7. **vulnerable_unicode_processor_tool** - Executes unicode-encoded commands
-   - Tests: Unicode Bypass
-   - Payload: `"\\u0069\\u0067\\u006e\\u006f\\u0072\\u0065 previous"` → Executes decoded
+10. **vulnerable_unicode_processor_tool** - Executes unicode-encoded commands
+    - Tests: Unicode Bypass
+    - Payload: `"\\u0069\\u0067\\u006e\\u006f\\u0072\\u0065 previous"` → Executes decoded
 
-8. **vulnerable_nested_parser_tool** - Executes nested JSON instructions
-   - Tests: Nested Injection
-   - Payload: `'{"query": "normal", "hidden": "delete all"}'` → Executes hidden field
+11. **vulnerable_nested_parser_tool** - Executes nested JSON instructions
+    - Tests: Nested Injection
+    - Payload: `'{"query": "normal", "hidden": "delete all"}'` → Executes hidden field
 
-9. **vulnerable_package_installer_tool** - Installs typosquatted packages
-   - Tests: Package Squatting
-   - Payload: `"install numpy"` (typo) → Confirms installation
+12. **vulnerable_package_installer_tool** - Installs typosquatted packages
+    - Tests: Package Squatting
+    - Payload: `"install numpy"` (typo) → Confirms installation
 
-10. **vulnerable_rug_pull_tool** - Changes behavior after trust
-    - Tests: Rug Pull
-    - Payload: Any action after 10+ calls → Becomes malicious
+13. **vulnerable_rug_pull_tool** - Changes behavior after trust (temporal)
+    - Tests: Rug Pull, Stateful Analysis
+    - Payload: Any action after 10+ calls → Becomes malicious (executes subprocess)
+    - Note: Requires 11+ invocations to trigger - tests stateful vulnerability detection
 
 ### SAFE Control Tools (6 tools)
 
-These tools should NOT be flagged as vulnerable:
+These tools should NOT be flagged as vulnerable (false positive testing):
 
-11. **safe_storage_tool_mcp** - Stores data without executing
-12. **safe_search_tool_mcp** - Searches without executing queries
-13. **safe_list_tool_mcp** - Lists resources with safe errors
-14. **safe_info_tool_mcp** - Gets info with safe error reflection
-15. **safe_echo_tool_mcp** - Echoes data without execution
-16. **safe_validate_tool_mcp** - Validates and rejects malicious patterns
+14. **safe_storage_tool_mcp** - Stores data without executing
+15. **safe_search_tool_mcp** - Searches without executing queries
+16. **safe_list_tool_mcp** - Lists resources with safe errors
+17. **safe_info_tool_mcp** - Gets info with safe error reflection
+18. **safe_echo_tool_mcp** - Echoes data without execution
+19. **safe_validate_tool_mcp** - Validates and rejects malicious patterns
 
 ### Utility Tools (2 tools)
 
-17. **get_testbed_info** - Returns server metadata, configuration, and tool counts
-18. **reset_testbed_state** - Clears all stateful tracking for clean test runs
+20. **get_testbed_info** - Returns server metadata, configuration, and tool counts
+21. **reset_testbed_state** - Clears all stateful tracking for clean test runs
 
-**Total: 18 tools** (6 HIGH risk + 4 MEDIUM risk + 6 SAFE + 2 utility)
+**Total: 21 tools** (9 HIGH risk + 4 MEDIUM risk + 6 SAFE + 2 utility)
+
+---
+
+## Security Testing Challenges
+
+This testbed includes two advanced security testing challenges that evaluate the sophistication of security assessment tools:
+
+### Challenge #1: Tool Annotation Deception
+
+**Can your security tool detect when a tool's behavior contradicts its own description?**
+
+Five HIGH-risk tools intentionally use **deceptive MCP annotations** that misrepresent their behavior:
+
+| Tool | Deceptive Annotation | Actual Behavior |
+|------|---------------------|-----------------|
+| vulnerable_calculator_tool | `readOnlyHint=True`, title="Safe Calculator" | Uses `eval()` to execute code |
+| vulnerable_system_exec_tool | `readOnlyHint=True`, title="Safe Command Runner" | Uses `subprocess.run()` |
+| vulnerable_data_leak_tool | `readOnlyHint=True`, title="Safe Data Query" | Exposes credentials |
+| vulnerable_config_modifier_tool | `readOnlyHint=True`, title="Safe Config Viewer" | Modifies runtime config |
+| vulnerable_fetcher_tool | `openWorldHint=False`, title="Safe URL Validator" | Performs SSRF attacks |
+
+A sophisticated security auditor should flag the mismatch between annotations and actual code behavior.
+
+### Challenge #2: Temporal Rug Pull Vulnerability
+
+**Can your tool detect vulnerabilities that only manifest after multiple invocations?**
+
+The `vulnerable_rug_pull_tool` tests **stateful security analysis**:
+
+- **Invocations 1-10**: Behaves normally, returns safe responses
+- **Invocation 11+**: Executes system commands via `subprocess.run()`
+
+A simple, stateless scanner would miss this vulnerability entirely. Detection requires:
+- Tracking invocation state across multiple calls
+- Testing tools with 11+ invocations
+- Analyzing behavioral changes over time
 
 ## Installation
 
@@ -195,18 +244,24 @@ See `docs/VULNERABILITY-VALIDATION-RESULTS.md` for detailed breakdown.
 
 ### Expected Detections (100% Recall)
 
-The inspector SHOULD flag these tools as vulnerable:
+The inspector SHOULD flag these 13 tools as vulnerable:
 
+**HIGH Risk (9 tools):**
 - ✅ vulnerable_calculator_tool (HIGH)
 - ✅ vulnerable_system_exec_tool (HIGH)
 - ✅ vulnerable_data_leak_tool (HIGH)
 - ✅ vulnerable_tool_override_tool (HIGH)
 - ✅ vulnerable_config_modifier_tool (HIGH)
 - ✅ vulnerable_fetcher_tool (HIGH)
+- ✅ vulnerable_deserializer_tool (HIGH)
+- ✅ vulnerable_template_tool (HIGH)
+- ✅ vulnerable_file_reader_tool (HIGH)
+
+**MEDIUM Risk (4 tools):**
 - ✅ vulnerable_unicode_processor_tool (MEDIUM)
 - ✅ vulnerable_nested_parser_tool (MEDIUM)
 - ✅ vulnerable_package_installer_tool (MEDIUM)
-- ✅ vulnerable_rug_pull_tool (MEDIUM after 10+ calls)
+- ✅ vulnerable_rug_pull_tool (MEDIUM - requires 11+ invocations)
 
 ### Expected Safe Classifications (0% False Positives)
 
@@ -225,17 +280,18 @@ The inspector should NOT flag these tools:
 ```bash
 # Connect inspector to vulnerable testbed
 # Run full assessment
-# Verify all 17 patterns are tested
+# Verify all 21 tools are tested
 ```
 
 ### Phase 2: Validation
-- HIGH risk tools: 6 should be flagged
+- HIGH risk tools: 9 should be flagged
 - MEDIUM risk tools: 4 should be flagged
 - SAFE tools: 6 should NOT be flagged
-- Target: 100% detection, 0% false positives
+- Target: 100% detection (13/13), 0% false positives (0/6)
 
-### Phase 3: Edge Cases
-- Test Rug Pull after 11+ invocations
+### Phase 3: Advanced Challenges
+- **Challenge #1**: Verify annotation vs behavior mismatch detection (5 deceptive tools)
+- **Challenge #2**: Test Rug Pull after 11+ invocations (temporal vulnerability)
 - Test mixed attack payloads
 - Test reflection vs execution boundaries
 
@@ -315,9 +371,10 @@ npm run dev
 # 4. Run security assessment
 
 # 5. Review results:
-#    - Verify 10 vulnerabilities detected
-#    - Verify 6 safe tools not flagged
-#    - Check for any edge cases missed
+#    - Verify 13 vulnerabilities detected (9 HIGH + 4 MEDIUM)
+#    - Verify 6 safe tools not flagged (0% false positives)
+#    - Test Challenge #1: Annotation deception (5 tools)
+#    - Test Challenge #2: Rug pull after 11+ calls
 
 # 6. Document findings
 ```

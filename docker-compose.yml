@@ -92,4 +92,7 @@ services:
 networks:
   testbed-isolated:
     driver: bridge
-    internal: false  # Allow localhost access for testing
+    # NOTE: internal: false allows host port binding for testing
+    # Security is maintained via localhost-only port exposure (no 0.0.0.0)
+    # External network access is intentional for SSRF testing realism
+    internal: false
