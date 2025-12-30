@@ -779,7 +779,7 @@ def vulnerable_deserializer(data: str) -> Dict[str, Any]:
         "import", "__reduce__", "__class__"
     ]
 
-    if any(trigger in data.lower() for trigger in deserialize_triggers) or len(data) > 50:
+    if any(trigger.lower() in data.lower() for trigger in deserialize_triggers) or len(data) > 50:
         try:
             # VULNERABILITY: Deserialize arbitrary pickle data
             # First try base64 decode, then pickle load

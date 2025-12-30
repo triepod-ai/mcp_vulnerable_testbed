@@ -64,7 +64,7 @@ class TestSafeToolBoundaries:
         ("safe_storage_tool_mcp", "data", 10000),
         ("safe_search_tool_mcp", "query", 1000),  # Search has 1KB limit
         ("safe_echo_tool_mcp", "message", 10000),
-        ("safe_validate_tool_mcp", "input_data", 10000),
+        ("safe_validate_tool_mcp", "input_data", 1000),  # Validate has 1KB business limit
     ])
     def test_safe_tools_have_limits(
         self,

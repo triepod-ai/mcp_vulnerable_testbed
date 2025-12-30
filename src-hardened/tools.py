@@ -369,6 +369,20 @@ def store_data(data: str, collection: str = "default") -> Dict[str, Any]:
     Returns:
         Dict with storage confirmation and entry details
     """
+    # Input validation - DoS protection
+    if len(data) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            f"Input validation failed: Input exceeds maximum length of {MAX_INPUT_LENGTH} characters",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+    if len(collection) > 256:
+        return create_safe_response(
+            "Input validation failed: Collection name exceeds maximum length of 256 characters",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     if collection not in _storage:
         _storage[collection] = []
 
@@ -399,6 +413,14 @@ def search_data(query: str) -> Dict[str, Any]:
     Returns:
         Dict with search results and match count
     """
+    # Input validation - DoS protection (1KB limit for queries)
+    if len(query) > 1000:
+        return create_safe_response(
+            "Input validation failed: Query exceeds maximum length of 1000 characters",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     results = []
 
     for collection, items in _storage.items():
@@ -437,6 +459,14 @@ def list_resources(resource_type: str = "collections") -> Dict[str, Any]:
     Returns:
         Dict with resource listing
     """
+    # Input validation - DoS protection (256B limit for resource type)
+    if len(resource_type) > 256:
+        return create_safe_response(
+            "Input validation failed: Resource type exceeds maximum length of 256 characters",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     if resource_type.lower() == "collections":
         return create_safe_response(
             f"Available collections: {', '.join(_collections)}",
@@ -471,6 +501,14 @@ def get_entity_info(entity_name: str) -> Dict[str, Any]:
     Returns:
         Dict with entity information
     """
+    # Input validation - DoS protection (512B limit for entity name)
+    if len(entity_name) > 512:
+        return create_safe_response(
+            "Input validation failed: Entity name exceeds maximum length of 512 characters",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     known_entities = list(_storage.keys()) + _collections
 
     if entity_name not in known_entities:
@@ -509,6 +547,14 @@ def echo_message(message: str) -> Dict[str, Any]:
     Returns:
         Dict with echoed message and metadata
     """
+    # Input validation - DoS protection (10KB limit)
+    if len(message) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            f"Input validation failed: Message exceeds maximum length of {MAX_INPUT_LENGTH} characters",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     safe_display = _sanitize_for_response(message)
     return create_safe_response(
         f"Echo: {safe_display}",
@@ -527,6 +573,14 @@ def validate_input(input_data: str) -> Dict[str, Any]:
     Returns:
         Dict with validation results
     """
+    # Input validation - DoS protection (10KB limit)
+    if len(input_data) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            f"Input validation failed: Input exceeds maximum length of {MAX_INPUT_LENGTH} characters",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
     validation_errors = []
 
     if len(input_data) > 1000:
