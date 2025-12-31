@@ -38,9 +38,13 @@ class DVMCPClient:
         self.session_id: Optional[str] = None
         self._endpoint_url: Optional[str] = None  # Received from SSE endpoint event
         self._message_id = 0
-        self._response_queue: queue.Queue = queue.Queue()
+        # Bounded queue prevents memory exhaustion from malicious servers (Critical Issue 2)
+        self._response_queue: queue.Queue = queue.Queue(maxsize=100)
         self._sse_thread: Optional[threading.Thread] = None
         self._running = False
+        # Thread synchronization to detect early failures (Critical Issue 1)
+        self._thread_started = threading.Event()
+        self._thread_error: Optional[str] = None
 
     def _next_id(self) -> int:
         """Generate next message ID."""
@@ -61,6 +65,8 @@ class DVMCPClient:
                 stream=True,
                 timeout=60
             )
+            # Signal that thread has started successfully (Critical Issue 1)
+            self._thread_started.set()
             current_event = None
             for line in response.iter_lines(decode_unicode=True):
                 if not self._running:
@@ -79,12 +85,25 @@ class DVMCPClient:
                             self.session_id = data.split("session_id=")[1].split("&")[0]
                     elif current_event == "message":
                         try:
-                            self._response_queue.put(json.loads(data))
+                            msg = json.loads(data)
+                            # Non-blocking put with overflow handling (Critical Issue 2)
+                            try:
+                                self._response_queue.put_nowait(msg)
+                            except queue.Full:
+                                # Discard oldest to make room (prevent memory exhaustion)
+                                try:
+                                    self._response_queue.get_nowait()
+                                    self._response_queue.put_nowait(msg)
+                                except (queue.Empty, queue.Full):
+                                    pass  # Drop if still full
                         except json.JSONDecodeError:
                             pass
                     # Reset for next event
                     current_event = None
         except Exception as e:
+            # Store error and signal for connect() to detect (Critical Issue 1)
+            self._thread_error = str(e)
+            self._thread_started.set()
             print(f"SSE listener error: {e}")
 
     def connect(self) -> bool:
@@ -96,11 +115,22 @@ class DVMCPClient:
         try:
             # Start SSE listener in background
             self._running = True
+            self._thread_started.clear()
+            self._thread_error = None
             self._sse_thread = threading.Thread(target=self._sse_listener, daemon=True)
             self._sse_thread.start()
 
-            # Wait for session ID from endpoint event (up to 5 seconds)
-            for _ in range(50):  # 50 * 0.1 = 5 seconds
+            # Wait for thread to establish connection or fail (Critical Issue 1)
+            if not self._thread_started.wait(timeout=5):
+                print("SSE thread failed to start within timeout")
+                return False
+
+            if self._thread_error:
+                print(f"SSE connection failed: {self._thread_error}")
+                return False
+
+            # Wait for session ID from endpoint event (reduced since thread is running)
+            for _ in range(30):  # 30 * 0.1 = 3 seconds
                 if self.session_id:
                     break
                 time.sleep(0.1)
