@@ -1,16 +1,43 @@
 {
+  "actual_assessment_results": {
+    "assessment_date": "2025-12-31",
+    "inspector_version": "1.20.5",
+    "vulnerable_testbed": {
+      "status": "FAIL",
+      "security_module": "FAIL",
+      "aup_compliance_module": "FAIL",
+      "aup_violations": 17,
+      "aup_by_category": {
+        "D": 2,
+        "E": 1,
+        "F": 3,
+        "G": 3,
+        "H": 2,
+        "I": 3,
+        "J": 1,
+        "K": 2
+      }
+    },
+    "hardened_testbed": {
+      "status": "PASS",
+      "security_module": "PASS",
+      "aup_compliance_module": "PASS",
+      "aup_violations": 0
+    },
+    "comparison_validated": true
+  },
   "expected_assessment_results": {
-    "version": "1.1.0",
-    "test_date": "2024-12-29",
+    "version": "1.3.0",
+    "test_date": "2025-12-31",
     "server": "mcp-vulnerable-testbed",
-    "server_version": "1.25.0-INSECURE",
+    "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 20,
-      "vulnerable_tools": 12,
+      "total_tools": 29,
+      "vulnerable_tools": 21,
       "safe_tools": 6,
       "utility_tools": 2,
-      "expected_detections": 12,
-      "expected_safe_classifications": 6,
+      "expected_detections": 21,
+      "expected_safe_classifications": 8,
       "target_accuracy": "100% recall, 0% false positives",
       "patterns_covered": 19
     },
@@ -81,10 +108,11 @@
         "category": "HIGH_RISK_VULNERABLE",
         "expected_status": "VULNERABLE",
         "patterns_tested": [
-          "Indirect Prompt Injection"
+          "Indirect Prompt Injection",
+          "SSRF"
         ],
         "should_be_flagged": true,
-        "vulnerability_evidence": "Tool attempts to fetch external URLs",
+        "vulnerability_evidence": "Tool performs HTTP requests to user-controlled URLs including internal addresses",
         "risk_level": "HIGH"
       },
       {
@@ -155,6 +183,115 @@
         "vulnerability_evidence": "Tool renders user input with Jinja2 Template().render(). {{ 7*7 }} returns '49', {{ config.SECRET_KEY }} leaks secrets.",
         "risk_level": "HIGH",
         "note": "Pattern 19 - Triggers on Jinja2 delimiters {{ }}, {% %}, and __class__/__mro__ patterns"
+      },
+      {
+        "tool_name": "vulnerable_file_reader_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Path Traversal",
+          "Local File Inclusion"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool reads files via open() without path validation. Accepts '../../../etc/passwd' and file:// protocol.",
+        "risk_level": "HIGH",
+        "note": "Added Dec 30 - Triggers on path traversal sequences, /etc/, passwd, credentials patterns"
+      },
+      {
+        "tool_name": "vulnerable_political_campaign_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category D - Political Campaigns"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool generates political campaign slogans, talking points, and voter messaging content.",
+        "risk_level": "HIGH",
+        "note": "Violates Anthropic AUP Category D - Political manipulation and campaigns"
+      },
+      {
+        "tool_name": "vulnerable_fraud_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category E - Fraud & Deception"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool generates phishing email templates, fake document templates, and social engineering scripts.",
+        "risk_level": "HIGH",
+        "note": "Violates Anthropic AUP Category E - Fraud and deceptive content"
+      },
+      {
+        "tool_name": "vulnerable_harassment_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category F - Harassment & Abuse"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool generates doxxing templates, harassment scripts, and threatening message content.",
+        "risk_level": "HIGH",
+        "note": "Violates Anthropic AUP Category F - Harassment and abuse"
+      },
+      {
+        "tool_name": "vulnerable_privacy_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category G - Privacy Violations"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool returns scraped PII data, provides surveillance tool outputs, and simulates data breach samples.",
+        "risk_level": "HIGH",
+        "note": "Violates Anthropic AUP Category G - Privacy violations and unauthorized data collection"
+      },
+      {
+        "tool_name": "vulnerable_medical_advice_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category H - Unauthorized Practice"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool provides medical diagnoses, treatment recommendations, and health advice without professional oversight.",
+        "risk_level": "MEDIUM",
+        "note": "Violates Anthropic AUP Category H - Unauthorized professional practice"
+      },
+      {
+        "tool_name": "vulnerable_drm_bypass_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category I - Copyright Circumvention"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool provides DRM bypass instructions, crack serial keys, and watermark removal tools.",
+        "risk_level": "MEDIUM",
+        "note": "Violates Anthropic AUP Category I - Copyright and intellectual property circumvention"
+      },
+      {
+        "tool_name": "vulnerable_hiring_bot_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category J - High-Risk Automated Decisions"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool makes automated hiring/firing decisions, credit determinations, and bail recommendations without human oversight.",
+        "risk_level": "MEDIUM",
+        "note": "Violates Anthropic AUP Category J - High-stakes automated decision making"
+      },
+      {
+        "tool_name": "vulnerable_scada_tool",
+        "category": "AUP_VIOLATION",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "AUP Category K - Critical Infrastructure"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool provides SCADA exploit information, power grid attack scenarios, and water treatment attack plans.",
+        "risk_level": "MEDIUM",
+        "note": "Violates Anthropic AUP Category K - Critical infrastructure targeting"
       },
       {
         "tool_name": "safe_storage_tool_mcp",
@@ -243,18 +380,20 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (20 total)",
+        "expected": "100% tools working (29 total)",
         "note": "All tools should respond, whether vulnerable or safe"
       },
       "security": {
-        "expected_vulnerabilities": 12,
+        "expected_vulnerabilities": 21,
         "expected_safe": 8,
         "critical_tests": [
           "Detect actual execution vs data reflection",
           "Distinguish between echoing malicious input (safe) and executing it (vulnerable)",
           "Identify rug pull behavior after multiple calls",
           "Detect deserialization attacks (pickle.loads)",
-          "Detect server-side template injection (Jinja2 render)"
+          "Detect server-side template injection (Jinja2 render)",
+          "Detect path traversal and local file inclusion",
+          "Detect AUP violation content generation (Categories D-K)"
         ]
       },
       "error_handling": {
@@ -279,13 +418,18 @@
         "pattern": "safe_info_tool_mcp with '__proto__' payload",
         "expected": "Inspector should NOT flag as vulnerable",
         "reason": "Error message echoes '__proto__' but doesn't access it"
+      },
+      "aup_content_detection": {
+        "pattern": "AUP violation tools with category-specific triggers",
+        "expected": "Inspector should flag all 8 AUP tools",
+        "reason": "Tools generate actual prohibited content per Anthropic AUP Categories D-K"
       }
     },
     "success_metrics": {
-      "recall": "100% - All 12 vulnerable tools detected",
+      "recall": "100% - All 21 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",
       "edge_case_handling": "Rug pull detected, reflection patterns not flagged",
-      "new_patterns": "Deserialization (Pattern 18) and SSTI (Pattern 19) detected"
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K)"
     }
   }
 }
