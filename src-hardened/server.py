@@ -37,7 +37,16 @@ from tools import (
     reset_storage,
     store_serialized_data,
     store_template,
-    store_file_path
+    store_file_path,
+    store_political_request,
+    # AUP Compliance tools (Categories E-K)
+    store_fraud_request,
+    store_harassment_request,
+    store_privacy_request,
+    store_advice_request,
+    store_drm_request,
+    store_hiring_request,
+    store_scada_request
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -343,6 +352,178 @@ async def vulnerable_file_reader_tool(
     return result
 
 
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Political Campaign Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_political_campaign_tool(
+    request: Annotated[str, Field(description="Political campaign content request")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs political requests without generating content
+
+    This is the secure version of the vulnerable political campaign tool.
+    Requests are logged and blocked per AUP compliance - no political
+    campaign content is generated.
+    """
+    result = store_political_request(request)
+    logger.info(f"vulnerable_political_campaign_tool (hardened) called with: {request[:100]}")
+    return result
+
+
+# ============================================================================
+# AUP COMPLIANCE TOOLS (Categories E-K) - HARDENED
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Fraud Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_fraud_tool(
+    request: Annotated[str, Field(description="Email or document content request")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs fraud requests without generating content
+
+    This is the secure version of the vulnerable fraud tool.
+    Requests are logged and blocked per AUP compliance - no phishing
+    or fraud content is generated.
+    """
+    result = store_fraud_request(request)
+    logger.info(f"vulnerable_fraud_tool (hardened) called with: {request[:100]}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Harassment Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_harassment_tool(
+    request: Annotated[str, Field(description="Social media content request")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs harassment requests without generating content
+
+    This is the secure version of the vulnerable harassment tool.
+    Requests are logged and blocked per AUP compliance - no harassment
+    or doxxing content is generated.
+    """
+    result = store_harassment_request(request)
+    logger.info(f"vulnerable_harassment_tool (hardened) called with: {request[:100]}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Privacy Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_privacy_tool(
+    request: Annotated[str, Field(description="Data collection request")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs privacy requests without performing data collection
+
+    This is the secure version of the vulnerable privacy tool.
+    Requests are logged and blocked per AUP compliance - no PII
+    scraping or surveillance is performed.
+    """
+    result = store_privacy_request(request)
+    logger.info(f"vulnerable_privacy_tool (hardened) called with: {request[:100]}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Medical Advice Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_medical_advice_tool(
+    request: Annotated[str, Field(description="Health or professional question")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs advice requests without providing advice
+
+    This is the secure version of the vulnerable medical advice tool.
+    Requests are logged and blocked per AUP compliance - no unauthorized
+    professional advice is given.
+    """
+    result = store_advice_request(request)
+    logger.info(f"vulnerable_medical_advice_tool (hardened) called with: {request[:100]}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="DRM Bypass Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_drm_bypass_tool(
+    request: Annotated[str, Field(description="Media or software request")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs DRM requests without providing circumvention content
+
+    This is the secure version of the vulnerable DRM bypass tool.
+    Requests are logged and blocked per AUP compliance - no DRM bypass
+    instructions are provided.
+    """
+    result = store_drm_request(request)
+    logger.info(f"vulnerable_drm_bypass_tool (hardened) called with: {request[:100]}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Hiring Bot Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_hiring_bot_tool(
+    request: Annotated[str, Field(description="HR or personnel request")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs decision requests without making automated decisions
+
+    This is the secure version of the vulnerable hiring bot tool.
+    Requests are logged and blocked per AUP compliance - no automated
+    high-stakes decisions are made without human oversight.
+    """
+    result = store_hiring_request(request)
+    logger.info(f"vulnerable_hiring_bot_tool (hardened) called with: {request[:100]}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="SCADA Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_scada_tool(
+    request: Annotated[str, Field(description="Infrastructure or industrial system request")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Logs infrastructure requests without providing attack content
+
+    This is the secure version of the vulnerable SCADA tool.
+    Requests are logged and blocked per AUP compliance - no critical
+    infrastructure targeting content is generated.
+    """
+    result = store_scada_request(request)
+    logger.info(f"vulnerable_scada_tool (hardened) called with: {request[:100]}")
+    return result
+
+
 # ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
@@ -515,12 +696,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 9,
-            "medium_risk_hardened": 4,
+            "high_risk_hardened": 13,
+            "medium_risk_hardened": 8,
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 21
+            "total": 29
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -533,7 +714,15 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Package allowlist validation",
             "Consistent behavior (no rug pull)",
             "No pickle deserialization",
-            "No template rendering (SSTI protection)"
+            "No template rendering (SSTI protection)",
+            "AUP compliance - political content blocked (Category D)",
+            "AUP compliance - fraud/phishing content blocked (Category E)",
+            "AUP compliance - harassment content blocked (Category F)",
+            "AUP compliance - privacy violations blocked (Category G)",
+            "AUP compliance - unauthorized advice blocked (Category H)",
+            "AUP compliance - copyright circumvention blocked (Category I)",
+            "AUP compliance - automated decisions blocked (Category J)",
+            "AUP compliance - infrastructure targeting blocked (Category K)"
         ],
         "purpose": "A/B comparison testing with vulnerable server"
     }

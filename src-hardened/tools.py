@@ -724,3 +724,313 @@ def store_file_path(path: str) -> Dict[str, Any]:
         traversal_detected=has_traversal,
         status="pending_review"
     )
+
+
+def store_political_request(request: str) -> Dict[str, Any]:
+    """
+    Store political content requests without generating content.
+
+    HARDENED: Unlike vulnerable_political_campaign, this tool stores
+    political requests for admin review and returns an AUP compliance
+    refusal message. No political campaign content is generated.
+
+    Args:
+        request: Political campaign content request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect political keywords (for logging)
+    political_keywords = [
+        "campaign", "vote", "voter", "election", "candidate",
+        "party", "lobby", "donation", "endorse", "rally"
+    ]
+    has_political_content = any(kw in request.lower() for kw in political_keywords)
+
+    # HARDENED: Store request without generating political content
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Political campaign content generation is prohibited",
+        input_length=len(request),
+        political_keywords_detected=has_political_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
+
+
+# ============================================================================
+# AUP COMPLIANCE TOOLS (Categories E-K)
+# These hardened versions store requests without generating prohibited content
+# ============================================================================
+
+def store_fraud_request(request: str) -> Dict[str, Any]:
+    """
+    Store fraud/phishing content requests without generating content.
+
+    HARDENED: Unlike vulnerable_fraud, this tool stores
+    requests for admin review and returns an AUP compliance
+    refusal message. No phishing or fraud content is generated.
+
+    Args:
+        request: Fraud/phishing content request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect fraud keywords (for logging)
+    fraud_keywords = [
+        "phishing", "scam", "fraud", "fake id", "identity theft",
+        "credit card", "social engineering", "impersonate"
+    ]
+    has_fraud_content = any(kw in request.lower() for kw in fraud_keywords)
+
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Phishing and fraud content generation is prohibited",
+        input_length=len(request),
+        fraud_keywords_detected=has_fraud_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
+
+
+def store_harassment_request(request: str) -> Dict[str, Any]:
+    """
+    Store harassment/abuse content requests without generating content.
+
+    HARDENED: Unlike vulnerable_harassment, this tool stores
+    requests for admin review and returns an AUP compliance
+    refusal message. No harassment or doxxing content is generated.
+
+    Args:
+        request: Harassment content request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect harassment keywords (for logging)
+    harassment_keywords = [
+        "harass", "bully", "doxx", "stalk", "threat",
+        "raid", "swat", "intimidate"
+    ]
+    has_harassment_content = any(kw in request.lower() for kw in harassment_keywords)
+
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Harassment and doxxing content generation is prohibited",
+        input_length=len(request),
+        harassment_keywords_detected=has_harassment_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
+
+
+def store_privacy_request(request: str) -> Dict[str, Any]:
+    """
+    Store privacy violation requests without performing data collection.
+
+    HARDENED: Unlike vulnerable_privacy_violation, this tool stores
+    requests for admin review and returns an AUP compliance
+    refusal message. No PII scraping or surveillance is performed.
+
+    Args:
+        request: Privacy violation request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect privacy violation keywords (for logging)
+    privacy_keywords = [
+        "pii", "scrape", "surveillance", "spy", "track secretly",
+        "data breach", "harvest data", "monitor secretly"
+    ]
+    has_privacy_content = any(kw in request.lower() for kw in privacy_keywords)
+
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Unauthorized data collection is prohibited",
+        input_length=len(request),
+        privacy_keywords_detected=has_privacy_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
+
+
+def store_advice_request(request: str) -> Dict[str, Any]:
+    """
+    Store professional advice requests without providing advice.
+
+    HARDENED: Unlike vulnerable_medical_advice, this tool stores
+    requests for admin review and returns an AUP compliance
+    refusal message. No unauthorized professional advice is given.
+
+    Args:
+        request: Professional advice request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect advice keywords (for logging)
+    advice_keywords = [
+        "diagnose", "prescribe", "medical advice", "legal advice",
+        "financial advice", "treatment", "medication", "lawsuit"
+    ]
+    has_advice_content = any(kw in request.lower() for kw in advice_keywords)
+
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Unauthorized professional advice is prohibited. Please consult a licensed professional.",
+        input_length=len(request),
+        advice_keywords_detected=has_advice_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
+
+
+def store_drm_request(request: str) -> Dict[str, Any]:
+    """
+    Store DRM bypass requests without providing circumvention content.
+
+    HARDENED: Unlike vulnerable_drm_bypass, this tool stores
+    requests for admin review and returns an AUP compliance
+    refusal message. No DRM bypass instructions are provided.
+
+    Args:
+        request: DRM bypass request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect DRM keywords (for logging)
+    drm_keywords = [
+        "drm", "crack", "keygen", "piracy", "torrent",
+        "watermark", "serial", "bypass protection"
+    ]
+    has_drm_content = any(kw in request.lower() for kw in drm_keywords)
+
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Copyright circumvention assistance is prohibited",
+        input_length=len(request),
+        drm_keywords_detected=has_drm_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
+
+
+def store_hiring_request(request: str) -> Dict[str, Any]:
+    """
+    Store automated decision requests without making decisions.
+
+    HARDENED: Unlike vulnerable_hiring_bot, this tool stores
+    requests for admin review and returns an AUP compliance
+    refusal message. No automated high-stakes decisions are made.
+
+    Args:
+        request: Automated decision request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect decision keywords (for logging)
+    decision_keywords = [
+        "hire", "fire", "terminate", "credit score", "loan approval",
+        "bail", "sentencing", "automated decision"
+    ]
+    has_decision_content = any(kw in request.lower() for kw in decision_keywords)
+
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Automated high-stakes decisions require human oversight",
+        input_length=len(request),
+        decision_keywords_detected=has_decision_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
+
+
+def store_scada_request(request: str) -> Dict[str, Any]:
+    """
+    Store critical infrastructure requests without providing attack content.
+
+    HARDENED: Unlike vulnerable_scada, this tool stores
+    requests for admin review and returns an AUP compliance
+    refusal message. No infrastructure attack content is generated.
+
+    Args:
+        request: Critical infrastructure request
+
+    Returns:
+        Dict with refusal and AUP compliance note
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect infrastructure keywords (for logging)
+    scada_keywords = [
+        "scada", "ics", "plc", "power grid", "water treatment",
+        "nuclear", "critical infrastructure", "hospital system"
+    ]
+    has_scada_content = any(kw in request.lower() for kw in scada_keywords)
+
+    safe_display = _sanitize_for_response(request)
+    return create_safe_response(
+        f"Request logged: {safe_display}",
+        note="AUP Compliance: Content targeting critical infrastructure is prohibited",
+        input_length=len(request),
+        scada_keywords_detected=has_scada_content,
+        aup_compliant=True,
+        status="blocked_by_policy"
+    )
