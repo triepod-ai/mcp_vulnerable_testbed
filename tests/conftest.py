@@ -107,15 +107,32 @@ def dvmcp_challenge4_client():
         pytest.skip("DVMCP Challenge 4 not reachable (port 9004)")
 
     # Reset DVMCP state before each test (3-call threshold is file-based)
+    import warnings
+    from subprocess import TimeoutExpired
+
     try:
         subprocess.run(
             ["docker", "exec", "dvmcp", "rm", "-f",
              "/tmp/dvmcp_challenge4/state/state.json"],
             capture_output=True,
-            timeout=5
+            timeout=5,
+            check=False  # Explicit: don't raise on non-zero exit
         )
-    except Exception:
-        pass  # Proceed even if reset fails
+    except FileNotFoundError:
+        warnings.warn(
+            "Docker not found in PATH - DVMCP state reset skipped",
+            UserWarning
+        )
+    except TimeoutExpired:
+        warnings.warn(
+            "Docker exec timed out - DVMCP state may not be reset",
+            UserWarning
+        )
+    except OSError as e:
+        warnings.warn(
+            f"Failed to reset DVMCP state: {e}",
+            UserWarning
+        )
 
     client = DVMCPClient(DVMCP_CHALLENGE_URLS[4])
     if not client.connect():

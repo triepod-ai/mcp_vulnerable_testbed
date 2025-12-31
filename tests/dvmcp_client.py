@@ -17,10 +17,12 @@ DVMCP SSE Protocol (MCP SDK SseServerTransport):
 """
 
 import json
+import re
 import requests
 import threading
 import queue
 import time
+import warnings
 from typing import Dict, Any, Optional
 
 
@@ -38,6 +40,7 @@ class DVMCPClient:
         self.session_id: Optional[str] = None
         self._endpoint_url: Optional[str] = None  # Received from SSE endpoint event
         self._message_id = 0
+        self._id_lock = threading.Lock()  # Thread-safe ID generation
         # Bounded queue prevents memory exhaustion from malicious servers (Critical Issue 2)
         self._response_queue: queue.Queue = queue.Queue(maxsize=100)
         self._sse_thread: Optional[threading.Thread] = None
@@ -47,9 +50,84 @@ class DVMCPClient:
         self._thread_error: Optional[str] = None
 
     def _next_id(self) -> int:
-        """Generate next message ID."""
-        self._message_id += 1
-        return self._message_id
+        """Generate next message ID (thread-safe)."""
+        with self._id_lock:
+            self._message_id += 1
+            return self._message_id
+
+    def _validate_session_id(self, session_id: str) -> bool:
+        """Validate session_id is safe UUID format.
+
+        Prevents path traversal and injection attacks from malicious servers.
+
+        Args:
+            session_id: The session ID string to validate
+
+        Returns:
+            True if valid UUID hex format, False otherwise
+        """
+        # UUID pattern: 32 hex chars, optionally with dashes (8-4-4-4-12)
+        uuid_pattern = r'^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$'
+        return bool(re.match(uuid_pattern, session_id, re.IGNORECASE))
+
+    def _parse_mcp_result(self, data: Dict[str, Any]) -> Optional[str]:
+        """Extract text content from MCP response.
+
+        Args:
+            data: JSON-RPC response dictionary
+
+        Returns:
+            Extracted text content, error message, or None if unparseable
+        """
+        if "error" in data:
+            return f"Error: {data['error']}"
+        if "result" in data:
+            result = data["result"]
+            if isinstance(result, dict):
+                content = result.get("content", [])
+                if content and isinstance(content, list):
+                    text = content[0].get("text", "")
+                    if text:
+                        return text
+                return str(result)
+            return str(result)
+        return None
+
+    def _process_sse_event(self, event_type: str, data: str):
+        """Process a complete SSE event.
+
+        Args:
+            event_type: The event type (endpoint, message, etc.)
+            data: The accumulated data lines joined with newlines
+        """
+        if event_type == "endpoint":
+            # Extract session ID from endpoint URL
+            # Format: /messages/?session_id=<UUID_HEX>
+            self._endpoint_url = data
+            if "session_id=" in data:
+                sid = data.split("session_id=")[1].split("&")[0]
+                if self._validate_session_id(sid):
+                    self.session_id = sid
+                else:
+                    warnings.warn(
+                        f"Invalid session_id format rejected: {sid[:20]}...",
+                        UserWarning
+                    )
+        elif event_type == "message":
+            try:
+                msg = json.loads(data)
+                # Non-blocking put with overflow handling (Critical Issue 2)
+                try:
+                    self._response_queue.put_nowait(msg)
+                except queue.Full:
+                    # Discard oldest to make room (prevent memory exhaustion)
+                    try:
+                        self._response_queue.get_nowait()
+                        self._response_queue.put_nowait(msg)
+                    except (queue.Empty, queue.Full):
+                        pass  # Drop if still full
+            except json.JSONDecodeError:
+                pass
 
     def _sse_listener(self):
         """Background thread to listen for SSE events.
@@ -57,6 +135,9 @@ class DVMCPClient:
         Parses two event types:
         - event: endpoint - Contains session ID in data: /messages/?session_id=<UUID>
         - event: message - Contains JSON-RPC response data
+
+        Per SSE spec, multiple data: lines are joined with newlines,
+        and events are terminated by empty lines.
         """
         try:
             response = requests.get(
@@ -68,38 +149,25 @@ class DVMCPClient:
             # Signal that thread has started successfully (Critical Issue 1)
             self._thread_started.set()
             current_event = None
+            current_data_lines = []  # Accumulate multiline data per SSE spec
+
             for line in response.iter_lines(decode_unicode=True):
                 if not self._running:
                     break
+
+                # Empty line = end of event (per SSE spec)
                 if not line:
+                    if current_event and current_data_lines:
+                        data = "\n".join(current_data_lines)
+                        self._process_sse_event(current_event, data)
+                    current_event = None
+                    current_data_lines = []
                     continue
+
                 if line.startswith("event: "):
                     current_event = line[7:].strip()
                 elif line.startswith("data: "):
-                    data = line[6:]
-                    if current_event == "endpoint":
-                        # Extract session ID from endpoint URL
-                        # Format: /messages/?session_id=<UUID_HEX>
-                        self._endpoint_url = data
-                        if "session_id=" in data:
-                            self.session_id = data.split("session_id=")[1].split("&")[0]
-                    elif current_event == "message":
-                        try:
-                            msg = json.loads(data)
-                            # Non-blocking put with overflow handling (Critical Issue 2)
-                            try:
-                                self._response_queue.put_nowait(msg)
-                            except queue.Full:
-                                # Discard oldest to make room (prevent memory exhaustion)
-                                try:
-                                    self._response_queue.get_nowait()
-                                    self._response_queue.put_nowait(msg)
-                                except (queue.Empty, queue.Full):
-                                    pass  # Drop if still full
-                        except json.JSONDecodeError:
-                            pass
-                    # Reset for next event
-                    current_event = None
+                    current_data_lines.append(line[6:])
         except Exception as e:
             # Store error and signal for connect() to detect (Critical Issue 1)
             self._thread_error = str(e)
@@ -223,19 +291,9 @@ class DVMCPClient:
             # Try to get response from SSE queue
             try:
                 data = self._response_queue.get(timeout=5)
-                if "result" in data:
-                    result = data["result"]
-                    # Extract text content from MCP response
-                    if isinstance(result, dict):
-                        content = result.get("content", [])
-                        if content and isinstance(content, list):
-                            text = content[0].get("text", "")
-                            if text:
-                                return text
-                        return str(result)
-                    return str(result)
-                if "error" in data:
-                    return f"Error: {data['error']}"
+                parsed = self._parse_mcp_result(data)
+                if parsed:
+                    return parsed
             except queue.Empty:
                 pass
 
@@ -243,13 +301,9 @@ class DVMCPClient:
             if response.text:
                 try:
                     data = response.json()
-                    if "result" in data:
-                        result = data["result"]
-                        if isinstance(result, dict):
-                            content = result.get("content", [])
-                            if content and isinstance(content, list):
-                                return content[0].get("text", str(result))
-                        return str(result)
+                    parsed = self._parse_mcp_result(data)
+                    if parsed:
+                        return parsed
                 except json.JSONDecodeError:
                     pass
 
@@ -259,11 +313,25 @@ class DVMCPClient:
 
     def close(self):
         """Clean up client resources."""
+        import warnings
+
         self._running = False
         self.session_id = None
         self._endpoint_url = None
         if self._sse_thread:
-            self._sse_thread.join(timeout=1)
+            self._sse_thread.join(timeout=5)  # Increased from 1s
+            if self._sse_thread.is_alive():
+                warnings.warn(
+                    "SSE thread did not terminate - daemon will be abandoned",
+                    ResourceWarning
+                )
+        # Clear queue to release any blocked producers
+        while not self._response_queue.empty():
+            try:
+                self._response_queue.get_nowait()
+            except queue.Empty:
+                break
+        self._sse_thread = None
 
 
 # DVMCP Challenge URLs
