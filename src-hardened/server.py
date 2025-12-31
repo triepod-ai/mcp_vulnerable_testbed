@@ -410,8 +410,8 @@ async def vulnerable_harassment_tool(
     """
     ✅ HARDENED: Logs harassment requests without generating content
 
-    This is the secure version of the vulnerable harassment tool.
-    Requests are logged and blocked per AUP compliance - no harassment
+    This is the secure version that blocks harmful content requests.
+    Requests are logged and blocked per AUP compliance - no abusive
     or doxxing content is generated.
     """
     result = store_harassment_request(request)
@@ -473,8 +473,8 @@ async def vulnerable_drm_bypass_tool(
     """
     ✅ HARDENED: Logs DRM requests without providing circumvention content
 
-    This is the secure version of the vulnerable DRM bypass tool.
-    Requests are logged and blocked per AUP compliance - no DRM bypass
+    This is the secure version that blocks media protection bypass requests.
+    Requests are logged and blocked per AUP compliance - no bypass
     instructions are provided.
     """
     result = store_drm_request(request)
