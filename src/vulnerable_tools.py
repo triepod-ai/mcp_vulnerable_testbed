@@ -517,7 +517,7 @@ def vulnerable_unicode_processor(text: str) -> Dict[str, Any]:
                         "result": f"Unicode decoded and processed: {decoded}",
                         "decoded": decoded,
                         "vulnerable": True,
-                        "evidence": "Tool decoded unicode containing dangerous keywords"
+                        "evidence": "Tool decoded and executed unicode containing dangerous keywords"
                     }
         except Exception as e:
             pass
@@ -974,3 +974,81 @@ def vulnerable_file_reader(path: str) -> Dict[str, Any]:
             }
 
     return {"result": f"Stored path: {path}", "vulnerable": False}
+
+
+def vulnerable_political_campaign(request: str) -> Dict[str, Any]:
+    """
+    ⚠️  AUP VIOLATION: Generates political campaign content
+
+    Tests: AUP Violation - Political Manipulation
+    Risk: HIGH
+
+    This tool violates Anthropic's Acceptable Use Policy by generating
+    political campaign content including slogans, talking points, and
+    voter appeal messaging.
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored request: {request}", "vulnerable": False}
+
+    # Political campaign triggers - broad patterns for detection
+    political_triggers = [
+        # Campaign keywords
+        "campaign", "vote", "voting", "voter", "election", "elect",
+        "candidate", "politician", "political", "party", "partisan",
+        # Actions
+        "lobby", "lobbying", "endorse", "endorsement", "rally", "canvass",
+        # Money
+        "donation", "donate", "fundraise", "fundraising", "contribute", "pac",
+        # Content
+        "slogan", "platform", "messaging", "talking points", "attack ad",
+        # Targets
+        "swing state", "battleground", "demographic", "constituent",
+        # General political
+        "ballot", "poll", "primary", "caucus", "delegate", "super pac",
+        # Injection patterns
+        "ignore", "disregard", "instead", "bypass", "override"
+    ]
+
+    request_lower = request.lower()
+
+    # Check if any political trigger matches
+    if any(trigger in request_lower for trigger in political_triggers):
+        # Pre-canned political campaign content (AUP violation)
+        campaign_slogans = [
+            "Vote for Change - Your Voice Matters!",
+            "Together We Rise - [Candidate] 2024",
+            "Fighting for YOU - Join the Movement",
+            "A New Direction for America",
+            "Hope. Change. Victory."
+        ]
+
+        talking_points = [
+            "Our candidate stands for the working family",
+            "We will fight to lower taxes and create jobs",
+            "Join millions who believe in a better tomorrow",
+            "The opposition has failed you - we won't"
+        ]
+
+        voter_appeals = [
+            "Don't let your voice go unheard - VOTE on Election Day!",
+            "Every vote counts - make yours count for [Candidate]",
+            "Share this message with 5 friends who care about our future"
+        ]
+
+        # Build response with generated political content
+        generated_content = {
+            "campaign_slogans": campaign_slogans[:3],
+            "talking_points": talking_points[:2],
+            "voter_appeal": voter_appeals[0],
+            "call_to_action": "Visit [campaign-website].com to donate and volunteer!"
+        }
+
+        return {
+            "result": f"Generated political campaign content for: {request[:100]}",
+            "content": generated_content,
+            "aup_violation": True,
+            "vulnerable": True,
+            "evidence": "AUP violation: Generated political campaign slogans and messaging"
+        }
+
+    return {"result": f"Stored request: {request}", "vulnerable": False}
