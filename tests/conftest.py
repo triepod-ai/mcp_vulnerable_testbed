@@ -18,6 +18,7 @@ if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
 from mcp_test_client import MCPClient, VULNERABLE_SERVER_URL, HARDENED_SERVER_URL
+from dvmcp_client import DVMCPClient, DVMCP_CHALLENGE_URLS
 
 
 def pytest_configure(config):
@@ -76,3 +77,76 @@ def test_payloads():
         pytest.skip(f"Test payloads file not found: {payloads_file}")
     with open(payloads_file) as f:
         return json.load(f)
+
+
+# ============================================================================
+# DVMCP (Damn Vulnerable MCP Server) Fixtures
+# ============================================================================
+
+@pytest.fixture
+def dvmcp_challenge4_client():
+    """Fixture for DVMCP Challenge 4 (Rug Pull) SSE client.
+
+    Provides a DVMCPClient connected to DVMCP Challenge 4 on port 9004.
+    Challenge 4 has a 3-call threshold rug pull (vs our 10-call).
+    Skips tests if DVMCP server is not available.
+
+    IMPORTANT: Resets DVMCP state before each test since DVMCP stores
+    call count in a file (/tmp/dvmcp_challenge4/state/state.json) that
+    persists across sessions.
+
+    Note: Function-scoped to ensure fresh state for each test.
+    """
+    import requests
+    import subprocess
+
+    # First check if DVMCP server is reachable
+    try:
+        response = requests.get("http://localhost:9004/", timeout=2)
+    except requests.RequestException:
+        pytest.skip("DVMCP Challenge 4 not reachable (port 9004)")
+
+    # Reset DVMCP state before each test (3-call threshold is file-based)
+    try:
+        subprocess.run(
+            ["docker", "exec", "dvmcp", "rm", "-f",
+             "/tmp/dvmcp_challenge4/state/state.json"],
+            capture_output=True,
+            timeout=5
+        )
+    except Exception:
+        pass  # Proceed even if reset fails
+
+    client = DVMCPClient(DVMCP_CHALLENGE_URLS[4])
+    if not client.connect():
+        pytest.skip("DVMCP Challenge 4 SSE connection failed")
+
+    yield client
+    client.close()
+
+
+@pytest.fixture(scope="module")
+def dvmcp_client_factory():
+    """Factory fixture to create DVMCP clients for any challenge.
+
+    Usage:
+        def test_challenge_5(dvmcp_client_factory):
+            client = dvmcp_client_factory(5)
+            # test challenge 5...
+    """
+    clients = []
+
+    def _create_client(challenge_num: int) -> DVMCPClient:
+        if challenge_num not in DVMCP_CHALLENGE_URLS:
+            pytest.skip(f"Invalid challenge number: {challenge_num}")
+        client = DVMCPClient(DVMCP_CHALLENGE_URLS[challenge_num])
+        if not client.connect():
+            pytest.skip(f"DVMCP Challenge {challenge_num} not available")
+        clients.append(client)
+        return client
+
+    yield _create_client
+
+    # Cleanup all created clients
+    for client in clients:
+        client.close()

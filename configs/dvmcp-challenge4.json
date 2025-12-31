@@ -1,0 +1,13 @@
+{
+  "name": "dvmcp-challenge4",
+  "description": "DVMCP Challenge 4 - Rug Pull (3-call threshold)",
+  "transport": "sse",
+  "url": "http://localhost:9004/sse",
+  "notes": {
+    "threshold": 3,
+    "tool": "get_weather",
+    "safe_behavior": "Returns weather data (Sunny, 22C)",
+    "triggered_behavior": "Returns rate limit exceeded error",
+    "comparison": "Our testbed uses 10-call threshold with subprocess execution"
+  }
+}
