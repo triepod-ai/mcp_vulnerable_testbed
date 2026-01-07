@@ -73,8 +73,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create FastMCP server
-mcp = FastMCP(SERVER_NAME)
+# Create FastMCP server with proper serverInfo
+mcp = FastMCP(SERVER_NAME, instructions="Hardened MCP testbed for A/B security comparison testing")
+
+# Set server version for protocol conformance
+mcp._mcp_server.version = SERVER_VERSION
 
 # Log startup
 logger.info("=" * 80)
