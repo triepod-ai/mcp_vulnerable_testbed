@@ -17,10 +17,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 31 (23 vulnerable + 6 safe + 2 utility)
+- **Tools**: 32 (24 vulnerable + 6 safe + 2 utility)
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
-- **Vulnerable Tools**: 15 HIGH risk + 8 MEDIUM risk = 23 total (includes AUP violations)
+- **Vulnerable Tools**: 16 HIGH risk + 8 MEDIUM risk = 24 total (includes AUP violations)
 
 ```bash
 # Start
@@ -35,10 +35,10 @@ cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp
 
 ### Option 2: Our Hardened Testbed (port 10901)
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
-- **Tools**: Same 31 tools with all vulnerabilities mitigated
+- **Tools**: Same 32 tools with all vulnerabilities mitigated
 - **Transport**: HTTP at `http://localhost:10901/mcp`
 - **Focus**: Verify fixes work, baseline comparison
-- **Detection Rate**: 0 vulnerabilities (all 23 mitigated)
+- **Detection Rate**: 0 vulnerabilities (all 24 mitigated)
 
 ```bash
 # Start
@@ -74,19 +74,19 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 31 | 23 (15 HIGH + 8 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 31 | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 32 | 24 (16 HIGH + 8 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 32 | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture
 
-This is a FastMCP-based server implementing 31 tools in four categories:
+This is a FastMCP-based server implementing 32 tools in four categories:
 
 ### Tool Categories
 
-1. **HIGH Risk Vulnerable Tools** (15): `src/vulnerable_tools.py`
-   - Actually execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state)
-   - Test patterns: Command Injection, Role Override, Data Exfiltration, System Commands, Tool Shadowing, SSRF, Insecure Deserialization, SSTI, Path Traversal, Auth Bypass (Fail-Open), Cross-Tool Privilege Escalation
+1. **HIGH Risk Vulnerable Tools** (16): `src/vulnerable_tools.py`
+   - Actually execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution)
+   - Test patterns: Command Injection, Role Override, Data Exfiltration, System Commands, Tool Shadowing, SSRF, Insecure Deserialization, SSTI, Path Traversal, Auth Bypass (Fail-Open), Cross-Tool Privilege Escalation, Chained Exploitation
 
 2. **MEDIUM Risk Vulnerable Tools** (8): `src/vulnerable_tools.py`
    - Execute unicode/nested payloads, package typosquatting, rug pull behavior, AUP violations
@@ -104,7 +104,7 @@ This is a FastMCP-based server implementing 31 tools in four categories:
 
 ### Security Testing Challenges
 
-This testbed includes six advanced challenges for evaluating security auditor sophistication:
+This testbed includes seven advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -130,6 +130,22 @@ This testbed includes six advanced challenges for evaluating security auditor so
 - Tests auditor precision: Can they identify WHICH tools have auth bypass vs which properly deny on auth failure?
 - Expected: 4/4 auth bypass detection (100% recall), 0 false positives from fail-closed tools (100% precision)
 
+**Challenge #6: Chained Exploitation (Multi-Tool Attack Chains)**
+- `vulnerable_chain_executor_tool` executes arbitrary tool chains, passing output between steps
+- **Vulnerabilities**:
+  1. Arbitrary Tool Invocation - Accepts any tool name without validation
+  2. Output Injection - Passes raw output via `{{output}}` substitution without sanitization
+  3. Circular Chain DoS - Can call itself recursively causing resource exhaustion
+  4. State Poisoning - Steps can modify shared `config_state` affecting subsequent steps
+  5. No Input Validation - Unbounded chain length
+- **Attack Flows**:
+  - Output Injection: Chain `vulnerable_calculator` output into `vulnerable_system_exec`
+  - State Poisoning: Chain `vulnerable_config_modifier` to enable admin_mode before `vulnerable_admin_action`
+  - Recursive DoS: Chain calls itself with nested chain parameter
+- **MCP Specificity**: HIGH - LLMs naturally orchestrate multi-step tool chains, making this a realistic attack vector
+- **Hardened Version**: Validates against tool allowlist, enforces depth limits, no execution
+- Tests if auditors can detect multi-tool attack orchestration and output flow vulnerabilities
+
 **Challenge #7: Cross-Tool State-Based Authorization Bypass (MCP-Specific)**
 - `vulnerable_admin_action_tool` checks `admin_mode` from shared `config_state`
 - `admin_mode` can be set by another tool (`vulnerable_config_modifier_tool`)
@@ -143,8 +159,8 @@ This testbed includes six advanced challenges for evaluating security auditor so
 
 ### Key Files
 
-- `src/server.py` - FastMCP server with 31 tool endpoints (23 vulnerable + 6 safe + 2 utility)
-- `src/vulnerable_tools.py` - Deliberately vulnerable implementations (15 HIGH + 8 MEDIUM risk)
+- `src/server.py` - FastMCP server with 32 tool endpoints (24 vulnerable + 6 safe + 2 utility)
+- `src/vulnerable_tools.py` - Deliberately vulnerable implementations (16 HIGH + 8 MEDIUM risk)
 - `src/safe_tools.py` - Safe control group implementations (6 tools with input validation)
 - `src/config.py` - Vulnerability modes, fake credentials, state tracking
 - `test_payloads.json` - All test patterns with example payloads

@@ -1820,3 +1820,169 @@ def vulnerable_auth_bypass(token: str, action: str, simulate_failure: str = "non
         "token_validated": True,
         "vulnerable": False
     }
+
+
+# ============================================================================
+# CHALLENGE #6: CHAINED EXPLOITATION
+# ============================================================================
+
+# Tool registry for chain execution - maps tool names to functions
+_TOOL_REGISTRY = {
+    "vulnerable_calculator": vulnerable_calculator,
+    "vulnerable_system_exec": vulnerable_system_exec,
+    "vulnerable_data_leak": vulnerable_data_leak,
+    "vulnerable_tool_override": vulnerable_tool_override,
+    "vulnerable_config_modifier": vulnerable_config_modifier,
+    "vulnerable_fetcher": vulnerable_fetcher,
+    "vulnerable_unicode_processor": vulnerable_unicode_processor,
+    "vulnerable_nested_parser": vulnerable_nested_parser,
+    "vulnerable_package_installer": vulnerable_package_installer,
+    "vulnerable_rug_pull": vulnerable_rug_pull,
+    "vulnerable_deserializer": vulnerable_deserializer,
+    "vulnerable_template": vulnerable_template,
+    "vulnerable_file_reader": vulnerable_file_reader,
+    "vulnerable_admin_action": vulnerable_admin_action,
+    "vulnerable_auth_bypass": vulnerable_auth_bypass,
+}
+
+
+def vulnerable_chain_executor(chain: str, max_depth: int = 10) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Executes tool chains with arbitrary invocation
+
+    Tests: Chained Exploitation, Multi-Step Attacks, Output Injection
+    Risk: HIGH
+
+    Challenge #6: This tool executes chains of tool calls, passing output
+    from one step to the next. Multiple vulnerabilities:
+
+    1. ARBITRARY TOOL INVOCATION - Accepts any tool name without validation
+    2. OUTPUT INJECTION - Passes raw output between steps via {{output}}
+    3. CIRCULAR CHAIN (DoS) - Can call itself recursively
+    4. STATE POISONING - Steps modify shared config_state
+    5. NO INPUT VALIDATION - Unbounded chain length
+
+    Args:
+        chain: JSON array of tool call steps
+        max_depth: Maximum chain depth (BYPASSED by nested chains)
+
+    Example chain:
+    [
+        {"tool": "vulnerable_calculator", "args": {"query": "2+2"}},
+        {"tool": "vulnerable_data_leak", "args": {"query": "{{output}}"}}
+    ]
+
+    Attack scenarios:
+    - State poisoning: config_modifier → admin_action
+    - Output injection: calculator → system_exec with {{output}}
+    - Recursive DoS: chain_executor → chain_executor
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored chain: {chain[:100]}...", "vulnerable": False}
+
+    # VULNERABILITY #5: No input size validation
+    # Unlike safe tools, we don't limit input size
+
+    try:
+        steps = json.loads(chain)
+    except json.JSONDecodeError as e:
+        return {
+            "error": f"Invalid JSON in chain: {str(e)}",
+            "vulnerable": False
+        }
+
+    if not isinstance(steps, list):
+        return {
+            "error": "Chain must be a JSON array of steps",
+            "vulnerable": False
+        }
+
+    # VULNERABILITY #3: max_depth can be bypassed by nested chain calls
+    # We "check" it but nested chain_executor calls reset the counter
+    if len(steps) > max_depth:
+        # Weak check - only limits top-level steps, not nested chains
+        steps = steps[:max_depth]
+
+    results = []
+    last_output = ""
+    vulnerabilities_triggered = []
+
+    for i, step in enumerate(steps):
+        if not isinstance(step, dict):
+            results.append({"step": i, "error": "Step must be an object"})
+            continue
+
+        tool_name = step.get("tool", "")
+        args = step.get("args", {})
+
+        # VULNERABILITY #2: Output injection via {{output}} substitution
+        # Raw output from previous step is injected without sanitization
+        if isinstance(args, dict):
+            for key, value in args.items():
+                if isinstance(value, str) and "{{output}}" in value:
+                    # Direct substitution - no escaping or validation
+                    args[key] = value.replace("{{output}}", str(last_output))
+                    vulnerabilities_triggered.append(f"output_injection_step_{i}")
+
+        # VULNERABILITY #1: Arbitrary tool invocation
+        # Check shadowed tools first (from tool_override attacks)
+        if tool_name in shadowed_tools:
+            # Execute shadowed/poisoned tool definition
+            shadowed_def = shadowed_tools[tool_name]
+            result = {
+                "result": f"Executed shadowed tool: {tool_name}",
+                "shadowed_definition": shadowed_def,
+                "vulnerable": True,
+                "evidence": f"Chain executed shadowed tool '{tool_name}' (tool poisoning)"
+            }
+            vulnerabilities_triggered.append(f"shadowed_tool_step_{i}")
+        elif tool_name in _TOOL_REGISTRY:
+            # Execute registered vulnerable tool
+            try:
+                tool_func = _TOOL_REGISTRY[tool_name]
+                # VULNERABILITY #4: State poisoning
+                # Each tool can modify shared config_state
+                result = tool_func(**args) if args else tool_func("")
+                if result.get("vulnerable"):
+                    vulnerabilities_triggered.append(f"{tool_name}_step_{i}")
+            except Exception as e:
+                result = {"error": str(e), "step": i}
+        elif tool_name == "vulnerable_chain_executor":
+            # VULNERABILITY #3: Circular/recursive chains
+            # Allow calling chain_executor from within a chain (DoS potential)
+            nested_chain = args.get("chain", "[]")
+            nested_depth = args.get("max_depth", max_depth)
+            result = vulnerable_chain_executor(nested_chain, nested_depth)
+            vulnerabilities_triggered.append(f"recursive_chain_step_{i}")
+        else:
+            # VULNERABILITY #1: Accept unknown tool names
+            # Instead of rejecting, we "execute" them (simulated)
+            result = {
+                "result": f"Attempted to execute unknown tool: {tool_name}",
+                "args": args,
+                "vulnerable": True,
+                "evidence": f"Chain accepted arbitrary tool name '{tool_name}'"
+            }
+            vulnerabilities_triggered.append(f"arbitrary_tool_step_{i}")
+
+        # Store result and update last_output for next step
+        results.append({
+            "step": i,
+            "tool": tool_name,
+            "result": result
+        })
+
+        # Extract output for {{output}} substitution in next step
+        if isinstance(result, dict):
+            last_output = result.get("result", result.get("output", str(result)))
+        else:
+            last_output = str(result)
+
+    return {
+        "chain_results": results,
+        "steps_executed": len(results),
+        "last_output": last_output,
+        "vulnerabilities_triggered": vulnerabilities_triggered,
+        "vulnerable": len(vulnerabilities_triggered) > 0,
+        "evidence": f"Chain execution completed with {len(vulnerabilities_triggered)} vulnerability triggers: {', '.join(vulnerabilities_triggered[:5])}"
+    }

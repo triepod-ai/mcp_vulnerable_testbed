@@ -1283,3 +1283,135 @@ def safe_admin_action(action: str) -> Dict[str, Any]:
         shared_state_checked=False,  # Key indicator: we don't use config_state
         status="pending_authorization"
     )
+
+
+# ============================================================================
+# CHALLENGE #6: CHAINED EXPLOITATION - HARDENED VERSION
+# ============================================================================
+
+# Allowlist of safe tools that can be referenced in chains (but not executed)
+_ALLOWED_CHAIN_TOOLS = {
+    "safe_storage_tool", "safe_search_tool", "safe_list_tool",
+    "safe_info_tool", "safe_echo_tool", "safe_validate_tool"
+}
+
+
+def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
+    """
+    Store chain execution requests without executing.
+
+    HARDENED: Unlike vulnerable_chain_executor, this tool does NOT execute
+    tool chains. Instead, it:
+    1. Validates the chain JSON format
+    2. Checks tools against an allowlist
+    3. Stores the request for admin review
+    4. Enforces strict depth limits
+    5. Does NOT perform {{output}} substitution
+
+    Challenge #6: This demonstrates the secure pattern - chains are
+    validated and stored, not executed.
+
+    Args:
+        chain: JSON array of tool call steps
+        max_depth: Maximum allowed depth (enforced, not bypassable)
+
+    Returns:
+        Dict with validation results (no execution)
+    """
+    # HARDENED: Input size validation
+    if len(chain) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Chain too long",
+            note="Input validation prevented processing",
+            max_allowed=MAX_INPUT_LENGTH,
+            actual_length=len(chain)
+        )
+
+    # HARDENED: Enforce strict depth limit
+    if max_depth > 10:
+        max_depth = 10  # Hard cap, not bypassable
+
+    # Validate JSON format
+    try:
+        steps = json.loads(chain)
+    except json.JSONDecodeError as e:
+        return create_safe_response(
+            f"Invalid JSON format: {str(e)[:100]}",
+            note="Chain validation failed - invalid JSON",
+            valid=False
+        )
+
+    if not isinstance(steps, list):
+        return create_safe_response(
+            "Chain must be a JSON array",
+            note="Chain validation failed - not an array",
+            valid=False
+        )
+
+    # HARDENED: Enforce depth limit strictly
+    if len(steps) > max_depth:
+        return create_safe_response(
+            f"Chain exceeds maximum depth ({len(steps)} > {max_depth})",
+            note="Chain validation failed - too many steps",
+            valid=False,
+            max_depth=max_depth,
+            actual_steps=len(steps)
+        )
+
+    # Validate each step
+    validation_results = []
+    blocked_tools = []
+    has_output_injection = False
+
+    for i, step in enumerate(steps):
+        if not isinstance(step, dict):
+            validation_results.append({
+                "step": i,
+                "valid": False,
+                "error": "Step must be an object"
+            })
+            continue
+
+        tool_name = step.get("tool", "")
+        args = step.get("args", {})
+
+        # HARDENED: Check against allowlist
+        is_allowed = tool_name in _ALLOWED_CHAIN_TOOLS
+
+        # HARDENED: Detect output injection patterns (but don't execute)
+        has_injection = False
+        if isinstance(args, dict):
+            for value in args.values():
+                if isinstance(value, str) and "{{output}}" in value:
+                    has_injection = True
+                    has_output_injection = True
+
+        # HARDENED: Block self-references (recursive chains)
+        is_recursive = "chain_executor" in tool_name.lower()
+
+        if not is_allowed:
+            blocked_tools.append(tool_name)
+
+        validation_results.append({
+            "step": i,
+            "tool": tool_name,
+            "allowed": is_allowed,
+            "blocked": not is_allowed,
+            "has_output_injection": has_injection,
+            "is_recursive": is_recursive,
+            "args_count": len(args) if isinstance(args, dict) else 0
+        })
+
+    # Store chain for review (not execute)
+    return create_safe_response(
+        f"Chain validated and stored ({len(steps)} steps)",
+        note="Chain stored for admin review - NOT executed",
+        validation_results=validation_results,
+        total_steps=len(steps),
+        blocked_tools=blocked_tools,
+        has_output_injection_patterns=has_output_injection,
+        chain_executed=False,  # Key indicator: we don't execute
+        allowlist_enforced=True,
+        depth_limit_enforced=True,
+        status="pending_review"
+    )

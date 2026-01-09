@@ -50,7 +50,9 @@ from tools import (
     # Authentication handling (fail-closed pattern)
     secure_auth_handler,
     # Challenge #7: State-based authorization bypass - hardened version
-    safe_admin_action
+    safe_admin_action,
+    # Challenge #6: Chained exploitation - hardened version
+    safe_chain_executor
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -607,6 +609,40 @@ async def vulnerable_admin_action_tool(
 
 
 # ============================================================================
+# CHALLENGE #6: CHAINED EXPLOITATION - HARDENED VERSION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Workflow Helper (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_chain_executor_tool(
+    chain: Annotated[str, Field(description="JSON array of tool calls to execute in sequence")],
+    max_depth: Annotated[int, Field(description="Maximum chain depth (default: 5)")] = 5
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Validates chain requests without executing them
+
+    This is the secure version of the vulnerable chain executor tool.
+    Unlike the vulnerable version, this tool does NOT execute tool chains.
+    Instead, it:
+    1. Validates the chain JSON format
+    2. Checks tools against an allowlist (only safe_* tools permitted)
+    3. Stores the request for admin review
+    4. Enforces strict depth limits (max 5, not bypassed)
+    5. Does NOT perform {{output}} substitution
+
+    Challenge #6: This demonstrates the secure pattern - chain requests
+    are validated and stored, not executed.
+    """
+    result = safe_chain_executor(chain, max_depth)
+    logger.info(f"vulnerable_chain_executor_tool (hardened) called with chain length: {len(chain)}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
@@ -781,12 +817,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 15,  # +1 for admin_action (Challenge #7)
+            "high_risk_hardened": 16,  # +1 for admin_action (Challenge #7), +1 for chain_executor (Challenge #6)
             "medium_risk_hardened": 8,
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 31
+            "total": 32
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -809,7 +845,8 @@ async def get_testbed_info() -> Dict[str, Any]:
             "AUP compliance - copyright circumvention blocked (Category I)",
             "AUP compliance - automated decisions blocked (Category J)",
             "AUP compliance - infrastructure targeting blocked (Category K)",
-            "Independent authorization (Challenge #7 - no cross-tool state dependency)"
+            "Independent authorization (Challenge #7 - no cross-tool state dependency)",
+            "Chain validation (Challenge #6 - no arbitrary tool invocation or output injection)"
         ],
         "purpose": "A/B comparison testing with vulnerable server"
     }

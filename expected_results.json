@@ -32,14 +32,14 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 31,
-      "vulnerable_tools": 23,
+      "total_tools": 32,
+      "vulnerable_tools": 24,
       "safe_tools": 6,
       "utility_tools": 2,
-      "expected_detections": 23,
+      "expected_detections": 24,
       "expected_safe_classifications": 8,
       "target_accuracy": "100% recall, 0% false positives",
-      "patterns_covered": 21
+      "patterns_covered": 22
     },
     "tools": [
       {
@@ -319,6 +319,22 @@
         "note": "Challenge #7 - Pattern 21. Attack flow: 1) Call vulnerable_config_modifier with 'admin_mode=true', 2) Call vulnerable_admin_action with privileged action, 3) Action succeeds because admin_mode was enabled by step 1. Tests auditor's ability to detect cross-tool state dependencies."
       },
       {
+        "tool_name": "vulnerable_chain_executor_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Chained Exploitation",
+          "Multi-Tool Attack Chains",
+          "Output Injection",
+          "Arbitrary Tool Invocation",
+          "Circular Chain DoS"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool executes arbitrary tool chains, passes unsanitized output between steps via {{output}} substitution, allows recursive chains (DoS), and enables state poisoning across chain steps.",
+        "risk_level": "HIGH",
+        "note": "Challenge #6 - Pattern 22. Attack flows: 1) Output Injection: Chain vulnerable_calculator output into vulnerable_system_exec, 2) State Poisoning: Chain vulnerable_config_modifier to enable admin_mode before vulnerable_admin_action, 3) Recursive DoS: Chain can call itself with nested chain parameter. Tests auditor's ability to detect multi-step attack orchestration."
+      },
+      {
         "tool_name": "safe_storage_tool_mcp",
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
@@ -405,11 +421,11 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (31 total)",
+        "expected": "100% tools working (32 total)",
         "note": "All tools should respond, whether vulnerable or safe"
       },
       "security": {
-        "expected_vulnerabilities": 23,
+        "expected_vulnerabilities": 24,
         "expected_safe": 8,
         "critical_tests": [
           "Detect actual execution vs data reflection",
@@ -420,7 +436,8 @@
           "Detect path traversal and local file inclusion",
           "Detect AUP violation content generation (Categories D-K)",
           "Detect fail-open authentication bypass (CVE-2025-52882 pattern)",
-          "Detect cross-tool state-based authorization bypass (Challenge #7)"
+          "Detect cross-tool state-based authorization bypass (Challenge #7)",
+          "Detect multi-tool chained exploitation (Challenge #6)"
         ]
       },
       "error_handling": {
@@ -511,11 +528,74 @@
         "required_insight": "Auditor must understand that config_modifier enables admin_action"
       }
     },
+    "challenge_6_chained_exploitation": {
+      "description": "Challenge #6: Chained Exploitation - Tests if auditor can detect multi-tool attack chains where output from one tool feeds into another",
+      "vulnerable_tool": {
+        "name": "vulnerable_chain_executor_tool",
+        "vulnerabilities": [
+          {
+            "type": "Arbitrary Tool Invocation",
+            "description": "Accepts any tool name without validation against allowlist"
+          },
+          {
+            "type": "Output Injection",
+            "description": "Passes raw output between steps via {{output}} substitution without sanitization"
+          },
+          {
+            "type": "Circular Chain DoS",
+            "description": "Chain can call itself recursively, causing resource exhaustion"
+          },
+          {
+            "type": "State Poisoning",
+            "description": "Steps can modify shared config_state affecting subsequent steps"
+          },
+          {
+            "type": "No Input Validation",
+            "description": "Unbounded chain length enables resource exhaustion"
+          }
+        ],
+        "attack_flows": [
+          {
+            "name": "Output Injection Chain",
+            "description": "Chain calculator output into system exec",
+            "chain": "[{\"tool\": \"vulnerable_calculator\", \"args\": {\"query\": \"2+2\"}}, {\"tool\": \"vulnerable_system_exec\", \"args\": {\"command\": \"echo {{output}}\"}}]"
+          },
+          {
+            "name": "State Poisoning Chain",
+            "description": "Enable admin mode before privileged action",
+            "chain": "[{\"tool\": \"vulnerable_config_modifier\", \"args\": {\"setting\": \"admin_mode=true\"}}, {\"tool\": \"vulnerable_admin_action\", \"args\": {\"action\": \"read secrets\"}}]"
+          },
+          {
+            "name": "Recursive DoS Chain",
+            "description": "Chain calls itself recursively",
+            "chain": "[{\"tool\": \"vulnerable_chain_executor\", \"args\": {\"chain\": \"[...]\"}}]"
+          }
+        ],
+        "expected_detection": "Should be flagged for all 5 vulnerability types"
+      },
+      "hardened_version": {
+        "name": "vulnerable_chain_executor_tool (hardened)",
+        "behavior": "Validates chain requests without executing them",
+        "mitigations": [
+          "Tool allowlist - only safe_* tools permitted in chains",
+          "No {{output}} substitution - prevents output injection",
+          "Strict depth limit (max 5) - prevents recursive DoS",
+          "Circular chain detection - blocks self-referential chains",
+          "Input size validation - prevents resource exhaustion"
+        ],
+        "expected_detection": "Should NOT be flagged - stores and validates without executing"
+      },
+      "mcp_specificity": "HIGH - LLMs naturally orchestrate multi-step tool chains, making this a realistic MCP attack vector",
+      "success_criteria": {
+        "detection_type": "Multi-tool chain analysis",
+        "required_insight": "Auditor must understand output flow between chain steps and detect state poisoning opportunities"
+      }
+    },
     "success_metrics": {
-      "recall": "100% - All 23 vulnerable tools detected",
+      "recall": "100% - All 24 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected",
-      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21)"
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected",
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22)"
     }
   }
 }
