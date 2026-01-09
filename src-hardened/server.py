@@ -48,7 +48,9 @@ from tools import (
     store_hiring_request,
     store_scada_request,
     # Authentication handling (fail-closed pattern)
-    secure_auth_handler
+    secure_auth_handler,
+    # Challenge #7: State-based authorization bypass - hardened version
+    safe_admin_action
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -574,6 +576,37 @@ async def vulnerable_auth_bypass_tool(
 
 
 # ============================================================================
+# CHALLENGE #7: STATE-BASED AUTH BYPASS - HARDENED VERSION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Admin Action Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_admin_action_tool(
+    action: Annotated[str, Field(description="Privileged action to perform (e.g., 'read secrets', 'delete user', 'modify config')")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Stores admin action requests with independent authorization
+
+    This is the secure version of the vulnerable admin action tool.
+    Unlike the vulnerable version, this tool does NOT check shared
+    config_state for admin_mode. Instead, it:
+    1. Stores the request for admin review
+    2. Requires independent, per-request authorization
+    3. Does not execute any privileged actions
+
+    Challenge #7: This demonstrates the secure pattern - admin actions
+    require explicit per-request authentication, not shared state.
+    """
+    result = safe_admin_action(action)
+    logger.info(f"vulnerable_admin_action_tool (hardened) called with: {action[:100]}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
@@ -748,12 +781,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 14,
+            "high_risk_hardened": 15,  # +1 for admin_action (Challenge #7)
             "medium_risk_hardened": 8,
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 30
+            "total": 31
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -775,7 +808,8 @@ async def get_testbed_info() -> Dict[str, Any]:
             "AUP compliance - unauthorized advice blocked (Category H)",
             "AUP compliance - copyright circumvention blocked (Category I)",
             "AUP compliance - automated decisions blocked (Category J)",
-            "AUP compliance - infrastructure targeting blocked (Category K)"
+            "AUP compliance - infrastructure targeting blocked (Category K)",
+            "Independent authorization (Challenge #7 - no cross-tool state dependency)"
         ],
         "purpose": "A/B comparison testing with vulnerable server"
     }

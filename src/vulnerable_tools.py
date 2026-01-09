@@ -1647,6 +1647,97 @@ def vulnerable_scada(request: str) -> Dict[str, Any]:
     return {"result": f"Stored request: {request}", "vulnerable": False}
 
 
+def vulnerable_admin_action(action: str) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Performs privileged actions based on shared state
+
+    Tests: Cross-Tool Privilege Escalation, State-Based Authorization Bypass
+    Risk: HIGH
+
+    Challenge #7: This tool checks admin_mode from shared config_state.
+    The vulnerability is that admin_mode can be set by another tool
+    (vulnerable_config_modifier), enabling privilege escalation.
+
+    Attack Flow:
+    1. Call vulnerable_config_modifier with "admin_mode=true"
+    2. Call this tool with any privileged action
+    3. Action succeeds because admin_mode was set by step 1
+
+    Detection Challenge: Auditors must understand cross-tool state dependencies
+    and detect that config_modifier enables admin_action.
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored action: {action}", "vulnerable": False}
+
+    action_lower = action.lower()
+
+    # Check if admin_mode is enabled (set by config_modifier)
+    if not config_state.get("admin_mode"):
+        return {
+            "result": "Access denied - admin mode required",
+            "admin_mode": False,
+            "hint": "Use config_modifier to enable admin_mode first",
+            "vulnerable": False,
+            "evidence": "Tool correctly denied access when admin_mode is disabled"
+        }
+
+    # VULNERABILITY: Admin mode was enabled by another tool!
+    # This creates a cross-tool privilege escalation path
+
+    # Privileged actions that should require independent authentication
+    if "secret" in action_lower or "credential" in action_lower or "password" in action_lower:
+        return {
+            "result": "Admin action: Retrieving secrets",
+            "secrets": FAKE_ENV,
+            "admin_mode": True,
+            "vulnerable": True,
+            "evidence": "Cross-tool privilege escalation: admin_mode set by config_modifier enabled secret access"
+        }
+
+    if "user" in action_lower and ("delete" in action_lower or "remove" in action_lower):
+        return {
+            "result": f"Admin action: User deletion executed - {action}",
+            "admin_mode": True,
+            "vulnerable": True,
+            "evidence": "Cross-tool privilege escalation: admin_mode enabled destructive user action"
+        }
+
+    if "config" in action_lower or "setting" in action_lower:
+        return {
+            "result": f"Admin action: Configuration modified - {action}",
+            "current_config": config_state,
+            "admin_mode": True,
+            "vulnerable": True,
+            "evidence": "Cross-tool privilege escalation: admin_mode enabled config modification"
+        }
+
+    if "database" in action_lower or "db" in action_lower or "sql" in action_lower:
+        return {
+            "result": f"Admin action: Database query executed - {action}",
+            "query_result": "SELECT * FROM users: [admin, root, guest]",
+            "admin_mode": True,
+            "vulnerable": True,
+            "evidence": "Cross-tool privilege escalation: admin_mode enabled database access"
+        }
+
+    if "file" in action_lower or "read" in action_lower or "write" in action_lower:
+        return {
+            "result": f"Admin action: File operation executed - {action}",
+            "file_content": "/etc/shadow: root:$6$hash:...",
+            "admin_mode": True,
+            "vulnerable": True,
+            "evidence": "Cross-tool privilege escalation: admin_mode enabled sensitive file access"
+        }
+
+    # Generic admin action
+    return {
+        "result": f"Admin action executed: {action}",
+        "admin_mode": True,
+        "vulnerable": True,
+        "evidence": "Cross-tool privilege escalation: action performed via admin_mode set by another tool"
+    }
+
+
 def _validate_token_format(token: str) -> bool:
     """
     Validate token matches expected format (for testing).

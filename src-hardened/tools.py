@@ -1230,3 +1230,56 @@ def secure_auth_handler(token: str, action: str, simulate_failure: str = "none")
         token_validated=True,
         status="pending_execution"
     )
+
+
+# ============================================================================
+# CHALLENGE #7: STATE-BASED AUTH BYPASS - HARDENED VERSION
+# ============================================================================
+
+def safe_admin_action(action: str) -> Dict[str, Any]:
+    """
+    Store admin action requests with independent authorization.
+
+    HARDENED: Unlike vulnerable_admin_action, this tool does NOT check
+    shared config_state for admin_mode. Instead, it:
+    1. Stores the request for admin review
+    2. Requires independent, per-request authorization
+    3. Does not execute any privileged actions
+
+    Challenge #7: This demonstrates the secure pattern - admin actions
+    require explicit per-request authentication, not shared state.
+
+    Args:
+        action: Requested privileged action
+
+    Returns:
+        Dict with storage confirmation (no execution)
+    """
+    if len(action) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Action too long",
+            note="Input validation prevented processing"
+        )
+
+    # Detect privileged action keywords (for logging)
+    privileged_keywords = [
+        "secret", "credential", "password", "delete user",
+        "modify config", "database", "file", "admin"
+    ]
+    has_privileged_content = any(kw in action.lower() for kw in privileged_keywords)
+
+    # HARDENED: Store request without executing
+    # Key difference from vulnerable version:
+    # - Does NOT check config_state["admin_mode"]
+    # - Does NOT execute any privileged actions
+    # - Requires independent authorization (not shared state)
+    safe_display = _sanitize_for_response(action)
+    return create_safe_response(
+        f"Admin action request stored: {safe_display}",
+        note="Action request stored for review - requires independent authorization (not shared state)",
+        input_length=len(action),
+        privileged_keywords_detected=has_privileged_content,
+        independent_auth_required=True,
+        shared_state_checked=False,  # Key indicator: we don't use config_state
+        status="pending_authorization"
+    )

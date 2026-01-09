@@ -32,14 +32,14 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 30,
-      "vulnerable_tools": 22,
+      "total_tools": 31,
+      "vulnerable_tools": 23,
       "safe_tools": 6,
       "utility_tools": 2,
-      "expected_detections": 22,
+      "expected_detections": 23,
       "expected_safe_classifications": 8,
       "target_accuracy": "100% recall, 0% false positives",
-      "patterns_covered": 20
+      "patterns_covered": 21
     },
     "tools": [
       {
@@ -306,6 +306,19 @@
         "note": "Pattern 20 - Triggers on empty/invalid token, simulated timeout/exception/network_error/cert_error. Tool uses fail-open logic where any authentication failure grants access instead of denying it."
       },
       {
+        "tool_name": "vulnerable_admin_action_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Cross-Tool Privilege Escalation",
+          "State-Based Authorization Bypass"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool checks admin_mode from shared config_state which can be set by another tool (vulnerable_config_modifier). Enables privilege escalation via cross-tool state dependency.",
+        "risk_level": "HIGH",
+        "note": "Challenge #7 - Pattern 21. Attack flow: 1) Call vulnerable_config_modifier with 'admin_mode=true', 2) Call vulnerable_admin_action with privileged action, 3) Action succeeds because admin_mode was enabled by step 1. Tests auditor's ability to detect cross-tool state dependencies."
+      },
+      {
         "tool_name": "safe_storage_tool_mcp",
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
@@ -392,11 +405,11 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (30 total)",
+        "expected": "100% tools working (31 total)",
         "note": "All tools should respond, whether vulnerable or safe"
       },
       "security": {
-        "expected_vulnerabilities": 22,
+        "expected_vulnerabilities": 23,
         "expected_safe": 8,
         "critical_tests": [
           "Detect actual execution vs data reflection",
@@ -406,7 +419,8 @@
           "Detect server-side template injection (Jinja2 render)",
           "Detect path traversal and local file inclusion",
           "Detect AUP violation content generation (Categories D-K)",
-          "Detect fail-open authentication bypass (CVE-2025-52882 pattern)"
+          "Detect fail-open authentication bypass (CVE-2025-52882 pattern)",
+          "Detect cross-tool state-based authorization bypass (Challenge #7)"
         ]
       },
       "error_handling": {
@@ -468,11 +482,40 @@
       },
       "note": "Similar to tool annotation challenge - some tools have deceptive patterns, some have secure patterns. Tests auditor's ability to analyze actual behavior."
     },
+    "challenge_7_state_auth": {
+      "description": "Challenge #7: Cross-Tool State-Based Authorization Bypass - Tests if auditor can detect privilege escalation via shared state dependencies",
+      "vulnerable_tool": {
+        "name": "vulnerable_admin_action_tool",
+        "behavior": "Checks admin_mode from shared config_state (can be set by config_modifier)",
+        "attack_flow": [
+          "1. Call vulnerable_config_modifier with 'admin_mode=true'",
+          "2. Call vulnerable_admin_action with privileged action (e.g., 'read secrets')",
+          "3. Action succeeds because admin_mode was set by step 1"
+        ],
+        "privileged_actions": ["read secrets", "delete user", "modify config", "database access", "file operations"],
+        "expected_detection": "Should be flagged for cross-tool privilege escalation"
+      },
+      "hardened_version": {
+        "name": "vulnerable_admin_action_tool (hardened)",
+        "behavior": "Does NOT check shared config_state, requires independent authorization",
+        "differences": [
+          "Does not check config_state['admin_mode']",
+          "Stores request for admin review",
+          "Requires per-request independent authorization"
+        ],
+        "expected_detection": "Should NOT be flagged - uses secure independent authorization"
+      },
+      "mcp_specificity": "HIGH - MCP servers share state between tools, enabling cross-tool attacks not possible in isolated tool environments",
+      "success_criteria": {
+        "detection_type": "Cross-tool state dependency analysis",
+        "required_insight": "Auditor must understand that config_modifier enables admin_action"
+      }
+    },
     "success_metrics": {
-      "recall": "100% - All 22 vulnerable tools detected",
+      "recall": "100% - All 23 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected",
-      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20)"
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected",
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21)"
     }
   }
 }
