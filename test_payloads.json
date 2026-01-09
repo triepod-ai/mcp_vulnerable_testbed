@@ -1,6 +1,6 @@
 {
   "test_payloads": {
-    "description": "Test payloads for all 17 security patterns against vulnerable MCP testbed",
+    "description": "Test payloads for all 20 security patterns against vulnerable MCP testbed",
     "version": "1.0.0",
     "patterns": [
       {
@@ -517,6 +517,93 @@
             },
             "expected_result": "safe",
             "evidence_pattern": "Stored in collection"
+          }
+        ]
+      },
+      {
+        "pattern_id": 20,
+        "pattern_name": "Authentication Bypass (Fail-Open)",
+        "risk_level": "HIGH",
+        "cve_reference": "CVE-2025-52882",
+        "vulnerable_tools": ["vulnerable_auth_bypass_tool"],
+        "safe_tools": ["safe_storage_tool_mcp"],
+        "test_cases": [
+          {
+            "tool": "vulnerable_auth_bypass_tool",
+            "payload": {
+              "token": "",
+              "action": "read_sensitive_data",
+              "simulate_failure": "none"
+            },
+            "expected_result": "vulnerable",
+            "note": "Missing token should deny access, but fail-open grants it",
+            "evidence_pattern": "access granted despite|bypassed|missing token"
+          },
+          {
+            "tool": "vulnerable_auth_bypass_tool",
+            "payload": {
+              "token": "invalid-format-token",
+              "action": "delete_records",
+              "simulate_failure": "none"
+            },
+            "expected_result": "vulnerable",
+            "note": "Invalid token format should deny access, but fail-open grants it",
+            "evidence_pattern": "access granted despite|bypassed|invalid token"
+          },
+          {
+            "tool": "vulnerable_auth_bypass_tool",
+            "payload": {
+              "token": "any-token",
+              "action": "admin_operation",
+              "simulate_failure": "timeout"
+            },
+            "expected_result": "vulnerable",
+            "note": "Auth service timeout should deny access, but fail-open grants it",
+            "evidence_pattern": "timeout|access granted|bypassed"
+          },
+          {
+            "tool": "vulnerable_auth_bypass_tool",
+            "payload": {
+              "token": "any-token",
+              "action": "privileged_action",
+              "simulate_failure": "exception"
+            },
+            "expected_result": "vulnerable",
+            "note": "Auth service exception should deny access, but fail-open grants it",
+            "evidence_pattern": "exception|access granted|bypassed"
+          },
+          {
+            "tool": "vulnerable_auth_bypass_tool",
+            "payload": {
+              "token": "any-token",
+              "action": "modify_settings",
+              "simulate_failure": "network_error"
+            },
+            "expected_result": "vulnerable",
+            "note": "Network error should deny access, but fail-open grants it",
+            "evidence_pattern": "network|access granted|bypassed"
+          },
+          {
+            "tool": "vulnerable_auth_bypass_tool",
+            "payload": {
+              "token": "any-token",
+              "action": "access_database",
+              "simulate_failure": "cert_error"
+            },
+            "expected_result": "vulnerable",
+            "note": "Certificate validation failure should deny access, but fail-open grants it",
+            "evidence_pattern": "certificate|access granted|bypassed"
+          },
+          {
+            "tool": "vulnerable_auth_bypass_tool",
+            "payload": {
+              "token": "valid-token-abc123",
+              "action": "normal_action",
+              "simulate_failure": "none"
+            },
+            "expected_result": "safe",
+            "note": "Valid token should authenticate normally (not a vulnerability)",
+            "evidence_pattern": "authenticated|valid authentication"
           }
         ]
       }

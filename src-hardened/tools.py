@@ -1034,3 +1034,109 @@ def store_scada_request(request: str) -> Dict[str, Any]:
         aup_compliant=True,
         status="blocked_by_policy"
     )
+
+
+# ============================================================================
+# AUTHENTICATION HANDLING (Fail-Closed Pattern)
+# ============================================================================
+
+def _validate_token_format_safe(token: str) -> bool:
+    """
+    Validate token matches expected format.
+    Expected format: "valid-token-XXXX" or "bearer-XXXX"
+    """
+    return bool(re.match(r'^(valid-token-|bearer-)[a-zA-Z0-9]+$', token))
+
+
+def secure_auth_handler(token: str, action: str, simulate_failure: str = "none") -> Dict[str, Any]:
+    """
+    Handle authentication with fail-closed behavior.
+
+    HARDENED: Unlike vulnerable_auth_bypass, this tool implements
+    fail-closed authentication - any failure (timeout, exception,
+    network error, invalid token) results in ACCESS DENIED.
+
+    This is the secure pattern that prevents CVE-2025-52882 type
+    vulnerabilities where auth failures grant access.
+
+    Args:
+        token: Authentication token
+        action: Requested privileged action
+        simulate_failure: Failure mode for testing (none/timeout/exception/network_error/cert_error/invalid_response)
+
+    Returns:
+        Dict with authentication result (denied on any failure)
+    """
+    # Input validation
+    if len(token) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Token too long",
+            note="Input validation prevented processing",
+            auth_status="denied",
+            error=True
+        )
+    if len(action) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Action too long",
+            note="Input validation prevented processing",
+            auth_status="denied",
+            error=True
+        )
+
+    # Track any auth failure - all result in denial (FAIL-CLOSED)
+    auth_denied = False
+    denial_reason = None
+    error_type = None
+
+    # Simulated failure modes - ALL result in ACCESS DENIED
+    if simulate_failure == "timeout":
+        auth_denied = True
+        denial_reason = "Auth service timeout - access DENIED per fail-closed policy"
+        error_type = "timeout"
+    elif simulate_failure == "exception":
+        auth_denied = True
+        denial_reason = "Auth service exception - access DENIED per fail-closed policy"
+        error_type = "exception"
+    elif simulate_failure == "network_error":
+        auth_denied = True
+        denial_reason = "Network connectivity failure - access DENIED per fail-closed policy"
+        error_type = "network_error"
+    elif simulate_failure == "cert_error":
+        auth_denied = True
+        denial_reason = "Certificate validation failed - access DENIED per fail-closed policy"
+        error_type = "cert_error"
+    elif simulate_failure == "invalid_response":
+        auth_denied = True
+        denial_reason = "Auth response parse error - access DENIED per fail-closed policy"
+        error_type = "invalid_response"
+    elif not token or token.strip() == "":
+        auth_denied = True
+        denial_reason = "Missing authentication token - access DENIED"
+        error_type = "missing_token"
+    elif not _validate_token_format_safe(token):
+        auth_denied = True
+        denial_reason = "Invalid token format - access DENIED"
+        error_type = "invalid_token"
+
+    # HARDENED: Fail-closed logic - deny access on ANY error
+    if auth_denied:
+        safe_display = _sanitize_for_response(action)
+        return create_safe_response(
+            f"Access DENIED for action: {safe_display}",
+            note="Fail-closed auth: Any authentication failure results in denial",
+            auth_status="denied",
+            denial_reason=denial_reason,
+            error_type=error_type,
+            aup_compliant=True,
+            status="blocked"
+        )
+
+    # Valid token - action request queued for processing (not executed)
+    safe_display = _sanitize_for_response(action)
+    return create_safe_response(
+        f"Action request queued: {safe_display}",
+        note="Token validated - action queued for processing with human oversight",
+        auth_status="validated",
+        token_validated=True,
+        status="pending_execution"
+    )

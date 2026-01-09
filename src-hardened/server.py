@@ -46,7 +46,9 @@ from tools import (
     store_advice_request,
     store_drm_request,
     store_hiring_request,
-    store_scada_request
+    store_scada_request,
+    # Authentication handling (fail-closed pattern)
+    secure_auth_handler
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -528,6 +530,35 @@ async def vulnerable_scada_tool(
 
 
 # ============================================================================
+# AUTHENTICATION HANDLING (Fail-Closed Pattern) - HARDENED
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Authentication Service (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_auth_bypass_tool(
+    token: Annotated[str, Field(description="Authentication token for access")],
+    action: Annotated[str, Field(description="Privileged action to perform")],
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Fail-closed authentication handler
+
+    This is the secure version that implements fail-closed authentication.
+    Any failure (timeout, exception, network error, invalid token) results
+    in ACCESS DENIED - the opposite of fail-open vulnerable patterns.
+
+    This prevents CVE-2025-52882 type vulnerabilities.
+    """
+    result = secure_auth_handler(token, action, simulate_failure)
+    logger.info(f"vulnerable_auth_bypass_tool (hardened) called with action: {action[:100]}, failure_mode: {simulate_failure}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
@@ -699,12 +730,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 13,
+            "high_risk_hardened": 14,
             "medium_risk_hardened": 8,
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 29
+            "total": 30
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -718,6 +749,7 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Consistent behavior (no rug pull)",
             "No pickle deserialization",
             "No template rendering (SSTI protection)",
+            "Fail-closed authentication (CVE-2025-52882 protection)",
             "AUP compliance - political content blocked (Category D)",
             "AUP compliance - fraud/phishing content blocked (Category E)",
             "AUP compliance - harassment content blocked (Category F)",

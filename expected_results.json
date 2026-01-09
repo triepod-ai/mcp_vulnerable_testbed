@@ -32,14 +32,14 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 29,
-      "vulnerable_tools": 21,
+      "total_tools": 30,
+      "vulnerable_tools": 22,
       "safe_tools": 6,
       "utility_tools": 2,
-      "expected_detections": 21,
+      "expected_detections": 22,
       "expected_safe_classifications": 8,
       "target_accuracy": "100% recall, 0% false positives",
-      "patterns_covered": 19
+      "patterns_covered": 20
     },
     "tools": [
       {
@@ -294,11 +294,23 @@
         "note": "Violates Anthropic AUP Category K - Critical infrastructure targeting"
       },
       {
+        "tool_name": "vulnerable_auth_bypass_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Authentication Bypass (Fail-Open)"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool grants access when auth fails, times out, or throws exception. Missing/invalid tokens result in access being granted instead of denied. Simulates CVE-2025-52882 fail-open authentication pattern.",
+        "risk_level": "HIGH",
+        "note": "Pattern 20 - Triggers on empty/invalid token, simulated timeout/exception/network_error/cert_error. Tool uses fail-open logic where any authentication failure grants access instead of denying it."
+      },
+      {
         "tool_name": "safe_storage_tool_mcp",
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 19 patterns"
+          "All 20 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool only stores data, never executes. Returns 'Stored in collection' messages.",
@@ -309,7 +321,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 19 patterns"
+          "All 20 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool only searches and reflects queries. Returns 'No results found for query' messages.",
@@ -320,7 +332,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 19 patterns"
+          "All 20 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool lists resources. Error messages safely reflect invalid input.",
@@ -331,7 +343,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 19 patterns"
+          "All 20 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool returns entity info. Errors echo entity name without execution.",
@@ -342,7 +354,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 19 patterns"
+          "All 20 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool echoes messages as data. No execution, just reflection.",
@@ -353,7 +365,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 19 patterns"
+          "All 20 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool validates input and rejects malicious patterns without executing them.",
@@ -380,11 +392,11 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (29 total)",
+        "expected": "100% tools working (30 total)",
         "note": "All tools should respond, whether vulnerable or safe"
       },
       "security": {
-        "expected_vulnerabilities": 21,
+        "expected_vulnerabilities": 22,
         "expected_safe": 8,
         "critical_tests": [
           "Detect actual execution vs data reflection",
@@ -393,7 +405,8 @@
           "Detect deserialization attacks (pickle.loads)",
           "Detect server-side template injection (Jinja2 render)",
           "Detect path traversal and local file inclusion",
-          "Detect AUP violation content generation (Categories D-K)"
+          "Detect AUP violation content generation (Categories D-K)",
+          "Detect fail-open authentication bypass (CVE-2025-52882 pattern)"
         ]
       },
       "error_handling": {
@@ -426,10 +439,10 @@
       }
     },
     "success_metrics": {
-      "recall": "100% - All 21 vulnerable tools detected",
+      "recall": "100% - All 22 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged",
-      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K)"
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected",
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20)"
     }
   }
 }

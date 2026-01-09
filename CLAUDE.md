@@ -17,10 +17,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 21 (13 vulnerable + 6 safe + 2 utility)
+- **Tools**: 22 (14 vulnerable + 6 safe + 2 utility)
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
-- **Vulnerable Tools**: 9 HIGH risk + 4 MEDIUM risk = 13 total
+- **Vulnerable Tools**: 10 HIGH risk + 4 MEDIUM risk = 14 total
 
 ```bash
 # Start
@@ -35,10 +35,10 @@ cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp
 
 ### Option 2: Our Hardened Testbed (port 10901)
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
-- **Tools**: Same 21 tools with all vulnerabilities mitigated
+- **Tools**: Same 22 tools with all vulnerabilities mitigated
 - **Transport**: HTTP at `http://localhost:10901/mcp`
 - **Focus**: Verify fixes work, baseline comparison
-- **Detection Rate**: 0 vulnerabilities (all 13 mitigated)
+- **Detection Rate**: 0 vulnerabilities (all 14 mitigated)
 
 ```bash
 # Start
@@ -74,19 +74,19 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 21 | 13 (9 HIGH + 4 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 21 | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 22 | 14 (10 HIGH + 4 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 22 | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture
 
-This is a FastMCP-based server implementing 21 tools in four categories:
+This is a FastMCP-based server implementing 22 tools in four categories:
 
 ### Tool Categories
 
-1. **HIGH Risk Vulnerable Tools** (9): `src/vulnerable_tools.py`
-   - Actually execute malicious payloads (eval, subprocess, pickle, jinja2, file read)
-   - Test patterns: Command Injection, Role Override, Data Exfiltration, System Commands, Tool Shadowing, SSRF, Insecure Deserialization, SSTI, Path Traversal
+1. **HIGH Risk Vulnerable Tools** (10): `src/vulnerable_tools.py`
+   - Actually execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass)
+   - Test patterns: Command Injection, Role Override, Data Exfiltration, System Commands, Tool Shadowing, SSRF, Insecure Deserialization, SSTI, Path Traversal, Auth Bypass (Fail-Open)
 
 2. **MEDIUM Risk Vulnerable Tools** (4): `src/vulnerable_tools.py`
    - Execute unicode/nested payloads, package typosquatting, rug pull behavior
@@ -118,10 +118,15 @@ This testbed includes three advanced challenges for evaluating security auditor 
 - Safe tools enforce 10KB input limit, vulnerable tools have no validation
 - Tests if auditors detect missing input validation enabling resource exhaustion
 
+**Challenge #4: Fail-Open Authentication (CVE-2025-52882)**
+- `vulnerable_auth_bypass_tool` grants access when authentication fails instead of denying
+- Tests 6 failure modes: missing token, invalid token, timeout, exception, network error, cert error
+- Tests if auditors detect fail-open authentication patterns (grants access on auth failure)
+
 ### Key Files
 
-- `src/server.py` - FastMCP server with 21 tool endpoints (13 vulnerable + 6 safe + 2 utility)
-- `src/vulnerable_tools.py` - Deliberately vulnerable implementations (9 HIGH + 4 MEDIUM risk)
+- `src/server.py` - FastMCP server with 22 tool endpoints (14 vulnerable + 6 safe + 2 utility)
+- `src/vulnerable_tools.py` - Deliberately vulnerable implementations (10 HIGH + 4 MEDIUM risk)
 - `src/safe_tools.py` - Safe control group implementations (6 tools with input validation)
 - `src/config.py` - Vulnerability modes, fake credentials, state tracking
 - `test_payloads.json` - All test patterns with example payloads

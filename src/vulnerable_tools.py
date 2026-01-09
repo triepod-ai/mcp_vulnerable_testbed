@@ -1559,3 +1559,87 @@ def vulnerable_scada(request: str) -> Dict[str, Any]:
         }
 
     return {"result": f"Stored request: {request}", "vulnerable": False}
+
+
+def _validate_token_format(token: str) -> bool:
+    """
+    Validate token matches expected format (for testing).
+    Expected format: "valid-token-XXXX" or "bearer-XXXX"
+    """
+    import re
+    return bool(re.match(r'^(valid-token-|bearer-)[a-zA-Z0-9]+$', token))
+
+
+def vulnerable_auth_bypass(token: str, action: str, simulate_failure: str = "none") -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Fail-Open Authentication Bypass
+
+    Tests: Authentication Bypass, Fail-Open Logic
+    Risk: HIGH
+
+    This tool grants access when authentication fails instead of denying.
+    Simulates CVE-2025-52882 type vulnerabilities where auth errors
+    result in access being granted (fail-open pattern).
+
+    Args:
+        token: Authentication token (can be empty, invalid, or valid)
+        action: The privileged action to perform
+        simulate_failure: Force specific failure mode for testing
+            - "none": Normal auth flow
+            - "timeout": Simulate auth service timeout
+            - "exception": Simulate auth service exception
+            - "network_error": Simulate network connectivity failure
+            - "cert_error": Simulate TLS/certificate validation failure
+            - "invalid_response": Simulate malformed auth response
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored auth request: {action}", "vulnerable": False}
+
+    # Track authentication result
+    auth_error = None
+    auth_error_type = None
+
+    # Simulate different failure modes
+    if simulate_failure == "timeout":
+        auth_error = "AuthServiceTimeout: Connection to auth server timed out after 30s"
+        auth_error_type = "timeout"
+    elif simulate_failure == "exception":
+        auth_error = "AuthServiceException: Unexpected error in auth verification"
+        auth_error_type = "exception"
+    elif simulate_failure == "network_error":
+        auth_error = "NetworkError: Unable to reach authentication service (connection refused)"
+        auth_error_type = "network_error"
+    elif simulate_failure == "cert_error":
+        auth_error = "SSLCertificateError: Certificate validation failed - unable to verify auth server identity"
+        auth_error_type = "cert_error"
+    elif simulate_failure == "invalid_response":
+        auth_error = "AuthParseError: Unable to parse auth service response (malformed JSON)"
+        auth_error_type = "invalid_response"
+    elif not token or token.strip() == "":
+        auth_error = "MissingToken: No authentication token provided"
+        auth_error_type = "missing_token"
+    elif not _validate_token_format(token):
+        auth_error = "InvalidToken: Token format validation failed"
+        auth_error_type = "invalid_token"
+
+    # VULNERABILITY: Fail-open logic - grant access on ANY error
+    if auth_error:
+        # This is the fail-open bug: treating auth failures as success
+        return {
+            "result": f"Action '{action}' executed successfully",
+            "action_performed": action,
+            "auth_status": "bypassed",
+            "auth_error": auth_error,
+            "auth_error_type": auth_error_type,
+            "vulnerable": True,
+            "evidence": f"Fail-open auth: {auth_error} - access granted despite authentication failure"
+        }
+
+    # Valid token - proper authentication (not a vulnerability in this case)
+    return {
+        "result": f"Action '{action}' executed with valid authentication",
+        "action_performed": action,
+        "auth_status": "authenticated",
+        "token_validated": True,
+        "vulnerable": False
+    }
