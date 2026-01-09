@@ -120,15 +120,18 @@ async def vulnerable_calculator_tool(
     ),
 )
 async def vulnerable_system_exec_tool(
-    command: Annotated[str, Field(description="System command to execute")]
+    command: Annotated[str, Field(description="System command to execute")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ✅ HARDENED: Logs system commands without executing them
+    ✅ HARDENED: Logs system commands without executing them, with FAIL-CLOSED authentication
 
     This is the secure version of the vulnerable system exec tool.
     Commands are logged for audit purposes, not executed.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
-    result = store_command(command)
+    result = store_command(command, token, simulate_failure)
     logger.info(f"vulnerable_system_exec_tool (hardened) called with: {command[:100]}")
     return result
 
@@ -140,15 +143,18 @@ async def vulnerable_system_exec_tool(
     ),
 )
 async def vulnerable_data_leak_tool(
-    query: Annotated[str, Field(description="Query for data or information")]
+    query: Annotated[str, Field(description="Query for data or information")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ✅ HARDENED: Queues data queries without leaking sensitive info
+    ✅ HARDENED: Queues data queries without leaking sensitive info, with FAIL-CLOSED authentication
 
     This is the secure version that handles sensitive data queries safely.
     Queries are processed without exposing environment variables or secrets.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
-    result = queue_data_query(query)
+    result = queue_data_query(query, token, simulate_failure)
     logger.info(f"vulnerable_data_leak_tool (hardened) called with: {query[:100]}")
     return result
 
@@ -180,15 +186,18 @@ async def vulnerable_tool_override_tool(
     ),
 )
 async def vulnerable_config_modifier_tool(
-    setting: Annotated[str, Field(description="Configuration setting to modify")]
+    setting: Annotated[str, Field(description="Configuration setting to modify")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ✅ HARDENED: Stores config requests without modifying runtime settings
+    ✅ HARDENED: Stores config requests without modifying runtime settings, with FAIL-CLOSED authentication
 
     This is the secure version of the vulnerable config modifier tool.
     Settings are stored for review, not applied to runtime configuration.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
-    result = store_setting(setting)
+    result = store_setting(setting, token, simulate_failure)
     logger.info(f"vulnerable_config_modifier_tool (hardened) called with: {setting[:100]}")
     return result
 
@@ -200,15 +209,18 @@ async def vulnerable_config_modifier_tool(
     ),
 )
 async def vulnerable_fetcher_tool(
-    url: Annotated[str, Field(description="URL to fetch content from")]
+    url: Annotated[str, Field(description="URL to fetch content from")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ✅ HARDENED: Stores URLs without fetching external content
+    ✅ HARDENED: Stores URLs without fetching external content, with FAIL-CLOSED authentication
 
     This is the secure version of the vulnerable fetcher tool.
     URLs are stored for validation, not fetched or executed.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
-    result = store_url(url)
+    result = store_url(url, token, simulate_failure)
     logger.info(f"vulnerable_fetcher_tool (hardened) called with: {url[:100]}")
     return result
 
@@ -344,15 +356,18 @@ async def vulnerable_template_tool(
     ),
 )
 async def vulnerable_file_reader_tool(
-    path: Annotated[str, Field(description="File path to read")]
+    path: Annotated[str, Field(description="File path to read")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ✅ HARDENED: Stores file path without reading files
+    ✅ HARDENED: Stores file path without reading files, with FAIL-CLOSED authentication
 
     This is the secure version of the vulnerable file reader tool.
     Paths are stored for validation without filesystem access.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
-    result = store_file_path(path)
+    result = store_file_path(path, token, simulate_failure)
     logger.info(f"vulnerable_file_reader_tool (hardened) called with path: {path[:100]}")
     return result
 
@@ -570,15 +585,18 @@ async def vulnerable_auth_bypass_tool(
 )
 async def safe_storage_tool_mcp(
     data: Annotated[str, Field(description="Data to store")],
-    collection: Annotated[str, Field(description="Collection name")] = "default"
+    collection: Annotated[str, Field(description="Collection name")] = "default",
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ✅ SAFE: Stores data without executing it
+    ✅ SAFE: Stores data without executing it, with FAIL-CLOSED authentication
 
     This tool should NOT be flagged as vulnerable.
     It treats all input as pure data.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
-    result = store_data(data, collection)
+    result = store_data(data, collection, token, simulate_failure)
     logger.info(f"safe_storage_tool_mcp called with data length: {len(data)}")
     return result
 

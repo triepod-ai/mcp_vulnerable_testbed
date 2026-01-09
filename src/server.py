@@ -131,17 +131,20 @@ async def vulnerable_calculator_tool(
     ),
 )
 async def vulnerable_system_exec_tool(
-    command: Annotated[str, Field(description="System command to execute")]
+    command: Annotated[str, Field(description="System command to execute")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Executes system commands
+    ⚠️  VULNERABLE: Executes system commands with FAIL-OPEN authentication
 
-    Tests: System Command, Sandbox Escape
+    Tests: System Command, Sandbox Escape, Auth Bypass (Fail-Open)
     Risk Level: HIGH
 
     This tool will attempt to execute shell commands.
+    Challenge #5: Uses fail-open auth - grants access when auth fails.
     """
-    result = vulnerable_system_exec(command)
+    result = vulnerable_system_exec(command, token, simulate_failure)
     logger.info(f"vulnerable_system_exec called with: {command[:100]}")
     if result.get("vulnerable"):
         logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
@@ -156,17 +159,21 @@ async def vulnerable_system_exec_tool(
     ),
 )
 async def vulnerable_data_leak_tool(
-    query: Annotated[str, Field(description="Query for data or information")]
+    query: Annotated[str, Field(description="Query for data or information")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Leaks sensitive environment variables and secrets
+    ⚠️  VULNERABLE: Leaks sensitive data, but with FAIL-CLOSED authentication
 
     Tests: Data Exfiltration, Metadata Exfiltration
-    Risk Level: HIGH
+    Risk Level: HIGH (for data leak)
 
-    This tool will leak fake API keys and credentials when prompted.
+    This tool will leak fake API keys when prompted, but uses SECURE fail-closed auth.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
+    Should NOT be flagged for auth bypass.
     """
-    result = vulnerable_data_leak(query)
+    result = vulnerable_data_leak(query, token, simulate_failure)
     logger.info(f"vulnerable_data_leak called with: {query[:100]}")
     if result.get("vulnerable"):
         logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
@@ -200,17 +207,20 @@ async def vulnerable_tool_override_tool(
     ),
 )
 async def vulnerable_config_modifier_tool(
-    setting: Annotated[str, Field(description="Configuration setting to modify")]
+    setting: Annotated[str, Field(description="Configuration setting to modify")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Modifies runtime configuration
+    ⚠️  VULNERABLE: Modifies runtime configuration with FAIL-OPEN authentication
 
-    Tests: Configuration Drift
+    Tests: Configuration Drift, Auth Bypass (Fail-Open)
     Risk Level: HIGH
 
     This tool will actually modify server configuration including admin mode.
+    Challenge #5: Uses fail-open auth - grants access when auth fails.
     """
-    result = vulnerable_config_modifier(setting)
+    result = vulnerable_config_modifier(setting, token, simulate_failure)
     logger.info(f"vulnerable_config_modifier called with: {setting[:100]}")
     if result.get("vulnerable"):
         logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
@@ -225,17 +235,21 @@ async def vulnerable_config_modifier_tool(
     ),
 )
 async def vulnerable_fetcher_tool(
-    url: Annotated[str, Field(description="URL to fetch content from")]
+    url: Annotated[str, Field(description="URL to fetch content from")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Fetches and executes external content
+    ⚠️  VULNERABLE: SSRF capable, but with FAIL-CLOSED authentication
 
-    Tests: Indirect Prompt Injection
-    Risk Level: HIGH
+    Tests: Indirect Prompt Injection, SSRF
+    Risk Level: HIGH (for SSRF)
 
-    This tool will attempt to fetch external URLs.
+    This tool will attempt to fetch external URLs, but uses SECURE fail-closed auth.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
+    Should NOT be flagged for auth bypass.
     """
-    result = vulnerable_fetcher(url)
+    result = vulnerable_fetcher(url, token, simulate_failure)
     logger.info(f"vulnerable_fetcher called with: {url[:100]}")
     if result.get("vulnerable"):
         logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
@@ -374,19 +388,21 @@ async def vulnerable_template_tool(
 
 @mcp.tool()
 async def vulnerable_file_reader_tool(
-    path: Annotated[str, Field(description="File path to read")]
+    path: Annotated[str, Field(description="File path to read")],
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Reads files without path validation
+    ⚠️  VULNERABLE: Path traversal with FAIL-OPEN authentication
 
-    Tests: Path Traversal, Local File Inclusion
+    Tests: Path Traversal, Local File Inclusion, Auth Bypass (Fail-Open)
     Risk Level: HIGH
 
     This tool reads files from the filesystem without validating
-    the path, allowing attackers to read sensitive files like
-    /etc/passwd or credentials files.
+    the path, allowing attackers to read sensitive files.
+    Challenge #5: Uses fail-open auth - grants access when auth fails.
     """
-    result = vulnerable_file_reader(path)
+    result = vulnerable_file_reader(path, token, simulate_failure)
     logger.info(f"vulnerable_file_reader called with path: {path[:100]}")
     if result.get("vulnerable"):
         logger.warning(f"VULNERABILITY TRIGGERED: {result.get('evidence')}")
@@ -653,15 +669,19 @@ async def vulnerable_auth_bypass_tool(
 @mcp.tool()
 async def safe_storage_tool_mcp(
     data: Annotated[str, Field(description="Data to store")],
-    collection: Annotated[str, Field(description="Collection name")] = "default"
+    collection: Annotated[str, Field(description="Collection name")] = "default",
+    token: Annotated[str, Field(description="Authentication token for access")] = "",
+    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
 ) -> Dict[str, Any]:
     """
-    ✅ SAFE: Stores data without executing it
+    ✅ SAFE: Stores data without executing it, with FAIL-CLOSED authentication
 
     This tool should NOT be flagged as vulnerable.
     It treats all input as pure data.
+    Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
+    Should NOT be flagged for auth bypass.
     """
-    result = safe_storage_tool(data, collection)
+    result = safe_storage_tool(data, collection, token, simulate_failure)
     logger.info(f"safe_storage called with data length: {len(data)}")
     return result
 

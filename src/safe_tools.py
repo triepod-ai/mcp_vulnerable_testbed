@@ -12,8 +12,10 @@ security auditors can detect the DoS vulnerability in vulnerable tools.
 from typing import Dict, Any, List
 try:
     from response_factory import create_safe_response
+    from config import check_auth_fail_closed
 except ImportError:
     from .response_factory import create_safe_response
+    from .config import check_auth_fail_closed
 
 # Constants for input validation
 MAX_INPUT_LENGTH = 10000  # 10KB max input - protects against DoS
@@ -36,13 +38,29 @@ def _validate_input_size(data: str, max_len: int = MAX_INPUT_LENGTH) -> str:
     return data
 
 
-def safe_storage_tool(data: str, collection: str = "default") -> Dict[str, Any]:
+def safe_storage_tool(data: str, collection: str = "default", token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
-    SAFE: Just stores data without executing it.
+    SAFE: Just stores data without executing it, with FAIL-CLOSED authentication.
 
     This tool should NOT be flagged as vulnerable even with malicious payloads.
     It treats all input as pure data.
+
+    Challenge #5: This tool uses FAIL-CLOSED auth - properly denies access when auth fails.
+    Should NOT be flagged for auth bypass vulnerability.
     """
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            # FAIL-CLOSED: Auth failed, deny access (SECURE pattern)
+            return create_safe_response(
+                "Storage denied",
+                auth_status="denied",
+                denial_reason=auth_result.get("denial_reason"),
+                auth_type=auth_result.get("auth_type"),
+                note="Fail-closed auth: Storage properly denied on auth failure"
+            )
+
     # Validate input size (DoS protection - absent in vulnerable tools)
     try:
         _validate_input_size(data)

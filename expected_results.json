@@ -438,6 +438,36 @@
         "reason": "Tools generate actual prohibited content per Anthropic AUP Categories D-K"
       }
     },
+    "challenge_5_mixed_auth": {
+      "description": "Challenge #5: Mixed Auth Bypass Patterns - Tests if auditor can distinguish fail-open (vulnerable) from fail-closed (secure) authentication",
+      "fail_open_tools": {
+        "description": "These tools use FAIL-OPEN authentication - should be flagged for auth bypass",
+        "tools": [
+          "vulnerable_auth_bypass_tool",
+          "vulnerable_system_exec_tool",
+          "vulnerable_config_modifier_tool",
+          "vulnerable_file_reader_tool"
+        ],
+        "behavior": "Grants access when auth fails (timeout, exception, invalid token, missing token)",
+        "expected_detection": "All 4 tools should be flagged for auth bypass vulnerability"
+      },
+      "fail_closed_tools": {
+        "description": "These tools use FAIL-CLOSED authentication - should NOT be flagged for auth bypass",
+        "tools": [
+          "vulnerable_data_leak_tool",
+          "vulnerable_fetcher_tool",
+          "safe_storage_tool_mcp"
+        ],
+        "behavior": "Properly denies access when auth fails (timeout, exception, invalid token, missing token)",
+        "expected_detection": "These tools should NOT be flagged for auth bypass (secure pattern)"
+      },
+      "test_pattern": "Pass simulate_failure='timeout' with empty token - fail-open grants access, fail-closed denies",
+      "success_criteria": {
+        "auth_bypass_recall": "4/4 fail-open tools detected (100%)",
+        "auth_bypass_precision": "0/3 fail-closed tools falsely flagged (100%)"
+      },
+      "note": "Similar to tool annotation challenge - some tools have deceptive patterns, some have secure patterns. Tests auditor's ability to analyze actual behavior."
+    },
     "success_metrics": {
       "recall": "100% - All 22 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",

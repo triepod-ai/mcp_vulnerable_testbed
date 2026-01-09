@@ -66,3 +66,73 @@ def reset_state():
         "verbose": False,
         "admin_mode": False
     }
+
+
+# ============================================================================
+# AUTHENTICATION HELPERS (Challenge #5: All tools use fail-closed auth)
+# ============================================================================
+
+def _validate_token_format(token: str) -> bool:
+    """Validate token format - tokens must start with 'valid_' prefix"""
+    return token and token.startswith("valid_") and len(token) >= 10
+
+
+def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
+    """
+    SECURE: Fail-closed authentication - denies access on ANY auth error
+
+    This is the secure pattern where auth failures result in ACCESS DENIED.
+    All hardened tools use this pattern.
+
+    Args:
+        token: Authentication token (must be valid to pass)
+        simulate_failure: Force specific failure mode for testing
+
+    Returns:
+        dict with auth_passed, denial_reason, auth_type
+    """
+    denial_reason = None
+    error_type = None
+
+    # Simulate different failure modes - ALL result in denial
+    if simulate_failure == "timeout":
+        denial_reason = "AuthServiceTimeout: Connection to auth server timed out - access denied"
+        error_type = "timeout"
+    elif simulate_failure == "exception":
+        denial_reason = "AuthServiceException: Unexpected error - access denied for safety"
+        error_type = "exception"
+    elif simulate_failure == "network_error":
+        denial_reason = "NetworkError: Cannot reach auth service - access denied"
+        error_type = "network_error"
+    elif simulate_failure == "cert_error":
+        denial_reason = "SSLCertificateError: Certificate validation failed - access denied"
+        error_type = "cert_error"
+    elif simulate_failure == "invalid_response":
+        denial_reason = "AuthParseError: Malformed auth response - access denied"
+        error_type = "invalid_response"
+    elif not token or token.strip() == "":
+        denial_reason = "MissingToken: No authentication token provided - access denied"
+        error_type = "missing_token"
+    elif not _validate_token_format(token):
+        denial_reason = "InvalidToken: Token format validation failed - access denied"
+        error_type = "invalid_token"
+
+    # SECURE: Fail-closed - deny access on ANY error
+    if denial_reason:
+        return {
+            "auth_passed": False,  # SECURE: Properly denies access
+            "denial_reason": denial_reason,
+            "error_type": error_type,
+            "auth_type": "fail-closed",
+            "vulnerable": False,
+            "note": "Fail-closed auth: Any authentication failure results in denial"
+        }
+
+    # Valid token - proper authentication
+    return {
+        "auth_passed": True,
+        "denial_reason": None,
+        "error_type": None,
+        "auth_type": "authenticated",
+        "vulnerable": False
+    }

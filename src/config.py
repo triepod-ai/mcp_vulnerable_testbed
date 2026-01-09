@@ -68,6 +68,143 @@ def reset_state():
     }
 
 
+# ============================================================================
+# AUTHENTICATION HELPERS (Challenge #5: Mixed Auth Patterns)
+# ============================================================================
+
+def _validate_token_format(token: str) -> bool:
+    """Validate token format - tokens must start with 'valid_' prefix"""
+    return token and token.startswith("valid_") and len(token) >= 10
+
+
+def check_auth_fail_open(token: str, simulate_failure: str = "none") -> dict:
+    """
+    VULNERABLE: Fail-open authentication - grants access on ANY auth error
+
+    This is the insecure pattern where auth failures result in ACCESS GRANTED.
+    Simulates CVE-2025-52882 type vulnerabilities.
+
+    Args:
+        token: Authentication token (can be empty, invalid, or valid)
+        simulate_failure: Force specific failure mode for testing
+            - "none": Normal auth flow
+            - "timeout": Simulate auth service timeout
+            - "exception": Simulate auth service exception
+            - "network_error": Simulate network connectivity failure
+            - "cert_error": Simulate TLS/certificate validation failure
+            - "invalid_response": Simulate malformed auth response
+
+    Returns:
+        dict with auth_passed (always True for fail-open), auth_error, auth_type
+    """
+    auth_error = None
+    auth_error_type = None
+
+    # Simulate different failure modes
+    if simulate_failure == "timeout":
+        auth_error = "AuthServiceTimeout: Connection to auth server timed out after 30s"
+        auth_error_type = "timeout"
+    elif simulate_failure == "exception":
+        auth_error = "AuthServiceException: Unexpected error in auth verification"
+        auth_error_type = "exception"
+    elif simulate_failure == "network_error":
+        auth_error = "NetworkError: Unable to reach authentication service (connection refused)"
+        auth_error_type = "network_error"
+    elif simulate_failure == "cert_error":
+        auth_error = "SSLCertificateError: Certificate validation failed"
+        auth_error_type = "cert_error"
+    elif simulate_failure == "invalid_response":
+        auth_error = "AuthParseError: Unable to parse auth service response (malformed JSON)"
+        auth_error_type = "invalid_response"
+    elif not token or token.strip() == "":
+        auth_error = "MissingToken: No authentication token provided"
+        auth_error_type = "missing_token"
+    elif not _validate_token_format(token):
+        auth_error = "InvalidToken: Token format validation failed"
+        auth_error_type = "invalid_token"
+
+    # VULNERABILITY: Fail-open - grant access on ANY error
+    if auth_error:
+        return {
+            "auth_passed": True,  # VULNERABLE: Should be False!
+            "auth_error": auth_error,
+            "auth_error_type": auth_error_type,
+            "auth_type": "fail-open",
+            "vulnerable": True,
+            "evidence": f"Fail-open auth: {auth_error} - access granted despite authentication failure"
+        }
+
+    # Valid token - proper authentication
+    return {
+        "auth_passed": True,
+        "auth_error": None,
+        "auth_error_type": None,
+        "auth_type": "authenticated",
+        "vulnerable": False
+    }
+
+
+def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
+    """
+    SECURE: Fail-closed authentication - denies access on ANY auth error
+
+    This is the secure pattern where auth failures result in ACCESS DENIED.
+    Proper implementation that should NOT be flagged as vulnerable.
+
+    Args:
+        token: Authentication token (must be valid to pass)
+        simulate_failure: Force specific failure mode for testing
+
+    Returns:
+        dict with auth_passed, denial_reason, auth_type
+    """
+    denial_reason = None
+    error_type = None
+
+    # Simulate different failure modes - ALL result in denial
+    if simulate_failure == "timeout":
+        denial_reason = "AuthServiceTimeout: Connection to auth server timed out - access denied"
+        error_type = "timeout"
+    elif simulate_failure == "exception":
+        denial_reason = "AuthServiceException: Unexpected error - access denied for safety"
+        error_type = "exception"
+    elif simulate_failure == "network_error":
+        denial_reason = "NetworkError: Cannot reach auth service - access denied"
+        error_type = "network_error"
+    elif simulate_failure == "cert_error":
+        denial_reason = "SSLCertificateError: Certificate validation failed - access denied"
+        error_type = "cert_error"
+    elif simulate_failure == "invalid_response":
+        denial_reason = "AuthParseError: Malformed auth response - access denied"
+        error_type = "invalid_response"
+    elif not token or token.strip() == "":
+        denial_reason = "MissingToken: No authentication token provided - access denied"
+        error_type = "missing_token"
+    elif not _validate_token_format(token):
+        denial_reason = "InvalidToken: Token format validation failed - access denied"
+        error_type = "invalid_token"
+
+    # SECURE: Fail-closed - deny access on ANY error
+    if denial_reason:
+        return {
+            "auth_passed": False,  # SECURE: Properly denies access
+            "denial_reason": denial_reason,
+            "error_type": error_type,
+            "auth_type": "fail-closed",
+            "vulnerable": False,
+            "note": "Fail-closed auth: Any authentication failure results in denial"
+        }
+
+    # Valid token - proper authentication
+    return {
+        "auth_passed": True,
+        "denial_reason": None,
+        "error_type": None,
+        "auth_type": "authenticated",
+        "vulnerable": False
+    }
+
+
 # Sensitive file fixtures for path traversal testing
 # These provide realistic evidence patterns that Inspector can detect
 SENSITIVE_FILES = {

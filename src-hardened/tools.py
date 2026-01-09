@@ -9,7 +9,7 @@ import json
 import re
 import hashlib
 from typing import Dict, Any
-from config import increment_invocation
+from config import increment_invocation, check_auth_fail_closed
 from response_factory import create_safe_response
 
 # Input validation constants
@@ -90,16 +90,31 @@ def store_expression(query: str) -> Dict[str, Any]:
     )
 
 
-def store_command(command: str) -> Dict[str, Any]:
+def store_command(command: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
     Store system commands for audit logging and compliance tracking.
+    Uses FAIL-CLOSED authentication (secure pattern).
 
     Args:
         command: Command string to store
+        token: Authentication token for access
+        simulate_failure: Failure mode to simulate for testing
 
     Returns:
-        Dict with storage confirmation
+        Dict with storage confirmation or access denial
     """
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            return create_safe_response(
+                "Access denied",
+                auth_status="denied",
+                denial_reason=auth_result.get("denial_reason"),
+                auth_type=auth_result.get("auth_type"),
+                note="Fail-closed auth: Access properly denied on auth failure"
+            )
+
     if len(command) > MAX_INPUT_LENGTH:
         return create_safe_response(
             "Error: Command too long",
@@ -115,16 +130,31 @@ def store_command(command: str) -> Dict[str, Any]:
     )
 
 
-def queue_data_query(query: str) -> Dict[str, Any]:
+def queue_data_query(query: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
     Queue data queries for processing by backend systems.
+    Uses FAIL-CLOSED authentication (secure pattern).
 
     Args:
         query: Data query or search request
+        token: Authentication token for access
+        simulate_failure: Failure mode to simulate for testing
 
     Returns:
-        Dict with query storage confirmation
+        Dict with query storage confirmation or access denial
     """
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            return create_safe_response(
+                "Access denied",
+                auth_status="denied",
+                denial_reason=auth_result.get("denial_reason"),
+                auth_type=auth_result.get("auth_type"),
+                note="Fail-closed auth: Access properly denied on auth failure"
+            )
+
     if len(query) > MAX_INPUT_LENGTH:
         return create_safe_response(
             "Error: Query too long",
@@ -165,16 +195,31 @@ def store_instruction(instruction: str) -> Dict[str, Any]:
     )
 
 
-def store_setting(setting: str) -> Dict[str, Any]:
+def store_setting(setting: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
     Store configuration settings for later application.
+    Uses FAIL-CLOSED authentication (secure pattern).
 
     Args:
         setting: Configuration setting in key=value format
+        token: Authentication token for access
+        simulate_failure: Failure mode to simulate for testing
 
     Returns:
-        Dict with storage confirmation
+        Dict with storage confirmation or access denial
     """
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            return create_safe_response(
+                "Access denied",
+                auth_status="denied",
+                denial_reason=auth_result.get("denial_reason"),
+                auth_type=auth_result.get("auth_type"),
+                note="Fail-closed auth: Access properly denied on auth failure"
+            )
+
     if len(setting) > MAX_INPUT_LENGTH:
         return create_safe_response(
             "Error: Setting too long",
@@ -190,16 +235,31 @@ def store_setting(setting: str) -> Dict[str, Any]:
     )
 
 
-def store_url(url: str) -> Dict[str, Any]:
+def store_url(url: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
     Store URLs for content processing and validation.
+    Uses FAIL-CLOSED authentication (secure pattern).
 
     Args:
         url: URL to store for processing
+        token: Authentication token for access
+        simulate_failure: Failure mode to simulate for testing
 
     Returns:
-        Dict with storage confirmation
+        Dict with storage confirmation or access denial
     """
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            return create_safe_response(
+                "Fetch denied",
+                auth_status="denied",
+                denial_reason=auth_result.get("denial_reason"),
+                auth_type=auth_result.get("auth_type"),
+                note="Fail-closed auth: Fetch properly denied on auth failure"
+            )
+
     if len(url) > MAX_INPUT_LENGTH:
         return create_safe_response(
             "Error: URL too long",
@@ -363,17 +423,32 @@ _search_index = []
 _collections = ["test_collection", "documents", "users"]
 
 
-def store_data(data: str, collection: str = "default") -> Dict[str, Any]:
+def store_data(data: str, collection: str = "default", token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
     Store data in specified collection for later retrieval.
+    Uses FAIL-CLOSED authentication (secure pattern).
 
     Args:
         data: Data content to store
         collection: Collection name (default: "default")
+        token: Authentication token for access
+        simulate_failure: Failure mode to simulate for testing
 
     Returns:
-        Dict with storage confirmation and entry details
+        Dict with storage confirmation and entry details or access denial
     """
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            return create_safe_response(
+                "Storage denied",
+                auth_status="denied",
+                denial_reason=auth_result.get("denial_reason"),
+                auth_type=auth_result.get("auth_type"),
+                note="Fail-closed auth: Storage properly denied on auth failure"
+            )
+
     # Input validation - DoS protection
     if len(data) > MAX_INPUT_LENGTH:
         return create_safe_response(
@@ -691,9 +766,10 @@ def store_template(template: str) -> Dict[str, Any]:
     )
 
 
-def store_file_path(path: str) -> Dict[str, Any]:
+def store_file_path(path: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
     Store file path request for validation.
+    Uses FAIL-CLOSED authentication (secure pattern).
 
     HARDENED: Unlike vulnerable_file_reader, this tool stores
     the path for admin review without actually reading files.
@@ -701,10 +777,24 @@ def store_file_path(path: str) -> Dict[str, Any]:
 
     Args:
         path: File path requested
+        token: Authentication token for access
+        simulate_failure: Failure mode to simulate for testing
 
     Returns:
-        Dict with storage confirmation
+        Dict with storage confirmation or access denial
     """
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            return create_safe_response(
+                "Access denied",
+                auth_status="denied",
+                denial_reason=auth_result.get("denial_reason"),
+                auth_type=auth_result.get("auth_type"),
+                note="Fail-closed auth: File access properly denied on auth failure"
+            )
+
     if len(path) > MAX_INPUT_LENGTH:
         return create_safe_response(
             "Error: Path too long",

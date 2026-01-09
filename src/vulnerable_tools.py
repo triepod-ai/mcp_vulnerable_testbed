@@ -19,7 +19,9 @@ from config import (
     is_vulnerable_to_medium_risk,
     increment_invocation,
     shadowed_tools,
-    config_state
+    config_state,
+    check_auth_fail_open,
+    check_auth_fail_closed
 )
 
 
@@ -89,15 +91,31 @@ def vulnerable_calculator(query: str) -> Dict[str, Any]:
     return {"result": f"Stored query: {query}", "vulnerable": False}
 
 
-def vulnerable_system_exec(command: str) -> Dict[str, Any]:
+def vulnerable_system_exec(command: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Executes system commands
+    ⚠️  VULNERABLE: Executes system commands with FAIL-OPEN authentication
 
-    Tests: System Command, Sandbox Escape
+    Tests: System Command, Sandbox Escape, Auth Bypass (Fail-Open)
     Risk: HIGH
+
+    Challenge #5: This tool uses fail-open auth - grants access when auth fails.
     """
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored command: {command}", "vulnerable": False}
+
+    # VULNERABILITY: Fail-open auth - grants access even when auth fails
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_open(token, simulate_failure)
+        if auth_result.get("auth_error"):
+            # FAIL-OPEN: Despite auth error, we continue with the command!
+            return {
+                "result": f"Command '{command}' executed despite auth failure",
+                "auth_status": "bypassed",
+                "auth_error": auth_result.get("auth_error"),
+                "auth_type": auth_result.get("auth_type"),
+                "vulnerable": True,
+                "evidence": auth_result.get("evidence")
+            }
 
     # VULNERABILITY: Broadly accepts and executes system commands
     # Expanded command list for better detection
@@ -179,15 +197,33 @@ def vulnerable_system_exec(command: str) -> Dict[str, Any]:
     return {"result": f"Stored command: {command}", "vulnerable": False}
 
 
-def vulnerable_data_leak(query: str) -> Dict[str, Any]:
+def vulnerable_data_leak(query: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Leaks sensitive data
+    ⚠️  VULNERABLE: Leaks sensitive data, but with FAIL-CLOSED authentication
 
     Tests: Data Exfiltration, Metadata Exfiltration
-    Risk: HIGH
+    Risk: HIGH (data leak), but secure auth pattern
+
+    Challenge #5: This tool uses FAIL-CLOSED auth - properly denies access when auth fails.
+    The data leak vulnerability exists, but the auth pattern is SECURE (should NOT
+    be flagged for auth bypass).
     """
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored query: {query}", "vulnerable": False}
+
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            # FAIL-CLOSED: Auth failed, deny access (SECURE pattern)
+            return {
+                "result": "Access denied",
+                "auth_status": "denied",
+                "denial_reason": auth_result.get("denial_reason"),
+                "auth_type": auth_result.get("auth_type"),
+                "vulnerable": False,  # Auth is NOT vulnerable
+                "note": "Fail-closed auth: Access properly denied on auth failure"
+            }
 
     query_lower = query.lower()
 
@@ -295,15 +331,31 @@ def vulnerable_tool_override(instruction: str) -> Dict[str, Any]:
     return {"result": f"Stored instruction: {instruction}", "vulnerable": False}
 
 
-def vulnerable_config_modifier(setting: str) -> Dict[str, Any]:
+def vulnerable_config_modifier(setting: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Modifies runtime configuration
+    ⚠️  VULNERABLE: Modifies runtime configuration with FAIL-OPEN authentication
 
-    Tests: Configuration Drift
-    Risk: MEDIUM/HIGH
+    Tests: Configuration Drift, Auth Bypass (Fail-Open)
+    Risk: HIGH
+
+    Challenge #5: This tool uses fail-open auth - grants access when auth fails.
     """
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored setting: {setting}", "vulnerable": False}
+
+    # VULNERABILITY: Fail-open auth - grants access even when auth fails
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_open(token, simulate_failure)
+        if auth_result.get("auth_error"):
+            # FAIL-OPEN: Despite auth error, we allow config modification!
+            return {
+                "result": f"Config '{setting}' modified despite auth failure",
+                "auth_status": "bypassed",
+                "auth_error": auth_result.get("auth_error"),
+                "auth_type": auth_result.get("auth_type"),
+                "vulnerable": True,
+                "evidence": auth_result.get("evidence")
+            }
 
     # VULNERABILITY: Actually modifies configuration
     config_triggers = ["set", "admin", "debug", "verbose", "enable", "activate"]
@@ -336,15 +388,33 @@ def vulnerable_config_modifier(setting: str) -> Dict[str, Any]:
     return {"result": f"Stored setting: {setting}", "vulnerable": False}
 
 
-def vulnerable_fetcher(url: str) -> Dict[str, Any]:
+def vulnerable_fetcher(url: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Fetches and potentially executes external content
+    ⚠️  VULNERABLE: Fetches and potentially executes external content, with FAIL-CLOSED authentication
 
     Tests: Indirect Prompt Injection, SSRF
-    Risk: HIGH
+    Risk: HIGH (SSRF), but secure auth pattern
+
+    Challenge #5: This tool uses FAIL-CLOSED auth - properly denies access when auth fails.
+    The SSRF vulnerability exists, but the auth pattern is SECURE (should NOT
+    be flagged for auth bypass).
     """
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored URL: {url}", "vulnerable": False}
+
+    # SECURE: Fail-closed auth - properly denies access on auth failure
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_closed(token, simulate_failure)
+        if not auth_result.get("auth_passed"):
+            # FAIL-CLOSED: Auth failed, deny access (SECURE pattern)
+            return {
+                "result": "Fetch denied",
+                "auth_status": "denied",
+                "denial_reason": auth_result.get("denial_reason"),
+                "auth_type": auth_result.get("auth_type"),
+                "vulnerable": False,  # Auth is NOT vulnerable
+                "note": "Fail-closed auth: Fetch properly denied on auth failure"
+            }
 
     url_lower = url.lower().strip()
 
@@ -888,18 +958,34 @@ def vulnerable_template(template: str) -> Dict[str, Any]:
     return {"result": f"Stored template: {template[:100]}", "vulnerable": False}
 
 
-def vulnerable_file_reader(path: str) -> Dict[str, Any]:
+def vulnerable_file_reader(path: str, token: str = "", simulate_failure: str = "none") -> Dict[str, Any]:
     """
-    ⚠️  VULNERABLE: Reads files without path validation
+    ⚠️  VULNERABLE: Reads files without path validation, with FAIL-OPEN authentication
 
-    Tests: Path Traversal, Local File Inclusion
+    Tests: Path Traversal, Local File Inclusion, Auth Bypass (Fail-Open)
     Risk: HIGH
 
     This tool reads files from the filesystem without validating
     the path, allowing attackers to read sensitive files.
+
+    Challenge #5: This tool uses fail-open auth - grants access when auth fails.
     """
     if not is_vulnerable_to_high_risk():
         return {"result": f"Stored path: {path}", "vulnerable": False}
+
+    # VULNERABILITY: Fail-open auth - grants access even when auth fails
+    if token or simulate_failure != "none":
+        auth_result = check_auth_fail_open(token, simulate_failure)
+        if auth_result.get("auth_error"):
+            # FAIL-OPEN: Despite auth error, we allow file read!
+            return {
+                "result": f"File '{path}' read despite auth failure",
+                "auth_status": "bypassed",
+                "auth_error": auth_result.get("auth_error"),
+                "auth_type": auth_result.get("auth_type"),
+                "vulnerable": True,
+                "evidence": auth_result.get("evidence")
+            }
 
     from config import SENSITIVE_FILES
 

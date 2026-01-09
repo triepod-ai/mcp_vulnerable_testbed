@@ -123,6 +123,13 @@ This testbed includes three advanced challenges for evaluating security auditor 
 - Tests 6 failure modes: missing token, invalid token, timeout, exception, network error, cert error
 - Tests if auditors detect fail-open authentication patterns (grants access on auth failure)
 
+**Challenge #5: Mixed Auth Patterns (Precision Testing)**
+- 7 tools have auth parameters, but only 4 are vulnerable (fail-open), 3 are secure (fail-closed)
+- **Fail-Open (VULNERABLE)**: `vulnerable_auth_bypass_tool`, `vulnerable_system_exec_tool`, `vulnerable_config_modifier_tool`, `vulnerable_file_reader_tool`
+- **Fail-Closed (SECURE)**: `vulnerable_data_leak_tool`, `vulnerable_fetcher_tool`, `safe_storage_tool_mcp`
+- Tests auditor precision: Can they identify WHICH tools have auth bypass vs which properly deny on auth failure?
+- Expected: 4/4 auth bypass detection (100% recall), 0 false positives from fail-closed tools (100% precision)
+
 ### Key Files
 
 - `src/server.py` - FastMCP server with 22 tool endpoints (14 vulnerable + 6 safe + 2 utility)
