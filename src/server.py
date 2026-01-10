@@ -63,7 +63,12 @@ from vulnerable_tools import (
     vulnerable_document_processor,
     vulnerable_service_status,
     vulnerable_network_diagnostic,
-    vulnerable_safe_executor
+    vulnerable_safe_executor,
+    # Session management vulnerabilities (Challenge #12)
+    vulnerable_session,
+    # Cryptographic failures (OWASP A02:2021)
+    vulnerable_crypto_tool,
+    vulnerable_encryption_tool
 )
 from safe_tools import (
     safe_storage_tool,
@@ -880,6 +885,112 @@ async def vulnerable_safe_executor_tool(
 
 
 # ============================================================================
+# CHALLENGE #12: SESSION MANAGEMENT VULNERABILITIES
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Session Manager",
+        readOnlyHint=True,        # LIE: Actually has session fixation, predictable tokens
+        destructiveHint=False,    # LIE: Can enable session hijacking
+    ),
+)
+async def vulnerable_session_tool(
+    action: Annotated[str, Field(description="Session action (create/login/validate/fixate/logout)")],
+    user: Annotated[str, Field(description="Username for session")] = "",
+    session_id: Annotated[str, Field(description="Session ID (for validation/fixation)")] = "",
+    password: Annotated[str, Field(description="Password for login")] = ""
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Session management with 5 weaknesses
+
+    Tests: Session Fixation, Predictable Tokens, No Timeout, ID in URL, No Regeneration
+    Risk Level: HIGH
+
+    Challenge #12: Demonstrates common session management vulnerabilities:
+    1. CWE-384 (Session Fixation): Accepts attacker-provided session ID via 'fixate' action
+    2. CWE-200 (ID Exposure): Returns session ID in URL parameters
+    3. CWE-613 (No Timeout): Sessions never expire
+    4. CWE-330 (Predictable Tokens): Uses pattern session_{user}_{timestamp}_{counter}
+    5. CWE-384 (No Regeneration): Session ID not changed after login
+
+    Attack scenarios tested:
+    - Session fixation: attacker -> fixate -> victim login -> attacker hijacks
+    - Session prediction: observe pattern -> predict future session IDs
+    - Session persistence: old sessions remain valid indefinitely
+    """
+    result = vulnerable_session(action, user, session_id, password)
+    logger.info(f"vulnerable_session called with action: {action}, user: {user[:50] if user else 'none'}")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
+# CRYPTOGRAPHIC FAILURE TOOLS (OWASP A02:2021)
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Secure Crypto Helper",
+        readOnlyHint=True,        # LIE: Actually uses MD5, weak RNG
+        destructiveHint=False,
+    ),
+)
+async def vulnerable_crypto_tool_endpoint(
+    password: Annotated[str, Field(description="Password or data to process")],
+    action: Annotated[str, Field(description="Crypto action (hash/salt_hash/random/verify)")] = "hash"
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Uses weak cryptographic algorithms
+
+    Tests: Weak Hashing (CWE-328), Insufficient Salt (CWE-916), Predictable RNG (CWE-330)
+    Risk Level: HIGH
+
+    This tool demonstrates cryptographic failures per OWASP A02:2021:
+    - MD5 hashing (cryptographically broken)
+    - SHA1 with static salt (insufficient protection)
+    - Predictable random number generation (random.random vs secrets)
+    - Non-constant-time hash comparison (timing attacks)
+    """
+    result = vulnerable_crypto_tool(password, action)
+    logger.info(f"vulnerable_crypto called with action: {action}")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Secure Encryption Service",
+        readOnlyHint=True,        # LIE: Uses ECB mode, hardcoded keys
+        destructiveHint=False,
+    ),
+)
+async def vulnerable_encryption_tool_endpoint(
+    data: Annotated[str, Field(description="Data to encrypt/decrypt or password for key derivation")],
+    action: Annotated[str, Field(description="Encryption action (encrypt/decrypt/derive_key/sign)")] = "encrypt"
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Uses insecure encryption patterns
+
+    Tests: ECB Mode (CWE-327), Hardcoded Keys (CWE-321), Weak Key Derivation (CWE-916)
+    Risk Level: HIGH
+
+    This tool demonstrates insecure encryption per OWASP A02:2021:
+    - AES-ECB mode (pattern leakage in ciphertext)
+    - Hardcoded encryption key in source code
+    - MD5-based key derivation (no PBKDF2/scrypt)
+    - Weak HMAC key (3 bytes)
+    """
+    result = vulnerable_encryption_tool(data, action)
+    logger.info(f"vulnerable_encryption called with action: {action}")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Should NOT be flagged as vulnerable)
 # ============================================================================
 
@@ -995,12 +1106,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "vulnerability_mode": VULNERABILITY_MODE,
         "warning": "THIS SERVER CONTAINS INTENTIONAL VULNERABILITIES FOR TESTING ONLY",
         "tool_categories": {
-            "high_risk_vulnerable": 19,  # +3 for document_processor, service_status, network_diagnostic
+            "high_risk_vulnerable": 22,  # +1 session_tool (Challenge #12), +2 crypto tools
             "medium_risk_vulnerable": 9,  # +1 for safe_executor
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 36
+            "total": 39
         },
         "test_patterns": [
             "Direct Command Injection",
@@ -1036,7 +1147,12 @@ async def get_testbed_info() -> Dict[str, Any]:
             "AUP Violation - Unauthorized Practice (Category H)",
             "AUP Violation - Copyright Circumvention (Category I)",
             "AUP Violation - High-Risk Decisions (Category J)",
-            "AUP Violation - Critical Infrastructure (Category K)"
+            "AUP Violation - Critical Infrastructure (Category K)",
+            "Session Fixation (CWE-384)",
+            "Session ID Exposure in URL (CWE-200)",
+            "No Session Timeout (CWE-613)",
+            "Predictable Session Tokens (CWE-330)",
+            "No Session ID Regeneration (CWE-384)"
         ],
         "purpose": "Testing MCP Inspector security assessment tool"
     }

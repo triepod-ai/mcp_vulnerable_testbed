@@ -17,10 +17,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 36 (28 vulnerable + 6 safe + 2 utility)
+- **Tools**: 39 (31 vulnerable + 6 safe + 2 utility)
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
-- **Vulnerable Tools**: 19 HIGH risk + 9 MEDIUM risk = 28 total (includes AUP violations)
+- **Vulnerable Tools**: 22 HIGH risk + 9 MEDIUM risk = 31 total (includes AUP violations, session, crypto)
 
 ```bash
 # Start
@@ -35,10 +35,10 @@ cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp
 
 ### Option 2: Our Hardened Testbed (port 10901)
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
-- **Tools**: Same 36 tools with all vulnerabilities mitigated
+- **Tools**: Same 39 tools with all vulnerabilities mitigated
 - **Transport**: HTTP at `http://localhost:10901/mcp`
 - **Focus**: Verify fixes work, baseline comparison
-- **Detection Rate**: 0 vulnerabilities (all 28 mitigated)
+- **Detection Rate**: 0 vulnerabilities (all 31 mitigated)
 
 ```bash
 # Start
@@ -74,19 +74,19 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 36 | 28 (19 HIGH + 9 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 36 | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 39 | 31 (22 HIGH + 9 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 39 | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture
 
-This is a FastMCP-based server implementing 36 tools in four categories:
+This is a FastMCP-based server implementing 39 tools in four categories:
 
 ### Tool Categories
 
-1. **HIGH Risk Vulnerable Tools** (19): `src/vulnerable_tools.py`
-   - Actually execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution, network injection, secret leakage, indirect injection)
-   - Test patterns: Command Injection, Role Override, Data Exfiltration, System Commands, Tool Shadowing, SSRF, Insecure Deserialization, SSTI, Path Traversal, Auth Bypass (Fail-Open), Cross-Tool Privilege Escalation, Chained Exploitation, Indirect Prompt Injection via Tool Output, Secret Leakage via Error Messages, Network Diagnostic Command Injection
+1. **HIGH Risk Vulnerable Tools** (22): `src/vulnerable_tools.py`
+   - Actually execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution, network injection, secret leakage, indirect injection, session management, cryptographic failures)
+   - Test patterns: Command Injection, Role Override, Data Exfiltration, System Commands, Tool Shadowing, SSRF, Insecure Deserialization, SSTI, Path Traversal, Auth Bypass (Fail-Open), Cross-Tool Privilege Escalation, Chained Exploitation, Indirect Prompt Injection via Tool Output, Secret Leakage via Error Messages, Network Diagnostic Command Injection, Session Fixation, Session ID Exposure, Predictable Tokens, Weak Hashing (MD5/SHA1), AES-ECB Mode, Hardcoded Keys
 
 2. **MEDIUM Risk Vulnerable Tools** (9): `src/vulnerable_tools.py`
    - Execute unicode/nested payloads, package typosquatting, rug pull behavior, AUP violations, blacklist bypass
@@ -104,7 +104,7 @@ This is a FastMCP-based server implementing 36 tools in four categories:
 
 ### Security Testing Challenges
 
-This testbed includes eleven advanced challenges for evaluating security auditor sophistication:
+This testbed includes thirteen advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -193,10 +193,39 @@ This testbed includes eleven advanced challenges for evaluating security auditor
 - **Hardened Version**: Allowlist pattern (only help, version, status), no execution
 - Tests if auditors recognize incomplete security controls (blacklist anti-pattern)
 
+**Challenge #12: Session Management Vulnerabilities**
+- `vulnerable_session_tool` demonstrates 5 common session weaknesses
+- **CWE-384 (Session Fixation)**: `action="fixate"` accepts attacker-provided session ID
+  - Attack flow: 1) Attacker fixates session, 2) Victim logs in, 3) Attacker hijacks
+- **CWE-200 (ID Exposure)**: Session ID returned in URL parameters (`session_url` field)
+- **CWE-613 (No Timeout)**: Sessions never expire (`expires_at: null`)
+- **CWE-330 (Predictable Tokens)**: Uses pattern `session_{user}_{timestamp}_{counter}`
+  - Sequence observation enables session prediction
+- **CWE-384 (No Regeneration)**: Session ID unchanged after authentication
+  - `session_regenerated: false` indicates vulnerability
+- **MCP Specificity**: HIGH - Session state shared across tool calls enables multi-step attacks
+- **Hardened Version**: Uses `secrets.token_urlsafe(32)`, enforces timeouts, blocks fixation
+- Tests if auditors detect session management anti-patterns
+- **Test Coverage**: `tests/test_session_management.py` (15 tests)
+
+**Challenge #13: Cryptographic Failures (OWASP A02:2021)**
+- `vulnerable_crypto_tool` and `vulnerable_encryption_tool` demonstrate weak cryptography
+- **CWE-328 (Weak Hashing)**: Uses MD5 for password hashing (cryptographically broken)
+- **CWE-916 (Insufficient Salt)**: Uses static salt "static_salt_123" for all passwords
+- **CWE-330 (Predictable RNG)**: Uses `random.random()` with timestamp seed instead of `secrets`
+- **CWE-327 (ECB Mode)**: Uses AES-ECB mode (identical blocks produce identical ciphertext)
+- **CWE-321 (Hardcoded Keys)**: Uses hardcoded key `b"hardcoded_key_16"` in source code
+- **CWE-326 (Weak HMAC Key)**: Uses 3-byte key for HMAC signing
+- **CWE-208 (Timing Attack)**: Non-constant-time hash comparison leaks timing information
+- **MCP Specificity**: MEDIUM - Crypto weaknesses are general, but MCP tools expose crypto operations
+- **Hardened Version**: Stores requests for admin review, recommends secure alternatives (bcrypt, AES-GCM)
+- Tests if auditors detect cryptographic anti-patterns per OWASP A02:2021
+- **Test Coverage**: `tests/test_crypto_vulnerabilities.py` (15+ tests)
+
 ### Key Files
 
-- `src/server.py` - FastMCP server with 36 tool endpoints (28 vulnerable + 6 safe + 2 utility)
-- `src/vulnerable_tools.py` - Deliberately vulnerable implementations (19 HIGH + 9 MEDIUM risk)
+- `src/server.py` - FastMCP server with 39 tool endpoints (31 vulnerable + 6 safe + 2 utility)
+- `src/vulnerable_tools.py` - Deliberately vulnerable implementations (22 HIGH + 9 MEDIUM risk)
 - `src/safe_tools.py` - Safe control group implementations (6 tools with input validation)
 - `src/config.py` - Vulnerability modes, fake credentials, state tracking
 - `test_payloads.json` - All test patterns with example payloads
@@ -374,7 +403,7 @@ For hardened server, use port 10901:
 ```
 
 **Features:**
-- ✅ Tests all 17 security patterns
+- ✅ Tests all 31+ security patterns (22 HIGH, 9 MEDIUM, 13 challenges)
 - ✅ JSON output saved to `/tmp/inspector-assessment-{serverName}.json`
 - ✅ Exit code 0 = safe, 1 = vulnerabilities found
 - ✅ No modifications to inspector core code (preserves upstream sync)
@@ -443,7 +472,7 @@ Grep logs for `"VULNERABILITY TRIGGERED"` to see which vulnerabilities were actu
 ## Expected Assessment Results
 
 **Target Metrics for MCP Inspector:**
-- **Recall**: 100% - All 10 vulnerable tools detected
+- **Recall**: 100% - All 31 vulnerable tools detected (22 HIGH + 9 MEDIUM)
 - **Precision**: 100% - Zero false positives (all 6 safe tools classified as safe)
 
 See `expected_results.json` for detailed expected outcomes per tool.

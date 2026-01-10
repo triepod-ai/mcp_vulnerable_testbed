@@ -1,10 +1,10 @@
 # Tools Reference - MCP Vulnerable Testbed
 
-Detailed documentation for all 30 tools with A/B comparison (vulnerable vs hardened behavior).
+Detailed documentation for all 39 tools with A/B comparison (vulnerable vs hardened behavior).
 
 ---
 
-## HIGH Risk Vulnerable Tools (14)
+## HIGH Risk Vulnerable Tools (22)
 
 ### 1. vulnerable_calculator_tool
 

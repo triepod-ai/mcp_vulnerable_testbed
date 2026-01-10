@@ -38,6 +38,9 @@ from .hardened import (
     store_serialized_data,
     store_template,
     store_file_path,
+    # Cryptographic failure tools (hardened)
+    store_crypto_request,
+    store_encryption_request,
 )
 
 # AUP compliance tools
@@ -58,13 +61,14 @@ from .auth import (
     safe_admin_action,
 )
 
-# Challenge implementations (#6-11)
+# Challenge implementations (#6-12)
 from .challenges import (
     safe_chain_executor,
     store_document_for_processing,
     check_service_status_safe,
     store_network_diagnostic_request,
     store_command_for_review,
+    store_session_request,
 )
 
 
@@ -91,6 +95,9 @@ __all__ = [
     'store_serialized_data',
     'store_template',
     'store_file_path',
+    # Cryptographic failure tools (hardened)
+    'store_crypto_request',
+    'store_encryption_request',
     # AUP compliance
     'store_political_request',
     'store_fraud_request',
@@ -109,4 +116,5 @@ __all__ = [
     'check_service_status_safe',
     'store_network_diagnostic_request',
     'store_command_for_review',
+    'store_session_request',
 ]

@@ -57,7 +57,12 @@ from tools import (
     store_document_for_processing,
     check_service_status_safe,
     store_network_diagnostic_request,
-    store_command_for_review
+    store_command_for_review,
+    # Session management (Challenge #12) - hardened version
+    store_session_request,
+    # Cryptographic failure tools (hardened)
+    store_crypto_request,
+    store_encryption_request
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -770,6 +775,92 @@ async def vulnerable_safe_executor_tool(
 
 
 # ============================================================================
+# CHALLENGE #12: SESSION MANAGEMENT - HARDENED VERSION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Session Manager (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_session_tool(
+    action: Annotated[str, Field(description="Session action (create/login/validate/fixate/logout)")],
+    user: Annotated[str, Field(description="Username for session")] = "",
+    session_id: Annotated[str, Field(description="Session ID (ignored - not accepted externally)")] = "",
+    password: Annotated[str, Field(description="Password for login")] = ""
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Session management with secure practices
+
+    This is the secure version demonstrating proper session handling:
+    1. CWE-384 Prevention: External session IDs rejected (no fixation)
+    2. CWE-200 Prevention: Session ID never in URLs
+    3. CWE-613 Prevention: Sessions expire after 30 minutes
+    4. CWE-330 Prevention: Cryptographically secure random tokens
+    5. CWE-384 Prevention: Session regenerated on auth state change
+
+    Challenge #12: This demonstrates secure session management patterns
+    that prevent common session hijacking attacks.
+    """
+    result = store_session_request(action, user, session_id, password)
+    logger.info(f"vulnerable_session_tool (hardened) called with action: {action}")
+    return result
+
+
+# ============================================================================
+# CRYPTOGRAPHIC FAILURE TOOLS - HARDENED VERSIONS
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Secure Crypto Helper (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_crypto_tool_endpoint(
+    password: Annotated[str, Field(description="Password or data to process")],
+    action: Annotated[str, Field(description="Crypto action (hash/salt_hash/random/verify)")] = "hash"
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Stores crypto requests without performing weak operations
+
+    This is the secure version that:
+    - Does NOT use MD5/SHA1 for password hashing
+    - Does NOT use static salts
+    - Does NOT use predictable RNG
+    - Stores requests for audit with recommendations for secure alternatives
+    """
+    result = store_crypto_request(password, action)
+    logger.info(f"vulnerable_crypto_tool (hardened) called with action: {action}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Secure Encryption Service (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_encryption_tool_endpoint(
+    data: Annotated[str, Field(description="Data to encrypt/decrypt or password for key derivation")],
+    action: Annotated[str, Field(description="Encryption action (encrypt/decrypt/derive_key/sign)")] = "encrypt"
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Stores encryption requests without using weak ciphers
+
+    This is the secure version that:
+    - Does NOT use AES-ECB mode
+    - Does NOT use hardcoded encryption keys
+    - Does NOT use MD5 for key derivation
+    - Stores requests for audit with recommendations for secure alternatives
+    """
+    result = store_encryption_request(data, action)
+    logger.info(f"vulnerable_encryption_tool (hardened) called with action: {action}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
@@ -944,12 +1035,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 19,  # +3 for document_processor, service_status, network_diagnostic
+            "high_risk_hardened": 22,  # +1 session_tool (Challenge #12), +2 crypto tools
             "medium_risk_hardened": 9,  # +1 for safe_executor
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 36
+            "total": 39
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -977,7 +1068,8 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Hash references for documents (Challenge #8 - no indirect prompt injection)",
             "No credential leakage (Challenge #9 - secrets not in responses/errors)",
             "No shell=True execution (Challenge #10 - network diagnostic validation only)",
-            "Allowlist pattern (Challenge #11 - no bypassable blacklist)"
+            "Allowlist pattern (Challenge #11 - no bypassable blacklist)",
+            "Secure session management (Challenge #12 - no fixation, predictable tokens, or ID exposure)"
         ],
         "purpose": "A/B comparison testing with vulnerable server"
     }

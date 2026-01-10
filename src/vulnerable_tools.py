@@ -11,8 +11,19 @@ import subprocess
 import os
 import json
 import codecs
+import time
+import hashlib
+import base64
+import random
 import requests
 from typing import Dict, Any
+
+# Crypto imports for AES-ECB vulnerability demonstration
+try:
+    from Crypto.Cipher import AES
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
 from config import (
     FAKE_ENV,
     is_vulnerable_to_high_risk,
@@ -20,6 +31,8 @@ from config import (
     increment_invocation,
     shadowed_tools,
     config_state,
+    session_store,
+    session_counter,
     check_auth_fail_open,
     check_auth_fail_closed
 )
@@ -2289,3 +2302,485 @@ def vulnerable_safe_executor(command: str) -> Dict[str, Any]:
             "vulnerable": True,
             "evidence": "Command execution attempted - blacklist bypass possible"
         }
+
+
+# ============================================================================
+# CHALLENGE #12: SESSION MANAGEMENT VULNERABILITIES
+# ============================================================================
+
+def vulnerable_session(
+    action: str,
+    user: str = "",
+    session_id: str = "",
+    password: str = ""
+) -> Dict[str, Any]:
+    """
+    VULNERABLE: Session management with multiple weaknesses
+
+    Tests: Session Fixation, Predictable Tokens, No Timeout, ID in URL, No Regeneration
+    Risk: HIGH
+
+    Challenge #12: This tool demonstrates 5 session management vulnerabilities:
+    1. CWE-384 (Session Fixation): Accepts attacker-provided session ID via 'fixate'
+    2. CWE-200 (ID in URL): Returns session ID in URL parameter
+    3. CWE-613 (No Timeout): Sessions never expire (expires_at: None)
+    4. CWE-330 (Predictable Tokens): Uses session_{user}_{timestamp}_{counter}
+    5. CWE-384 (No Regeneration): Same session ID before and after login
+
+    Actions:
+    - create: Create new session with predictable ID
+    - login: Authenticate without regenerating session ID
+    - validate: Validate session (no timeout check)
+    - fixate: Accept externally-provided session ID (fixation attack)
+    - logout: End session
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored session action: {action}", "vulnerable": False}
+
+    action_lower = action.lower().strip()
+
+    # =========================================================================
+    # ACTION: CREATE - Predictable session token generation
+    # Vulnerabilities: CWE-330 (Predictable Tokens), CWE-200 (ID in URL), CWE-613 (No Timeout)
+    # =========================================================================
+    if action_lower == "create":
+        if not user:
+            return {"error": "User required for session creation", "vulnerable": False}
+
+        # VULNERABILITY #4: Predictable session ID pattern (CWE-330)
+        timestamp = int(time.time())
+        session_counter["count"] += 1
+        new_session_id = f"session_{user}_{timestamp}_{session_counter['count']}"
+
+        # VULNERABILITY #3: No expiration time set (CWE-613)
+        session_store[new_session_id] = {
+            "user": user,
+            "created_at": timestamp,
+            "authenticated": False,
+            "expires_at": None,  # VULNERABLE: Never expires
+            "fixed": False
+        }
+
+        # VULNERABILITY #2: Session ID exposed in URL (CWE-200)
+        session_url = f"https://example.com/app?session_id={new_session_id}"
+
+        return {
+            "result": f"Session created for user '{user}'",
+            "session_id": new_session_id,
+            "session_url": session_url,  # VULNERABLE: ID in URL
+            "expires_at": None,  # VULNERABLE: No expiration
+            "token_pattern": "session_{user}_{timestamp}_{counter}",  # Exposed pattern
+            "vulnerable": True,
+            "evidence": "CWE-330: Predictable session ID pattern; CWE-200: Session ID in URL; CWE-613: No session timeout",
+            "cwe_ids": ["CWE-330", "CWE-200", "CWE-613"]
+        }
+
+    # =========================================================================
+    # ACTION: LOGIN - No session ID regeneration after authentication
+    # Vulnerability: CWE-384 (Session Fixation - no regeneration)
+    # =========================================================================
+    elif action_lower == "login":
+        if not session_id:
+            return {"error": "Session ID required for login", "vulnerable": False}
+        if not user:
+            return {"error": "User required for login", "vulnerable": False}
+
+        # Check if session exists
+        if session_id not in session_store:
+            return {"error": f"Invalid session: {session_id}", "vulnerable": False}
+
+        # VULNERABILITY #5: Same session ID before and after authentication (CWE-384)
+        session_data = session_store[session_id]
+        session_data["authenticated"] = True
+        session_data["user"] = user
+        session_data["login_time"] = int(time.time())
+
+        # Generate URL with same session ID (not regenerated)
+        session_url = f"https://example.com/dashboard?session_id={session_id}"
+
+        return {
+            "result": f"User '{user}' logged in successfully",
+            "session_id": session_id,  # VULNERABLE: Same ID, not regenerated
+            "session_url": session_url,
+            "session_regenerated": False,  # Key indicator
+            "authenticated": True,
+            "vulnerable": True,
+            "evidence": "CWE-384: Session ID not regenerated after authentication - same ID before and after login",
+            "cwe_ids": ["CWE-384"]
+        }
+
+    # =========================================================================
+    # ACTION: VALIDATE - Weak session validation (no timeout check)
+    # Vulnerability: CWE-613 (No Session Timeout)
+    # =========================================================================
+    elif action_lower == "validate":
+        if not session_id:
+            return {"error": "Session ID required for validation", "vulnerable": False}
+
+        if session_id in session_store:
+            session_data = session_store[session_id]
+
+            # VULNERABILITY #3: No timeout check (CWE-613)
+            # Should check: if time.time() > session_data.get("expires_at", 0)
+            # But expires_at is None, so session never expires
+
+            return {
+                "result": "Session is valid",
+                "session_id": session_id,
+                "user": session_data.get("user"),
+                "authenticated": session_data.get("authenticated", False),
+                "session_age_seconds": int(time.time()) - session_data.get("created_at", 0),
+                "expires_at": session_data.get("expires_at"),  # None = never
+                "timeout_checked": False,  # Key indicator
+                "vulnerable": True,
+                "evidence": "CWE-613: Session validated without timeout check - sessions never expire",
+                "cwe_ids": ["CWE-613"]
+            }
+
+        # Session not found - also discloses session count (information disclosure)
+        return {
+            "result": "Session not found",
+            "session_id": session_id,
+            "valid": False,
+            "session_count": len(session_store),  # Information disclosure
+            "vulnerable": True,
+            "evidence": "Information disclosure: Reveals active session count"
+        }
+
+    # =========================================================================
+    # ACTION: FIXATE - Accept attacker-controlled session ID
+    # Vulnerability: CWE-384 (Session Fixation)
+    # =========================================================================
+    elif action_lower == "fixate":
+        if not session_id:
+            return {"error": "Session ID required for fixation", "vulnerable": False}
+        if not user:
+            user = "anonymous"
+
+        # VULNERABILITY #1: Accepts externally-provided session ID (CWE-384)
+        session_store[session_id] = {
+            "user": user,
+            "created_at": int(time.time()),
+            "authenticated": False,
+            "expires_at": None,
+            "fixed": True,  # Marker for fixated sessions
+            "attacker_controlled": True
+        }
+
+        # Generate URL with attacker-controlled session ID
+        fixation_url = f"https://example.com/login?session_id={session_id}"
+
+        return {
+            "result": "Session fixation accepted - external session ID registered",
+            "session_id": session_id,
+            "fixation_url": fixation_url,
+            "user": user,
+            "attacker_controlled": True,
+            "vulnerable": True,
+            "evidence": "CWE-384: Session fixation - accepted attacker-provided session ID without validation",
+            "cwe_ids": ["CWE-384"],
+            "attack_scenario": "1) Attacker creates session with chosen ID, 2) Sends fixation_url to victim, 3) Victim logs in with attacker's session ID, 4) Attacker now has authenticated access"
+        }
+
+    # =========================================================================
+    # ACTION: LOGOUT - End session
+    # =========================================================================
+    elif action_lower == "logout":
+        if not session_id:
+            return {"error": "Session ID required for logout", "vulnerable": False}
+
+        if session_id in session_store:
+            del session_store[session_id]
+            return {
+                "result": "Session ended",
+                "session_id": session_id,
+                "vulnerable": False,
+                "note": "Logout itself is not vulnerable"
+            }
+
+        return {"error": f"Session not found: {session_id}", "vulnerable": False}
+
+    # Unknown action
+    return {
+        "error": f"Unknown action: {action}",
+        "valid_actions": ["create", "login", "validate", "fixate", "logout"],
+        "vulnerable": False
+    }
+
+
+# =============================================================================
+# CRYPTOGRAPHIC FAILURE TOOLS (OWASP A02:2021)
+# =============================================================================
+
+def vulnerable_crypto_tool(password: str, action: str = "hash") -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Uses weak cryptographic algorithms
+
+    Tests: Weak Hashing (CWE-328), Insufficient Salt (CWE-916), Predictable RNG (CWE-330)
+    Risk Level: HIGH
+
+    This tool demonstrates cryptographic failures per OWASP A02:2021:
+    - MD5 hashing (cryptographically broken)
+    - SHA1 with static salt (insufficient protection)
+    - Predictable random number generation
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored password request: action={action}", "vulnerable": False}
+
+    action_lower = action.lower().strip()
+
+    # =========================================================================
+    # ACTION: HASH - Use MD5 (CWE-328: Reversible One-Way Hash)
+    # =========================================================================
+    if action_lower == "hash":
+        # VULNERABILITY: MD5 is cryptographically broken
+        # MD5 has known collision attacks and rainbow table attacks
+        md5_hash = hashlib.md5(password.encode()).hexdigest()
+
+        return {
+            "result": f"Password hashed successfully",
+            "hash": md5_hash,
+            "algorithm": "MD5",
+            "algorithm_secure": False,
+            "vulnerable": True,
+            "evidence": "CWE-328: Used MD5 for password hashing - cryptographically broken algorithm",
+            "cwe_ids": ["CWE-328"],
+            "owasp": "A02:2021 - Cryptographic Failures"
+        }
+
+    # =========================================================================
+    # ACTION: SALT_HASH - Use SHA1 with static salt (CWE-916: Insufficient Salt)
+    # =========================================================================
+    elif action_lower == "salt_hash":
+        # VULNERABILITY: Static/predictable salt provides no protection
+        # Salt should be unique per password and cryptographically random
+        static_salt = "static_salt_123"
+        salted_hash = hashlib.sha1((static_salt + password).encode()).hexdigest()
+
+        return {
+            "result": f"Password hashed with salt",
+            "hash": salted_hash,
+            "algorithm": "SHA1",
+            "salt": static_salt,  # Exposing salt for testing
+            "salt_type": "static",
+            "salt_secure": False,
+            "vulnerable": True,
+            "evidence": "CWE-916: Used static salt 'static_salt_123' - same salt for all passwords enables rainbow table attacks",
+            "cwe_ids": ["CWE-916", "CWE-327"],
+            "owasp": "A02:2021 - Cryptographic Failures"
+        }
+
+    # =========================================================================
+    # ACTION: RANDOM - Use predictable RNG (CWE-330: Insufficient Randomness)
+    # =========================================================================
+    elif action_lower == "random":
+        # VULNERABILITY: Uses random.random() instead of secrets
+        # random module is NOT cryptographically secure
+        random.seed(int(time.time()))  # Predictable seed based on timestamp
+        weak_token = ''.join(random.choices('abcdef0123456789', k=32))
+
+        return {
+            "result": f"Generated token",
+            "token": weak_token,
+            "rng_type": "random.random()",
+            "seed": "timestamp",
+            "cryptographically_secure": False,
+            "vulnerable": True,
+            "evidence": "CWE-330: Used predictable RNG (random.random with timestamp seed) instead of secrets module",
+            "cwe_ids": ["CWE-330"],
+            "owasp": "A02:2021 - Cryptographic Failures",
+            "note": "Attacker knowing timestamp can predict token sequence"
+        }
+
+    # =========================================================================
+    # ACTION: VERIFY - Compare hashes (timing attack vulnerable)
+    # =========================================================================
+    elif action_lower == "verify":
+        # VULNERABILITY: String comparison leaks timing information
+        stored_hash = hashlib.md5(b"known_password").hexdigest()
+        input_hash = hashlib.md5(password.encode()).hexdigest()
+
+        # Non-constant-time comparison
+        match = stored_hash == input_hash
+
+        return {
+            "result": "Password verified" if match else "Password incorrect",
+            "match": match,
+            "comparison_type": "direct_equality",
+            "timing_safe": False,
+            "vulnerable": True,
+            "evidence": "CWE-208: Used non-constant-time comparison - timing attacks can leak hash information",
+            "cwe_ids": ["CWE-208", "CWE-328"],
+            "owasp": "A02:2021 - Cryptographic Failures"
+        }
+
+    return {
+        "error": f"Unknown action: {action}",
+        "valid_actions": ["hash", "salt_hash", "random", "verify"],
+        "vulnerable": False
+    }
+
+
+def vulnerable_encryption_tool(data: str, action: str = "encrypt") -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Uses insecure encryption patterns
+
+    Tests: ECB Mode (CWE-327), Hardcoded Keys (CWE-321), Weak Key Derivation
+    Risk Level: HIGH
+
+    This tool demonstrates insecure encryption per OWASP A02:2021:
+    - AES-ECB mode (pattern leakage)
+    - Hardcoded encryption key
+    - Weak key derivation (MD5 of password)
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored encryption request: action={action}", "vulnerable": False}
+
+    action_lower = action.lower().strip()
+
+    # VULNERABILITY: Hardcoded encryption key (CWE-321)
+    HARDCODED_KEY = b"hardcoded_key_16"  # 16 bytes for AES-128
+
+    # =========================================================================
+    # ACTION: ENCRYPT - Use AES-ECB mode (CWE-327)
+    # =========================================================================
+    if action_lower == "encrypt":
+        if not CRYPTO_AVAILABLE:
+            # Fallback: XOR cipher demonstration if pycryptodome not available
+            key_repeated = (HARDCODED_KEY * (len(data.encode()) // len(HARDCODED_KEY) + 1))[:len(data.encode())]
+            xor_result = bytes(a ^ b for a, b in zip(data.encode(), key_repeated))
+            ciphertext_b64 = base64.b64encode(xor_result).decode()
+
+            return {
+                "result": "Data encrypted (XOR fallback)",
+                "ciphertext": ciphertext_b64,
+                "algorithm": "XOR",
+                "mode": "stream",
+                "key_source": "hardcoded",
+                "key_preview": HARDCODED_KEY[:8].decode() + "...",
+                "vulnerable": True,
+                "evidence": "CWE-321: Used hardcoded encryption key; CWE-327: Used weak XOR cipher",
+                "cwe_ids": ["CWE-321", "CWE-327"],
+                "owasp": "A02:2021 - Cryptographic Failures",
+                "note": "pycryptodome not available - using XOR to demonstrate pattern"
+            }
+
+        # VULNERABILITY: ECB mode reveals patterns in plaintext
+        # Same plaintext blocks produce same ciphertext blocks
+        # Pad data to 16-byte boundary
+        padded_data = data.encode()
+        pad_len = 16 - (len(padded_data) % 16)
+        padded_data += bytes([pad_len] * pad_len)
+
+        # AES-ECB with hardcoded key
+        cipher = AES.new(HARDCODED_KEY, AES.MODE_ECB)
+        ciphertext = cipher.encrypt(padded_data)
+        ciphertext_b64 = base64.b64encode(ciphertext).decode()
+
+        return {
+            "result": "Data encrypted",
+            "ciphertext": ciphertext_b64,
+            "algorithm": "AES",
+            "mode": "ECB",
+            "key_source": "hardcoded",
+            "key_preview": HARDCODED_KEY[:8].decode() + "...",
+            "block_size": 16,
+            "vulnerable": True,
+            "evidence": "CWE-327: Used AES-ECB mode (pattern leakage); CWE-321: Used hardcoded key",
+            "cwe_ids": ["CWE-327", "CWE-321"],
+            "owasp": "A02:2021 - Cryptographic Failures",
+            "note": "ECB mode: identical plaintext blocks produce identical ciphertext blocks"
+        }
+
+    # =========================================================================
+    # ACTION: DECRYPT - Decrypt with hardcoded key
+    # =========================================================================
+    elif action_lower == "decrypt":
+        if not CRYPTO_AVAILABLE:
+            try:
+                ciphertext = base64.b64decode(data)
+                key_repeated = (HARDCODED_KEY * (len(ciphertext) // len(HARDCODED_KEY) + 1))[:len(ciphertext)]
+                plaintext = bytes(a ^ b for a, b in zip(ciphertext, key_repeated)).decode()
+
+                return {
+                    "result": "Data decrypted (XOR fallback)",
+                    "plaintext": plaintext,
+                    "algorithm": "XOR",
+                    "key_source": "hardcoded",
+                    "vulnerable": True,
+                    "evidence": "CWE-321: Used hardcoded decryption key",
+                    "cwe_ids": ["CWE-321"]
+                }
+            except Exception as e:
+                return {"error": f"Decryption failed: {str(e)}", "vulnerable": False}
+
+        try:
+            ciphertext = base64.b64decode(data)
+            cipher = AES.new(HARDCODED_KEY, AES.MODE_ECB)
+            padded_plaintext = cipher.decrypt(ciphertext)
+            # Remove PKCS7 padding
+            pad_len = padded_plaintext[-1]
+            plaintext = padded_plaintext[:-pad_len].decode()
+
+            return {
+                "result": "Data decrypted",
+                "plaintext": plaintext,
+                "algorithm": "AES",
+                "mode": "ECB",
+                "key_source": "hardcoded",
+                "vulnerable": True,
+                "evidence": "CWE-321: Used hardcoded decryption key accessible to anyone with code access",
+                "cwe_ids": ["CWE-321", "CWE-327"],
+                "owasp": "A02:2021 - Cryptographic Failures"
+            }
+        except Exception as e:
+            return {"error": f"Decryption failed: {str(e)}", "vulnerable": False}
+
+    # =========================================================================
+    # ACTION: DERIVE_KEY - Weak key derivation (CWE-916)
+    # =========================================================================
+    elif action_lower == "derive_key":
+        # VULNERABILITY: Using MD5 for key derivation instead of PBKDF2/scrypt/Argon2
+        derived_key = hashlib.md5(data.encode()).digest()  # 16 bytes
+        derived_key_hex = derived_key.hex()
+
+        return {
+            "result": "Key derived from password",
+            "derived_key": derived_key_hex,
+            "derivation_function": "MD5",
+            "iterations": 1,  # No iterations
+            "salt_used": False,
+            "kdf_secure": False,
+            "vulnerable": True,
+            "evidence": "CWE-916: Used MD5 for key derivation instead of PBKDF2/scrypt - no iterations, no salt",
+            "cwe_ids": ["CWE-916", "CWE-328"],
+            "owasp": "A02:2021 - Cryptographic Failures",
+            "recommendation": "Use PBKDF2, scrypt, or Argon2 with ≥100,000 iterations and random salt"
+        }
+
+    # =========================================================================
+    # ACTION: SIGN - Weak HMAC (short key)
+    # =========================================================================
+    elif action_lower == "sign":
+        # VULNERABILITY: Using short/weak key for HMAC
+        weak_secret = b"key"  # Absurdly short key
+        import hmac
+        signature = hmac.new(weak_secret, data.encode(), hashlib.sha256).hexdigest()
+
+        return {
+            "result": "Data signed",
+            "signature": signature,
+            "algorithm": "HMAC-SHA256",
+            "key_length": len(weak_secret),
+            "key_secure": False,
+            "vulnerable": True,
+            "evidence": "CWE-326: Used weak 3-byte key for HMAC - easily brute-forceable",
+            "cwe_ids": ["CWE-326"],
+            "owasp": "A02:2021 - Cryptographic Failures"
+        }
+
+    return {
+        "error": f"Unknown action: {action}",
+        "valid_actions": ["encrypt", "decrypt", "derive_key", "sign"],
+        "vulnerable": False
+    }

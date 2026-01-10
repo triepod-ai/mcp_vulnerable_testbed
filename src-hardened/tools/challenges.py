@@ -7,6 +7,7 @@ pattern for its corresponding vulnerability.
 """
 
 import re
+import secrets
 from ._common import (
     json, hashlib, Dict, Any,
     create_safe_response,
@@ -360,6 +361,96 @@ def store_command_for_review(command: str) -> Dict[str, Any]:
     )
 
 
+def store_session_request(
+    action: str,
+    user: str = "",
+    session_id: str = "",
+    password: str = ""
+) -> Dict[str, Any]:
+    """
+    Store session management requests safely.
+
+    HARDENED (Challenge #12): Unlike vulnerable_session:
+    1. Does not accept external session IDs (prevents fixation)
+    2. Uses cryptographically secure random tokens
+    3. Enforces session timeout (30 minutes)
+    4. Never exposes session ID in URLs
+    5. Would regenerate session ID on auth state change
+
+    Args:
+        action: Requested session action
+        user: Username
+        session_id: Session ID (ignored for security - external IDs not accepted)
+        password: Password (not stored)
+
+    Returns:
+        Dict with request acknowledgment (no actual vulnerable session created)
+    """
+    if len(action) > 256:
+        return create_safe_response(
+            "Error: Action too long",
+            note="Input validation prevented processing"
+        )
+
+    if len(user) > 256:
+        return create_safe_response(
+            "Error: Username too long",
+            note="Input validation prevented processing"
+        )
+
+    action_lower = action.lower().strip()
+    valid_actions = ["create", "login", "validate", "fixate", "logout"]
+
+    if action_lower not in valid_actions:
+        return create_safe_response(
+            f"Unknown action: {action}",
+            note="Request stored without execution",
+            valid_actions=valid_actions
+        )
+
+    # Generate secure token example (for demonstration)
+    secure_token_example = secrets.token_urlsafe(32)
+
+    # Base response with security measures
+    response = create_safe_response(
+        f"Session request stored: {action_lower}",
+        note="Request stored for review - secure session handling would be applied",
+        action=action_lower,
+        user=_sanitize_for_response(user) if user else None,
+        status="pending_review"
+    )
+
+    # Add security indicators showing what WOULD happen with proper implementation
+    response["security_measures"] = {
+        "fixation_prevented": True,  # External IDs not accepted
+        "token_secure": True,  # Would use secrets.token_urlsafe()
+        "timeout_enforced": True,  # 30 minute expiration
+        "id_in_url": False,  # Never exposed in URL
+        "regeneration_on_auth": True,  # New ID on login
+        "secure_token_format": secure_token_example[:16] + "..."  # Show format only
+    }
+
+    # Handle specific actions
+    if action_lower == "fixate":
+        response["blocked_reason"] = "Session fixation attack prevented - external session IDs not accepted"
+        response["attack_blocked"] = True
+        response["cwe_384_mitigated"] = True
+
+    elif action_lower == "create":
+        response["session_created"] = False
+        response["note"] = "Session creation request logged - would use cryptographically secure token"
+
+    elif action_lower == "login":
+        response["session_regeneration"] = "would_regenerate"
+        response["note"] = "Login request logged - secure implementation would regenerate session ID"
+
+    elif action_lower == "validate":
+        response["timeout_check"] = "would_check"
+        response["note"] = "Validation request logged - would check session timeout (30 min)"
+
+    return response
+
+
 __all__ = [
     '_ALLOWED_CHAIN_TOOLS',
     'safe_chain_executor',
@@ -367,4 +458,5 @@ __all__ = [
     'check_service_status_safe',
     'store_network_diagnostic_request',
     'store_command_for_review',
+    'store_session_request',
 ]

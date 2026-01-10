@@ -385,6 +385,55 @@ def store_file_path(path: str, token: str = "", simulate_failure: str = "none") 
     )
 
 
+# =============================================================================
+# CRYPTOGRAPHIC FAILURE TOOLS - HARDENED VERSIONS
+# =============================================================================
+
+def store_crypto_request(password: str, action: str = "hash") -> Dict[str, Any]:
+    """
+    Store crypto request for audit without performing weak hashing.
+    HARDENED: Does not use MD5/SHA1 - stores request only.
+    """
+    if len(password) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Password too long",
+            note="Input validation prevented processing"
+        )
+
+    # Mask password for safe display
+    safe_display = "*" * min(len(password), 8) if password else "(empty)"
+    return create_safe_response(
+        f"Crypto request stored: action={action}",
+        note="Weak crypto operations blocked - request logged for admin review using secure alternatives",
+        action=action,
+        input_length=len(password),
+        status="stored",
+        recommendation="Use bcrypt, scrypt, or Argon2 for password hashing"
+    )
+
+
+def store_encryption_request(data: str, action: str = "encrypt") -> Dict[str, Any]:
+    """
+    Store encryption request for audit without using weak ciphers.
+    HARDENED: Does not use ECB mode or hardcoded keys - stores request only.
+    """
+    if len(data) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Data too long",
+            note="Input validation prevented processing"
+        )
+
+    safe_display = _sanitize_for_response(data[:50] + "..." if len(data) > 50 else data)
+    return create_safe_response(
+        f"Encryption request stored: action={action}",
+        note="Insecure encryption blocked - ECB mode and hardcoded keys disabled",
+        action=action,
+        input_length=len(data),
+        status="stored",
+        recommendation="Use AES-GCM with proper key management and random IVs"
+    )
+
+
 __all__ = [
     'store_expression',
     'store_command',
@@ -399,4 +448,7 @@ __all__ = [
     'store_serialized_data',
     'store_template',
     'store_file_path',
+    # Cryptographic failure tools (hardened)
+    'store_crypto_request',
+    'store_encryption_request',
 ]

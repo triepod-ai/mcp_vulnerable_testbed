@@ -41,6 +41,10 @@ config_state = {
     "admin_mode": False
 }
 
+# Session storage for session management testing (Challenge #12)
+session_store = {}  # session_id -> {user, created_at, authenticated, expires_at, fixed}
+session_counter = {"count": 0}  # Predictable counter for CWE-330
+
 def is_vulnerable_to_high_risk() -> bool:
     """Check if HIGH risk vulnerabilities are enabled (only in 'high' mode)"""
     return VULNERABILITY_MODE == "high"
@@ -58,7 +62,7 @@ def increment_invocation(tool_name: str) -> int:
 
 def reset_state():
     """Reset all stateful tracking (useful for testing)"""
-    global invocation_counts, shadowed_tools, config_state
+    global invocation_counts, shadowed_tools, config_state, session_store, session_counter
     invocation_counts = {}
     shadowed_tools = {}
     config_state = {
@@ -66,6 +70,8 @@ def reset_state():
         "verbose": False,
         "admin_mode": False
     }
+    session_store = {}
+    session_counter = {"count": 0}
 
 
 # ============================================================================
