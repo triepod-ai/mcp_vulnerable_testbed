@@ -37,7 +37,7 @@ See `docs/TOOLS-REFERENCE.md` for detailed vulnerability breakdown per tool.
 - **Temporal Vulnerabilities (1 tool)**: rug_pull (requires 11+ invocations to trigger)
 - **Additional Patterns (5 tools)**: Various encoding and blacklist bypass techniques
 
-### SAFE Control Tools (6 tools)
+### SAFE Control Tools (9 tools)
 
 These tools should NOT be flagged as vulnerable (false positive testing):
 
@@ -47,13 +47,16 @@ These tools should NOT be flagged as vulnerable (false positive testing):
 - **safe_info_tool_mcp** - Gets info with safe error reflection
 - **safe_echo_tool_mcp** - Echoes data without execution
 - **safe_validate_tool_mcp** - Validates and rejects malicious patterns
+- **safe_logger_tool_mcp** - Logs messages without code execution
+- **safe_json_formatter_tool_mcp** - Formats JSON safely with validation
+- **safe_url_validator_tool_mcp** - Validates URLs without network access
 
 ### Utility Tools (2 tools)
 
 - **get_testbed_info** - Returns server metadata, configuration, and tool counts
 - **reset_testbed_state** - Clears all stateful tracking for clean test runs
 
-**Total: 39 tools** (22 HIGH risk + 9 MEDIUM risk + 6 SAFE + 2 utility)
+**Total: 42 tools** (22 HIGH risk + 9 MEDIUM risk + 9 SAFE + 2 utility)
 
 ---
 
@@ -234,10 +237,10 @@ To use stdio transport instead of HTTP:
 | **Hardened (10901)** | 0 | LOW | ✅ PASS |
 
 **Key Metrics:**
-- Total tools per server: 39 (22 HIGH, 9 MEDIUM, 6 SAFE, 2 utility)
+- Total tools per server: 42 (22 HIGH, 9 MEDIUM, 9 SAFE, 2 utility)
 - Detection rate: 100% (all 31 vulnerable tools detected)
-- False positive rate: 0% (hardened server passes all tests)
-- Pytest validation: 44 tests passing
+- False positive rate: 0% (all 9 safe tools correctly classified)
+- Pytest validation: 49 tests passing in test_safe_tools_unit.py
 
 See `docs/VULNERABILITY-VALIDATION-RESULTS.md` for detailed breakdown.
 
@@ -260,7 +263,7 @@ The inspector SHOULD flag these 31 tools as vulnerable:
 
 ### Expected Safe Classifications (0% False Positives)
 
-The inspector should NOT flag these tools:
+The inspector should NOT flag these 9 tools:
 
 - ✅ safe_storage_tool_mcp
 - ✅ safe_search_tool_mcp
@@ -268,6 +271,9 @@ The inspector should NOT flag these tools:
 - ✅ safe_info_tool_mcp
 - ✅ safe_echo_tool_mcp
 - ✅ safe_validate_tool_mcp
+- ✅ safe_logger_tool_mcp
+- ✅ safe_json_formatter_tool_mcp
+- ✅ safe_url_validator_tool_mcp
 
 ## Testing Strategy
 
@@ -275,7 +281,7 @@ The inspector should NOT flag these tools:
 ```bash
 # Connect inspector to vulnerable testbed
 # Run full assessment
-# Verify all 39 tools are tested
+# Verify all 42 tools are tested
 ```
 
 ### Phase 2: Validation
@@ -365,8 +371,8 @@ npm run dev
 # 4. Run security assessment
 
 # 5. Review results:
-#    - Verify 13 vulnerabilities detected (9 HIGH + 4 MEDIUM)
-#    - Verify 6 safe tools not flagged (0% false positives)
+#    - Verify 31 vulnerabilities detected (22 HIGH + 9 MEDIUM)
+#    - Verify 9 safe tools not flagged (0% false positives)
 #    - Test Challenge #1: Annotation deception (5 tools)
 #    - Test Challenge #2: Rug pull after 11+ calls
 

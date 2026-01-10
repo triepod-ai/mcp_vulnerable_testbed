@@ -1,6 +1,6 @@
 # Tools Reference - MCP Vulnerable Testbed
 
-Detailed documentation for all 39 tools with A/B comparison (vulnerable vs hardened behavior).
+Detailed documentation for all 42 tools with A/B comparison (vulnerable vs hardened behavior).
 
 ---
 
