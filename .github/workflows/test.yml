@@ -1,0 +1,117 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Inspector CLI configuration for CI environment
+  INSPECTOR_DIR: ${{ github.workspace }}/../inspector
+  INSPECTOR_TIMEOUT: "120"
+  INSPECTOR_TIMEOUT_SLOW: "300"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-timeout requests sseclient-py
+
+      - name: Build Docker containers
+        run: docker-compose build
+
+      - name: Start Docker containers
+        run: |
+          docker-compose up -d
+          echo "Waiting for containers to be healthy..."
+
+      - name: Wait for vulnerable server
+        run: |
+          for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:10900/mcp | grep -q "200\|405"; then
+              echo "Vulnerable server is ready"
+              break
+            fi
+            echo "Waiting for vulnerable server... ($i/30)"
+            sleep 2
+          done
+
+      - name: Wait for hardened server
+        run: |
+          for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:10901/mcp | grep -q "200\|405"; then
+              echo "Hardened server is ready"
+              break
+            fi
+            echo "Waiting for hardened server... ($i/30)"
+            sleep 2
+          done
+
+      - name: Verify server health
+        run: |
+          echo "=== Vulnerable Server Status ==="
+          docker logs mcp-vulnerable-testbed 2>&1 | tail -20
+          echo ""
+          echo "=== Hardened Server Status ==="
+          docker logs mcp-hardened-testbed 2>&1 | tail -20
+
+      - name: Run unit tests
+        run: pytest tests/ -m "unit" -v --tb=short || true
+
+      - name: Run integration tests
+        run: pytest tests/ -m "integration" -v --tb=short --timeout=60
+        continue-on-error: true
+
+      - name: Run all tests (excluding slow and inspector)
+        run: pytest tests/ -v --tb=short --timeout=60 -m "not slow and not inspector"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            logs/
+            logs-hardened/
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: docker-compose down
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linters
+        run: pip install ruff
+
+      - name: Run ruff check
+        run: ruff check src/ src-hardened/ tests/ --ignore E501
+        continue-on-error: true
+
+      - name: Run ruff format check
+        run: ruff format --check src/ src-hardened/ tests/
+        continue-on-error: true

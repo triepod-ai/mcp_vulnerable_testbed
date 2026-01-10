@@ -5,8 +5,10 @@ This file:
 - Adds the tests directory to sys.path so local imports work
 - Provides shared fixtures for vulnerable and hardened server clients
 - Registers custom pytest markers
+- Configures Inspector CLI integration via environment variables
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -21,11 +23,25 @@ from mcp_test_client import MCPClient, VULNERABLE_SERVER_URL, HARDENED_SERVER_UR
 from dvmcp_client import DVMCPClient, DVMCP_CHALLENGE_URLS
 
 
+# ============================================================================
+# Test Configuration (Environment Variable Overrides)
+# ============================================================================
+# These allow CI/CD systems to configure paths without code changes
+
+# Inspector CLI directory (default: /home/bryan/inspector)
+INSPECTOR_DIR = Path(os.getenv("INSPECTOR_DIR", "/home/bryan/inspector"))
+
+# Inspector CLI timeouts (seconds)
+INSPECTOR_TIMEOUT_DEFAULT = int(os.getenv("INSPECTOR_TIMEOUT", "120"))
+INSPECTOR_TIMEOUT_SLOW = int(os.getenv("INSPECTOR_TIMEOUT_SLOW", "300"))
+
+
 def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line("markers", "integration: marks tests requiring server")
     config.addinivalue_line("markers", "unit: marks pure unit tests")
     config.addinivalue_line("markers", "slow: marks slow tests (e.g., rug pull)")
+    config.addinivalue_line("markers", "inspector: marks tests requiring Inspector CLI")
 
 
 @pytest.fixture(scope="module")
@@ -44,14 +60,25 @@ def vulnerable_client():
 
 
 @pytest.fixture
-def clean_vulnerable_client(vulnerable_client):
-    """Function-scoped fixture that resets state before each test.
+def clean_vulnerable_client():
+    """Function-scoped fixture with isolated connection and state.
 
-    Use for tests that depend on clean server state (e.g., rug pull).
-    Reuses the module-scoped connection but ensures fresh state.
+    Use for tests that depend on clean server state (e.g., rug pull,
+    session management, state-based attacks).
+
+    Creates a fresh connection for each test to prevent state leakage
+    between tests. Resets state both before and after the test.
     """
-    vulnerable_client.reset_state()
-    return vulnerable_client
+    client = MCPClient(VULNERABLE_SERVER_URL)
+    if not client.connect():
+        pytest.skip("Vulnerable server not available")
+    client.reset_state()
+    yield client
+    # Cleanup: reset state after test to prevent contaminating other tests
+    try:
+        client.reset_state()
+    except Exception:
+        pass  # Best effort cleanup
 
 
 @pytest.fixture(scope="module")
@@ -167,3 +194,59 @@ def dvmcp_client_factory():
     # Cleanup all created clients
     for client in clients:
         client.close()
+
+
+# ============================================================================
+# MCP Inspector CLI Fixtures
+# ============================================================================
+
+# Server configs for Inspector CLI (INSPECTOR_DIR defined at top of file)
+VULNERABLE_CONFIG = {"transport": "http", "url": "http://localhost:10900/mcp"}
+HARDENED_CONFIG = {"transport": "http", "url": "http://localhost:10901/mcp"}
+
+
+@pytest.fixture(scope="session")
+def inspector_cli_available():
+    """Session-scoped check for Inspector CLI availability.
+
+    Returns True if Inspector CLI responds to --help, False otherwise.
+    Tests can use this to skip gracefully if Inspector is unavailable.
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["npm", "run", "assess", "--", "--help"],
+            cwd=INSPECTOR_DIR,
+            capture_output=True,
+            timeout=30
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return False
+
+
+@pytest.fixture(scope="module")
+def inspector_config_file(tmp_path_factory):
+    """Create temporary config file for vulnerable server (port 10900).
+
+    Returns path to a JSON config file suitable for Inspector CLI.
+    """
+    import json
+    config_dir = tmp_path_factory.mktemp("inspector_config")
+    config_path = config_dir / "vulnerable-mcp-config.json"
+    config_path.write_text(json.dumps(VULNERABLE_CONFIG))
+    return str(config_path)
+
+
+@pytest.fixture(scope="module")
+def hardened_inspector_config(tmp_path_factory):
+    """Create temporary config file for hardened server (port 10901).
+
+    Returns path to a JSON config file suitable for Inspector CLI.
+    """
+    import json
+    config_dir = tmp_path_factory.mktemp("hardened_config")
+    config_path = config_dir / "hardened-mcp-config.json"
+    config_path.write_text(json.dumps(HARDENED_CONFIG))
+    return str(config_path)

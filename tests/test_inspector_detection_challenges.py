@@ -1,23 +1,30 @@
 """
-MCP Inspector Detection Tests for Challenges #8-11 (DVMCP-Inspired Patterns)
+MCP Inspector Detection Tests for Challenges #8-13
 
-Tests MCP Inspector's ability to detect four DVMCP-inspired vulnerability patterns
-and validates that hardened versions are NOT flagged (zero false positives).
+Tests MCP Inspector's ability to detect vulnerability patterns and validates
+that hardened versions are NOT flagged (zero false positives).
 
 Challenges tested:
 - Challenge #8: Indirect Prompt Injection via Tool Output (document_processor)
 - Challenge #9: Secret Leakage via Error Messages (service_status)
 - Challenge #10: Network Diagnostic Command Injection (network_diagnostic)
 - Challenge #11: Blacklist Bypass (safe_executor)
+- Challenge #12: Session Management Vulnerabilities (session_tool)
+- Challenge #13: Cryptographic Failures - OWASP A02:2021 (crypto_tool, encryption_tool)
 
 Usage:
-    pytest tests/test_inspector_detection_challenges_8_11.py -v
-    pytest tests/test_inspector_detection_challenges_8_11.py -v -k "Challenge8"
-    pytest tests/test_inspector_detection_challenges_8_11.py -v -k "Hardened"
+    pytest tests/test_inspector_detection_challenges.py -v
+    pytest tests/test_inspector_detection_challenges.py -v -k "Challenge8"
+    pytest tests/test_inspector_detection_challenges.py -v -k "Challenge12"
+    pytest tests/test_inspector_detection_challenges.py -v -k "Challenge13"
+    pytest tests/test_inspector_detection_challenges.py -v -k "Hardened"
 
-GitHub Issue: https://github.com/triepod-ai/mcp_vulnerable_testbed/issues/1
+GitHub Issues:
+    #1: https://github.com/triepod-ai/mcp_vulnerable_testbed/issues/1 (Challenges #8-11)
+    #6: https://github.com/triepod-ai/mcp_vulnerable_testbed/issues/6 (Challenges #12-13)
 """
 
+import re
 import pytest
 from typing import Dict, Any
 
@@ -486,3 +493,343 @@ class TestHardenedVersionsNotFlagged:
             "Hardened version should NOT execute commands"
         assert result.get("blacklist_used") is False, \
             "Hardened version should NOT use bypassable blacklist"
+
+    @pytest.mark.integration
+    def test_hardened_session_not_flagged(self, hardened_client):
+        """Hardened session tool should NOT be flagged as vulnerable."""
+        result = hardened_client.call_tool(
+            "vulnerable_session_tool",
+            {"action": "create", "user": "testuser"}
+        )
+
+        # Hardened version should be safe
+        is_safe = result.get("safe") is True or result.get("vulnerable") is False
+        assert is_safe, "Hardened session tool should be safe"
+
+        # Key indicators: secure token, not predictable
+        note = str(result.get("note", "")).lower()
+        has_secure_indicator = (
+            result.get("token_secure") is True or
+            "secrets" in note or
+            "cryptographically secure" in note or
+            "secure token" in note
+        )
+        assert has_secure_indicator, \
+            "Hardened version should use cryptographically secure tokens"
+
+    @pytest.mark.integration
+    def test_hardened_crypto_not_flagged(self, hardened_client):
+        """Hardened crypto tool should NOT be flagged as vulnerable."""
+        result = hardened_client.call_tool(
+            "vulnerable_crypto_tool_endpoint",
+            {"password": "testpassword", "action": "hash"}
+        )
+
+        # Hardened version should be safe
+        is_safe = result.get("safe") is True or result.get("vulnerable") is False
+        assert is_safe, "Hardened crypto tool should be safe"
+
+        # Should not execute weak crypto
+        assert result.get("algorithm") != "MD5", \
+            "Hardened version should NOT use MD5"
+
+    @pytest.mark.integration
+    def test_hardened_encryption_not_flagged(self, hardened_client):
+        """Hardened encryption tool should NOT be flagged as vulnerable."""
+        result = hardened_client.call_tool(
+            "vulnerable_encryption_tool_endpoint",
+            {"data": "testdata", "action": "encrypt"}
+        )
+
+        # Hardened version should be safe
+        is_safe = result.get("safe") is True or result.get("vulnerable") is False
+        assert is_safe, "Hardened encryption tool should be safe"
+
+        # Should not use ECB mode
+        assert result.get("mode") != "ECB", \
+            "Hardened version should NOT use ECB mode"
+
+
+# ============================================================================
+# Challenge #12: Session Management Vulnerabilities
+# ============================================================================
+
+
+class TestChallenge12SessionVulnerabilities:
+    """
+    Challenge #12: Session Management Vulnerabilities
+
+    Tests vulnerable_session_tool which demonstrates 5 session weaknesses:
+    - CWE-384: Session Fixation (accepts attacker-provided session ID)
+    - CWE-330: Predictable Session Tokens (pattern: session_{user}_{ts}_{n})
+    - CWE-613: No Session Timeout (expires_at: None)
+    - CWE-200: Session ID in URL (session_url contains ID)
+    - CWE-384: No Session Regeneration (same ID after login)
+
+    Detection indicators:
+    - vulnerable=True
+    - Predictable session ID pattern
+    - expires_at=None
+    - session_url contains session_id
+    - session_regenerated=False
+    """
+
+    @pytest.mark.integration
+    def test_session_fixation_detected(self, clean_vulnerable_client):
+        """CWE-384: Session fixation attack should be detected."""
+        attacker_session = "attacker_chosen_session_12345"
+        result = clean_vulnerable_client.call_tool(
+            "vulnerable_session_tool",
+            {"action": "fixate", "session_id": attacker_session, "user": "attacker"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("attacker_controlled") is True, \
+            "attacker_controlled should be True for fixation"
+
+        # Verify the attacker's session ID was accepted
+        assert result.get("session_id") == attacker_session, \
+            "Attacker-provided session ID should be accepted"
+
+    @pytest.mark.integration
+    def test_predictable_tokens_detected(self, vulnerable_client):
+        """CWE-330: Predictable session token pattern should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_session_tool",
+            {"action": "create", "user": "testuser"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+
+        # Verify predictable pattern
+        session_id = result.get("session_id", "")
+        pattern = r'^session_testuser_\d+_\d+$'
+        assert re.match(pattern, session_id), \
+            f"Session ID '{session_id}' should match predictable pattern"
+
+    @pytest.mark.integration
+    def test_no_timeout_detected(self, vulnerable_client):
+        """CWE-613: Missing session timeout should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_session_tool",
+            {"action": "create", "user": "testuser"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+
+        # expires_at should be None (no timeout)
+        session_data = result.get("session_data", result)
+        expires_at = session_data.get("expires_at")
+        assert expires_at is None, \
+            f"Session should not have expiration (CWE-613), got expires_at={expires_at}"
+
+    @pytest.mark.integration
+    def test_session_id_in_url_detected(self, vulnerable_client):
+        """CWE-200: Session ID exposure in URL should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_session_tool",
+            {"action": "create", "user": "testuser"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+
+        # session_url should contain the session_id
+        session_url = result.get("session_url", "")
+        session_id = result.get("session_id", "")
+
+        assert session_id in session_url, \
+            f"Session ID should be exposed in URL (CWE-200): session_url='{session_url}'"
+
+    @pytest.mark.integration
+    def test_no_regeneration_detected(self, clean_vulnerable_client):
+        """CWE-384: Session ID should not regenerate after login."""
+        # Create session
+        create_result = clean_vulnerable_client.call_tool(
+            "vulnerable_session_tool",
+            {"action": "create", "user": "testuser"}
+        )
+        original_session_id = create_result.get("session_id")
+
+        # Login with that session
+        login_result = clean_vulnerable_client.call_tool(
+            "vulnerable_session_tool",
+            {"action": "login", "session_id": original_session_id, "user": "testuser", "password": "test"}
+        )
+
+        assert login_result.get("vulnerable") is True, "Tool should be marked vulnerable"
+
+        # Session ID should remain the same (vulnerability)
+        assert login_result.get("session_regenerated") is False, \
+            "session_regenerated should be False (CWE-384)"
+        assert login_result.get("session_id") == original_session_id, \
+            "Session ID should not change after login (vulnerability)"
+
+
+# ============================================================================
+# Challenge #13: Cryptographic Failures - OWASP A02:2021
+# ============================================================================
+
+
+class TestChallenge13CryptoVulnerabilities:
+    """
+    Challenge #13a: Cryptographic Tool Vulnerabilities
+
+    Tests vulnerable_crypto_tool_endpoint which demonstrates crypto weaknesses:
+    - CWE-328: MD5 Hashing (cryptographically broken)
+    - CWE-916: Static Salt ("static_salt_123")
+    - CWE-330: Predictable RNG (random.random with timestamp seed)
+    - CWE-208: Timing Attack (non-constant-time comparison)
+
+    OWASP A02:2021 - Cryptographic Failures
+    """
+
+    @pytest.mark.integration
+    def test_md5_hashing_detected(self, vulnerable_client):
+        """CWE-328: MD5 hashing for passwords should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_crypto_tool_endpoint",
+            {"password": "testpassword", "action": "hash"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("algorithm") == "MD5", \
+            "Algorithm should be MD5 (broken)"
+        assert result.get("algorithm_secure") is False, \
+            "algorithm_secure should be False for MD5"
+        assert "CWE-328" in result.get("cwe_ids", []), \
+            "CWE-328 should be reported"
+
+    @pytest.mark.integration
+    def test_static_salt_detected(self, vulnerable_client):
+        """CWE-916: Static salt should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_crypto_tool_endpoint",
+            {"password": "testpassword", "action": "salt_hash"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("salt") == "static_salt_123", \
+            "Salt should be the static value"
+        assert result.get("salt_type") == "static", \
+            "salt_type should be 'static'"
+        assert result.get("salt_secure") is False, \
+            "salt_secure should be False"
+        assert "CWE-916" in result.get("cwe_ids", []), \
+            "CWE-916 should be reported"
+
+    @pytest.mark.integration
+    def test_predictable_rng_detected(self, vulnerable_client):
+        """CWE-330: Predictable RNG should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_crypto_tool_endpoint",
+            {"password": "dummy", "action": "random"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("seed") == "timestamp", \
+            "seed should be 'timestamp' (predictable)"
+        assert result.get("cryptographically_secure") is False, \
+            "cryptographically_secure should be False"
+        assert "CWE-330" in result.get("cwe_ids", []), \
+            "CWE-330 should be reported"
+
+    @pytest.mark.integration
+    def test_timing_attack_detected(self, vulnerable_client):
+        """CWE-208: Timing attack vulnerability should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_crypto_tool_endpoint",
+            {"password": "testpassword", "action": "verify"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("timing_safe") is False, \
+            "timing_safe should be False"
+        assert result.get("comparison_type") == "direct_equality", \
+            "comparison_type should indicate non-constant-time"
+        assert "CWE-208" in result.get("cwe_ids", []), \
+            "CWE-208 should be reported"
+
+
+class TestChallenge13EncryptionVulnerabilities:
+    """
+    Challenge #13b: Encryption Tool Vulnerabilities
+
+    Tests vulnerable_encryption_tool_endpoint which demonstrates encryption weaknesses:
+    - CWE-327: ECB Mode (identical blocks produce identical ciphertext)
+    - CWE-321: Hardcoded Key ("hardcoded_key_16" in source)
+    - CWE-916: Weak Key Derivation (MD5 instead of PBKDF2/scrypt)
+    - CWE-326: Weak HMAC Key (3-byte key)
+
+    OWASP A02:2021 - Cryptographic Failures
+    """
+
+    @pytest.mark.integration
+    def test_ecb_mode_detected(self, vulnerable_client):
+        """CWE-327: ECB mode encryption should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_encryption_tool_endpoint",
+            {"data": "test data to encrypt", "action": "encrypt"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        # May be ECB or XOR fallback depending on pycryptodome availability
+        assert result.get("mode") in ("ECB", "stream"), \
+            "Mode should be ECB or stream (XOR fallback)"
+        assert result.get("key_source") == "hardcoded", \
+            "key_source should be 'hardcoded'"
+        assert "CWE-327" in result.get("cwe_ids", []) or "CWE-321" in result.get("cwe_ids", []), \
+            "CWE-327 or CWE-321 should be reported"
+
+    @pytest.mark.integration
+    def test_hardcoded_key_detected(self, vulnerable_client):
+        """CWE-321: Hardcoded encryption key should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_encryption_tool_endpoint",
+            {"data": "test data", "action": "encrypt"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("key_source") == "hardcoded", \
+            "key_source should be 'hardcoded'"
+
+        # key_preview should show partial hardcoded key (may be truncated)
+        key_preview = result.get("key_preview", "")
+        # Handle truncation: "hardcode..." or "hardcoded..."
+        assert key_preview.lower().startswith("hardcode"), \
+            f"key_preview should start with 'hardcode': got '{key_preview}'"
+
+    @pytest.mark.integration
+    def test_weak_kdf_detected(self, vulnerable_client):
+        """CWE-916: Weak key derivation (MD5) should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_encryption_tool_endpoint",
+            {"data": "password123", "action": "derive_key"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("derivation_function") == "MD5", \
+            "derivation_function should be MD5"
+        assert result.get("iterations") == 1, \
+            "iterations should be 1 (no stretching)"
+        assert result.get("salt_used") is False, \
+            "salt_used should be False"
+        assert result.get("kdf_secure") is False, \
+            "kdf_secure should be False"
+        assert "CWE-916" in result.get("cwe_ids", []), \
+            "CWE-916 should be reported"
+
+    @pytest.mark.integration
+    def test_weak_hmac_key_detected(self, vulnerable_client):
+        """CWE-326: Weak HMAC key (3 bytes) should be detected."""
+        result = vulnerable_client.call_tool(
+            "vulnerable_encryption_tool_endpoint",
+            {"data": "data to sign", "action": "sign"}
+        )
+
+        assert result.get("vulnerable") is True, "Tool should be marked vulnerable"
+        assert result.get("key_length") == 3, \
+            "key_length should be 3 (weak)"
+        assert result.get("key_secure") is False, \
+            "key_secure should be False"
+        assert "CWE-326" in result.get("cwe_ids", []), \
+            "CWE-326 should be reported"
