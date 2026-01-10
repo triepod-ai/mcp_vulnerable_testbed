@@ -358,3 +358,159 @@ Entries are loaded automatically by the SessionStart hook to provide context fro
 - Inspector validation confirms 0 false positives across all 9 safe tools
 
 ---
+
+## 2026-01-10: Issue #4 STRIDE-Based Threat Model Documentation
+
+**Summary:** Created comprehensive STRIDE-based threat model documentation, completing final open GitHub issue for testbed
+
+**Session Focus:** Implementing formal threat model documentation for MCP Vulnerable Testbed (Issue #4)
+
+**Changes Made:**
+- `docs/THREAT-MODEL.md` - Created comprehensive threat model (~1,487 lines)
+  - STRIDE threat analysis covering 6 categories with 15+ threats
+  - 4 ASCII attack trees (Cross-tool escalation, Chain exploitation, Auth bypass, Data exfiltration)
+  - Asset inventory with criticality matrix (6 primary, 4 secondary assets)
+  - Trust boundary diagram with 3 boundary definitions
+  - 5 threat actor profiles with capability matrix
+  - Risk assessment matrix for all 31 vulnerable tools
+  - Mitigation mapping (vulnerable vs hardened patterns)
+  - Appendices: CWE index (18 CWEs), CVE-2025-52882, OWASP Top 10 mapping
+
+**Key Decisions:**
+- Used STRIDE framework (industry standard) + Attack Trees for multi-step flows
+- Focused on MCP-specific threats (shared state, annotation deception, LLM vectors)
+- All 13 security challenges mapped to STRIDE categories
+- Attack trees visualize realistic multi-step exploitation scenarios
+
+**Next Steps:**
+- Testbed documentation complete - ready for production use
+- Consider creating GitHub release with all documentation
+- Inspector repo integration tests (#111, #112) still pending
+
+**Notes:**
+- Commit af255b7 pushed to GitHub
+- Issue #4 auto-closed via commit message
+- All GitHub issues (#2-#5) now complete
+- Docker containers rebuilt with latest code
+- Total documentation: THREAT-MODEL.md, TOOLS-REFERENCE.md, VULNERABILITY-VALIDATION-RESULTS.md
+
+---
+
+## 2026-01-10: Fixed Inspector CLI Helper Output Parsing for Challenge #12/#13 Tests
+
+**Summary:** Fixed Inspector CLI helper output parsing enabling all 28 Challenge #12/#13 tests to pass
+
+**Session Focus:** Resolved test helper format mismatch between expected `findings` field and actual Inspector v1.30+ `promptInjectionTests` output structure
+
+**Changes Made:**
+- `tests/inspector_cli_helper.py` - Updated `_parse_module_findings()` to parse `promptInjectionTests` array, extract CWE IDs from `sessionCweIds`/`cryptoCweIds` fields
+- `tests/test_inspector_cli_detection.py` - Removed 18 xfail markers, updated docstrings to reflect Inspector v1.30+ capabilities
+
+**Key Decisions:**
+- Parse both legacy `findings` array AND new `promptInjectionTests` array for backward compatibility
+- Extract CWE IDs from multiple sources: `sessionCweIds`, `cryptoCweIds`, and regex from description
+
+**Next Steps:**
+- Commit the fixes
+- Consider adding more CWE detection tests as Inspector capabilities expand
+
+**Notes:**
+- Inspector issues #111 and #112 were already implemented and closed
+- All 28 tests pass: Session (8), Crypto (8), Encryption (8), Hardened A/B (3), Infrastructure (1)
+
+---
+
+## 2026-01-10: P0 Critical Issue Remediation and CI/CD Setup
+
+**Summary:** Completed multi-agent code review, fixed all P0 critical issues, achieved 100% AUP tool test coverage, and created GitHub Actions CI workflow
+
+**Session Focus:** P0 critical issue remediation from multi-agent code review findings
+
+**Changes Made:**
+- Created `pytest.ini` with markers, timeouts, and warnings configuration
+- Fixed Docker healthcheck in `docker-compose.yml` (both servers)
+- Fixed state leakage in `tests/conftest.py` clean_vulnerable_client fixture
+- Made INSPECTOR_DIR configurable via environment variables
+- Created `tests/test_aup_violations.py` (8 AUP tools, ~370 lines)
+- Added Challenge #7 tests to `tests/test_vulnerability_chaining.py`
+- Created `.github/workflows/test.yml` (GitHub Actions CI)
+- Created `tests/inspector_cli_helper.py`
+- Extended `tests/test_inspector_detection_challenges.py`
+
+**Key Decisions:**
+- Consolidated low-complexity issues into 3 medium-complexity GitHub issues
+- Used function-scoped fixture with fresh connections to prevent state leakage
+- Made Inspector CLI paths configurable for CI/CD environments
+
+**Next Steps:**
+- Issue #9: Code quality improvements (bare exceptions, config duplication)
+- Issue #10: CI/CD enhancements (coverage reporting, pre-commit hooks)
+- Issue #11: Inspector CLI E2E validation for all 13 challenges
+
+**Notes:**
+- Commit 9134e65 pushed to origin/main
+- 2,103 lines added across 9 files
+- All 8 previous issues now closed
+
+---
+
+## 2026-01-10: Issue #11 Completed - Inspector CLI Detection Validation
+
+**Summary:** Completed Issue #11 - validated Inspector CLI detection of all 13 security challenges with 100% recall and 0 false positives
+
+**Session Focus:** Inspector CLI end-to-end validation for all 13 security challenges in vulnerable testbed
+
+**Changes Made:**
+- Created `docs/INSPECTOR-DETECTION-REPORT.md` - comprehensive detection report with per-challenge breakdown
+- Closed GitHub issue #11 with detailed summary of validation results
+
+**Key Decisions:**
+- All 13 challenges confirmed detected by Inspector v1.30.1
+- Auth bypass precision validated at 100% (4/4 correct, 0 false positives on fail-closed tools)
+- Hardened server confirmed to have 0 vulnerabilities (all 31 mitigated)
+
+**Results:**
+- Vulnerable server: 387 vulnerabilities, 17 AUP violations detected
+- Hardened server: 0 vulnerabilities, 0 AUP violations (all mitigated)
+- Challenge detection: 13/13 (100%)
+- Auth bypass precision: 100% (4 fail-open detected, 3 fail-closed correctly ignored)
+
+**Next Steps:**
+- Address remaining open issues #9 (code quality) and #10 (CI/CD)
+- Consider enhancing Inspector for deeper session/secret leakage detection
+- Potential improvements: explicit session fixation patterns, secret detection in response bodies
+
+**Notes:**
+- Inspector v1.30.1 demonstrates comprehensive MCP security coverage
+- Testbed validated as effective security testing baseline
+- All 13 challenge categories have corresponding Inspector detection modules
+
+---
+
+## 2026-01-10: Issue #9 Completed - Code Quality Improvements
+
+**Summary:** Completed Issue #9 code quality improvements - documented intentional config duplication and expanded docstrings in test client
+
+**Session Focus:** Code quality improvements from multi-agent review (Issue #9)
+
+**Changes Made:**
+- `src/config.py` - Added 11-line documentation comment explaining intentional duplication pattern
+- `src-hardened/config.py` - Added 11-line documentation comment explaining intentional duplication pattern
+- `tests/dvmcp_client.py` - Expanded `_next_id()` docstring with Returns section (line 52)
+- `tests/dvmcp_client.py` - Expanded `close()` docstring with detailed cleanup steps (line 322)
+
+**Key Decisions:**
+- Bare exception handlers in vulnerable_tools.py left as-is (intentional for vulnerability demonstration)
+- Config duplication documented rather than extracted (mirrors monolithic vs modular architecture pattern)
+- Only 2 docstrings needed expansion (test files already had good coverage)
+
+**Next Steps:**
+- Issue #10 (CI/CD pipeline enhancements)
+- Issue #11 (Inspector CLI end-to-end validation)
+
+**Notes:**
+- Commit 8765b3d pushed to origin/main
+- Issue #9 auto-closed via "Closes #9" in commit message
+- 49 unit tests passed after changes
+
+---

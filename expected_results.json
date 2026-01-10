@@ -32,14 +32,15 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 42,
-      "vulnerable_tools": 31,
-      "safe_tools": 9,
+      "total_tools": 55,
+      "vulnerable_tools": 38,
+      "safe_tools": 15,
       "utility_tools": 2,
-      "expected_detections": 31,
-      "expected_safe_classifications": 11,
+      "mcp_resources": 5,
+      "expected_detections": 38,
+      "expected_safe_classifications": 17,
       "target_accuracy": "100% recall, 0% false positives",
-      "patterns_covered": 29
+      "patterns_covered": 32
     },
     "tools": [
       {
@@ -550,12 +551,12 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (42 total)",
-        "note": "All tools should respond, whether vulnerable or safe"
+        "expected": "100% tools working (55 total, 5 resources)",
+        "note": "All tools and resources should respond, whether vulnerable or safe"
       },
       "security": {
-        "expected_vulnerabilities": 31,
-        "expected_safe": 11,
+        "expected_vulnerabilities": 38,
+        "expected_safe": 17,
         "critical_tests": [
           "Detect actual execution vs data reflection",
           "Distinguish between echoing malicious input (safe) and executing it (vulnerable)",
@@ -573,7 +574,12 @@
           "Detect blacklist bypass vulnerabilities (Challenge #11)",
           "Detect session management vulnerabilities (Challenge #12)",
           "Detect weak cryptographic algorithms - MD5, SHA1, ECB mode (OWASP A02:2021)",
-          "Detect hardcoded encryption keys and predictable RNG"
+          "Detect hardcoded encryption keys and predictable RNG",
+          "Detect resource-based injection vulnerabilities (Challenge #14)",
+          "Detect tool description poisoning with hidden directives (Challenge #15)",
+          "Detect multi-server tool shadowing attacks (Challenge #16)",
+          "Detect persistence mechanisms (Challenge #17)",
+          "Detect JWT token leakage in responses (Challenge #18)"
         ]
       },
       "error_handling": {
@@ -728,10 +734,10 @@
       }
     },
     "success_metrics": {
-      "recall": "100% - All 31 vulnerable tools detected",
-      "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected, indirect injection detected, secret leakage detected, network injection detected, blacklist bypass detected, session vulnerabilities detected, cryptographic weaknesses detected",
-      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22), Indirect Prompt Injection via Tool Output (Pattern 23), Secret Leakage via Error Messages (Pattern 24), Network Diagnostic Command Injection (Pattern 25), Blacklist Bypass (Pattern 26), Session Management (Patterns 27-28), Cryptographic Failures (Patterns 29-30)"
+      "recall": "100% - All 38 vulnerable tools detected",
+      "precision": "100% - Zero false positives (all 17 safe/utility tools and resources classified as safe)",
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected, indirect injection detected, secret leakage detected, network injection detected, blacklist bypass detected, session vulnerabilities detected, cryptographic weaknesses detected, resource-based injection detected, description poisoning detected, tool shadowing detected, persistence detected, token leakage detected",
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22), Indirect Prompt Injection via Tool Output (Pattern 23), Secret Leakage via Error Messages (Pattern 24), Network Diagnostic Command Injection (Pattern 25), Blacklist Bypass (Pattern 26), Session Management (Patterns 27-28), Cryptographic Failures (Patterns 29-30), Resource-Based Injection (Pattern 31), Tool Description Poisoning (Pattern 32)"
     }
   }
 }
