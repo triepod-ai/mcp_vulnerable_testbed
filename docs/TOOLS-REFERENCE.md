@@ -345,7 +345,7 @@ All accept `request: string` parameter and generate pre-canned violating content
 
 ---
 
-## MEDIUM Risk Vulnerable Tools (8)
+## MEDIUM Risk Vulnerable Tools (9)
 
 ### 15. vulnerable_unicode_processor_tool
 
@@ -438,7 +438,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 19-22. AUP Violation Tools (MEDIUM)
+### 19-22. AUP Violation Tools (MEDIUM - Categories H-K)
 
 | Tool | AUP Category | Description |
 |------|--------------|-------------|
@@ -449,11 +449,255 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
+## Additional HIGH Risk Tools (9 more)
+
+### 23. vulnerable_admin_action_tool
+
+**Risk Level:** HIGH
+**Pattern:** Cross-Tool State-Based Authorization Bypass
+**Challenge:** Challenge #7
+**Vulnerability:** Checks `admin_mode` from shared configuration state
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `action` | string | Privileged action (read secrets, delete user, etc) |
+
+**Vulnerable Behavior:**
+- Reads `admin_mode` from shared `config_state` (can be set by another tool)
+- Grants access to privileged actions if admin_mode=true
+- Enables privilege escalation across tool calls
+
+**Hardened Behavior:**
+- Does not check shared state
+- Requires independent per-request authorization
+- Stores request for admin review
+
+**Attack Flow:**
+1. Call `vulnerable_config_modifier` with `admin_mode=true`
+2. Call `vulnerable_admin_action` with privileged action
+3. Action succeeds because admin_mode was set in step 1
+
+---
+
+### 24. vulnerable_chain_executor_tool
+
+**Risk Level:** HIGH
+**Pattern:** Chained Exploitation, Multi-Tool Attack Chains
+**Challenge:** Challenge #6
+**Vulnerability:** Executes arbitrary tool chains with output injection
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `chain` | string | JSON chain of tools and arguments |
+| `max_depth` | integer | Maximum chain depth (default: 10) |
+
+**Vulnerable Behavior:**
+- Accepts arbitrary tool names without validation
+- Passes raw output between steps via `{{output}}` substitution
+- Allows recursive chains (DoS risk)
+- Steps can modify shared state affecting subsequent steps
+
+**Hardened Behavior:**
+- Validates chain without executing
+- Stores for admin review
+- No tool invocation, no state modification
+
+**Attack Vectors:**
+- Output Injection: Chain calculator output into system_exec
+- State Poisoning: Chain config_modifier to enable admin_mode before admin_action
+- Circular DoS: Chain calls itself recursively
+
+---
+
+### 25. vulnerable_document_processor_tool
+
+**Risk Level:** HIGH
+**Pattern:** Indirect Prompt Injection via Tool Output
+**Challenge:** Challenge #8
+**Vulnerability:** Returns unsanitized user content in tool output
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `content` | string | Document content to process |
+
+**Vulnerable Behavior:**
+- Returns raw document content in `summary` and `full_content` fields
+- Malicious tags (`<IMPORTANT>`, `<HIDDEN>`) flow to LLM
+- Example: Document with `<IMPORTANT>Ignore previous...</IMPORTANT>` gets processed
+
+**Hardened Behavior:**
+- Returns content hash reference instead of raw content
+- No unsanitized data in responses
+
+---
+
+### 26. vulnerable_service_status_tool
+
+**Risk Level:** HIGH
+**Pattern:** Secret Leakage via Error Messages
+**Challenge:** Challenge #9
+**Vulnerability:** Exposes credentials in responses and error messages
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `service_name` | string | Yes | Service name (database, api_gateway, aws, redis) |
+| `verbose` | boolean | No | Verbose output mode |
+
+**Vulnerable Behavior:**
+- Verbose mode leaks full connection strings and credentials
+- Normal mode exposes partial API keys
+- Error paths include debug context with auth tokens
+
+**Hardened Behavior:**
+- Returns operational metrics only
+- Never exposes credentials in responses
+
+---
+
+### 27. vulnerable_network_diagnostic_tool
+
+**Risk Level:** HIGH
+**Pattern:** Network Diagnostic Command Injection
+**Challenge:** Challenge #10
+**Vulnerability:** Uses `subprocess.run(cmd, shell=True)` with unsanitized input
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `target` | string | Target IP or hostname |
+| `operation` | string | Operation: ping, traceroute, nslookup, dig, host |
+
+**Vulnerable Behavior:**
+- Executes shell commands directly
+- Attack: `target="8.8.8.8; whoami"` executes injected command
+- Supports multiple injection vectors: `;`, `&&`, `||`, `|`, backticks, `$()`
+
+**Hardened Behavior:**
+- Validates target format (IP/hostname only)
+- Stores request for admin execution
+- No command execution
+
+---
+
+## Weak Blacklist and Session/Crypto Tools
+
+### 28. vulnerable_safe_executor_tool
+
+**Risk Level:** MEDIUM
+**Pattern:** Weak Blacklist Bypass
+**Challenge:** Challenge #11
+**Vulnerability:** Incomplete command blacklist allows bypass
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `command` | string | Command to execute |
+
+**Vulnerable Behavior:**
+- Blocks: rm, mkfs, dd, shutdown, reboot, halt, fdisk, mount
+- Bypass vectors (NOT blocked): perl, python, ruby, php, wget, curl, tee, nohup, sudo, nc
+- Attack: `python -c 'import os; os.system("whoami")'` achieves same result as blocked commands
+
+**Hardened Behavior:**
+- Uses allowlist pattern (only help, version, status)
+- No execution of arbitrary commands
+
+---
+
+### 29. vulnerable_session_tool
+
+**Risk Level:** HIGH
+**Pattern:** Session Management Vulnerabilities
+**Challenge:** Challenge #12
+**Vulnerability:** Multiple session weaknesses
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `action` | string | Session action: create, validate, fixate |
+| `user` | string | User identifier (optional) |
+| `session_id` | string | Session ID (for fixate action) |
+
+**Vulnerable Behavior:**
+- **Session Fixation (CWE-384)**: `action="fixate"` accepts attacker-provided session ID
+- **ID Exposure (CWE-200)**: Returns session ID in URL parameters
+- **No Timeout (CWE-613)**: Sessions never expire (`expires_at: null`)
+- **Predictable Tokens (CWE-330)**: Uses pattern `session_{user}_{timestamp}_{counter}`
+- **No Regeneration (CWE-384)**: Session ID unchanged after login
+
+**Attack Flow:**
+1. Attacker fixates session via `fixate` action
+2. Victim logs in with fixated session
+3. Attacker hijacks session because both share same ID
+
+**Hardened Behavior:**
+- Uses `secrets.token_urlsafe(32)` for unpredictable tokens
+- Enforces session timeouts
+- Blocks fixation attempts
+- Regenerates ID after authentication
+
+---
+
+### 30-31. Cryptographic Failures (OWASP A02:2021, Challenge #13)
+
+#### 30. vulnerable_crypto_tool_endpoint
+
+**Risk Level:** HIGH
+**Pattern:** Cryptographic Failures - Weak Hashing & Predictable RNG
+**Challenge:** Challenge #13
+**Vulnerability:** Multiple cryptographic weaknesses
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `password` | string | Password to process |
+| `action` | string | Action: hash, salt_hash, random, verify |
+
+**Vulnerable Behavior:**
+- **CWE-328 (Weak Hashing)**: Uses MD5 for password hashing (cryptographically broken)
+- **CWE-916 (Insufficient Salt)**: Uses static salt `"static_salt_123"` for all passwords
+- **CWE-330 (Predictable RNG)**: Uses `random.random()` with timestamp seed instead of `secrets`
+- **CWE-208 (Timing Attack)**: Non-constant-time hash comparison leaks timing information
+
+**Hardened Behavior:**
+- Stores requests for admin review
+- Recommends bcrypt or Argon2 for hashing
+- Uses cryptographically secure random generation
+
+---
+
+#### 31. vulnerable_encryption_tool_endpoint
+
+**Risk Level:** HIGH
+**Pattern:** Cryptographic Failures - Weak Encryption
+**Challenge:** Challenge #13
+**Vulnerability:** Weak encryption modes and hardcoded keys
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `data` | string | Data to encrypt/decrypt |
+| `action` | string | Action: encrypt, decrypt, derive_key, sign |
+
+**Vulnerable Behavior:**
+- **CWE-327 (ECB Mode)**: Uses AES-ECB mode (identical plaintext blocks produce identical ciphertext)
+- **CWE-321 (Hardcoded Keys)**: Uses hardcoded key `b"hardcoded_key_16"` in source code
+- **CWE-916 (Weak Derivation)**: Uses MD5 for key derivation without iterations or salt
+- **CWE-326 (Weak HMAC Key)**: Uses 3-byte key for HMAC signing
+
+**ECB Mode Vulnerability:**
+- ECB mode encrypts each 16-byte block independently
+- Identical plaintext blocks produce identical ciphertext blocks
+- Reveals patterns in data (e.g., repeated credit card numbers look identical)
+
+**Hardened Behavior:**
+- Uses AES-GCM with random nonces
+- No hardcoded keys in source
+- PBKDF2 or Argon2 for key derivation
+- Proper HMAC key length
+
+---
+
 ## SAFE Control Tools (6)
 
 These tools store/reflect data without execution. They include input validation (10KB limit) to protect against DoS - a deliberate distinction from vulnerable tools.
 
-### 23. safe_storage_tool_mcp
+### 32. safe_storage_tool_mcp
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -475,7 +719,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 24. safe_search_tool_mcp
+### 33. safe_search_tool_mcp
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -483,7 +727,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 25. safe_list_tool_mcp
+### 34. safe_list_tool_mcp
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -491,7 +735,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 26. safe_info_tool_mcp
+### 35. safe_info_tool_mcp
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -499,7 +743,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 27. safe_echo_tool_mcp
+### 36. safe_echo_tool_mcp
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -507,7 +751,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 28. safe_validate_tool_mcp
+### 37. safe_validate_tool_mcp
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -517,7 +761,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ## Utility Tools (2)
 
-### 29. get_testbed_info
+### 38. get_testbed_info
 
 Returns server configuration and tool counts.
 
@@ -531,7 +775,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 30. reset_testbed_state
+### 39. reset_testbed_state
 
 Clears all stateful tracking for clean test runs.
 
