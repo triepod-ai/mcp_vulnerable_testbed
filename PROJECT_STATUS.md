@@ -3,18 +3,43 @@
 This file tracks session-by-session progress and decisions for continuity between Claude Code sessions.
 
 Entries are loaded automatically by the SessionStart hook to provide context from recent work.
-- Two-pronged solution: automated Inspector detection + Claude Stage B override capability
-- Preserve existing behavior for legitimate defensive programming (Redis pattern)
 
-**Next Steps:**
-- Implement contextual pattern detection in ErrorHandlingAssessor.ts
-- Add Claude prompt guidance for invalid_values analysis in mcp-auditor
-- Test against vulnerable testbed to validate detection
+---
+## 2026-01-10: Issue #4 Complete - Formal Threat Model Documentation
+
+**Summary:** Created comprehensive STRIDE-based threat model documentation (`docs/THREAT-MODEL.md`) covering all 42 tools, 13 challenges, and 31 vulnerability patterns with attack trees, risk assessment matrix, and mitigation mapping.
+
+**Session Focus:** Completing final open issue (Issue #4) with formal threat model documentation.
+
+**Changes Made:**
+- `docs/THREAT-MODEL.md` - Created comprehensive threat model (~2100 lines)
+  - STRIDE threat analysis covering 6 categories with 15+ threats
+  - 4 ASCII attack trees (Cross-tool escalation, Chain exploitation, Auth bypass, Data exfiltration)
+  - Asset inventory with criticality matrix (6 primary, 4 secondary assets)
+  - Trust boundary diagram with 3 boundary definitions
+  - 5 threat actor profiles with capability matrix
+  - Risk assessment matrix for all 31 vulnerable tools
+  - Mitigation mapping (vulnerable vs hardened patterns)
+  - Appendices: CWE index (18 CWEs), CVE-2025-52882, OWASP Top 10 mapping
+
+**Key Decisions:**
+- Used STRIDE framework (industry standard) + Attack Trees for multi-step flows
+- Focused on MCP-specific threats (shared state, annotation deception, LLM vectors)
+- All 13 challenges mapped to STRIDE categories
+- Cross-referenced existing docs (SECURITY-PATTERNS.md, TOOLS-REFERENCE.md)
+
+**Closed Issues:**
+- Issue #4: Formal Threat Model Documentation - **COMPLETE**
+
+**Project Status:**
+- All GitHub issues now closed (#2-#5)
+- Testbed fully documented with comprehensive security documentation suite
 
 **Notes:**
-- Root cause was deliberate design for "Redis problem" - graceful handling shouldn't be penalized
-- ClaudeOverride mechanism already exists in mcp-auditor for this use case
-- Issues cross-reference each other for tracking
+- Document covers 30 vulnerability patterns across 31 tools
+- Risk scores range from 6-12 (MEDIUM to CRITICAL)
+- MCP-specific section addresses unique protocol attack vectors
+- OWASP A01-A10 coverage documented in Appendix D
 
 ---
 ## 2026-01-10: Issue #5 Complete - Expand Safe Control Tool Group
@@ -295,5 +320,41 @@ Entries are loaded automatically by the SessionStart hook to provide context fro
 - All 15 session tests passing
 - Code review identified and fixed 3 warnings
 - Issue #2 closed with comprehensive summary
+
+---
+## 2026-01-10: Issue #5 Safe Control Tool Group Expansion
+
+**Summary:** Expanded safe control tools from 6 to 9 for better false positive measurement
+
+**Session Focus:** Issue #5 implementation - Add 3 new safe control tools for improved false positive detection validation
+
+**Changes Made:**
+- `src/safe_tools.py` - Added 3 new tool implementations (~150 lines)
+- `src/server.py` - Registered 3 MCP endpoints, updated counts
+- `src-hardened/tools/core.py` - Added modular implementations
+- `src-hardened/tools/__init__.py` - Updated exports
+- `src-hardened/server.py` - Registered endpoints + updated counts
+- `expected_results.json` - Added tool entries + updated counts (39->42, 6->9)
+- `tests/test_safe_tools_unit.py` - Added 27 new unit tests (49 total)
+- `docs/TOOLS-REFERENCE.md` - Documented new tools (entries 38-40)
+- `CLAUDE.md` - Updated tool counts
+- `README.md` - Updated tool counts and descriptions
+
+**Key Decisions:**
+- Safe tools use data reflection pattern (no execution) - critical for false positive testing
+- Vulnerable server: monolithic file structure (intentional for testing)
+- Hardened server: modular tools/ package structure
+- Inspector doesn't need changes - safe tools serve as control group
+
+**Next Steps:**
+- Issue #4: Create formal threat model documentation (only remaining open issue)
+- Inspector repo #111, #112: Add CWE detection patterns for Challenges #12, #13
+
+**Notes:**
+- Commits: feat: Expand safe control tool group (Closes #5), docs: Sync documentation
+- Closed Issues: #5 (safe tools), #7 and #8 (duplicates - tracked in inspector repo)
+- Tool count now 42 total (22 HIGH + 9 MEDIUM + 9 SAFE + 2 utility)
+- All 49 safe tool unit tests passing
+- Inspector validation confirms 0 false positives across all 9 safe tools
 
 ---
