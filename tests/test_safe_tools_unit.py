@@ -23,6 +23,9 @@ from safe_tools import (
     safe_storage,
     safe_collections,
     reset_safe_storage,
+    safe_logger_tool,
+    safe_json_formatter_tool,
+    safe_url_validator_tool,
 )
 
 
@@ -205,6 +208,198 @@ class TestInputValidationBoundaryValues:
         input_10002 = "A" * 10002
         with pytest.raises(ValueError):
             _validate_input_size(input_10002)
+
+
+class TestSafeLoggerTool:
+    """Unit tests for safe_logger_tool function."""
+
+    def test_valid_info_level(self):
+        """Test logging at info level."""
+        result = safe_logger_tool("Test message", "info")
+        assert result.get("safe") is True
+        assert "logged" in result.get("result", "").lower()
+        assert result.get("level") == "info"
+        assert result.get("executed") is False
+
+    def test_valid_debug_level(self):
+        """Test logging at debug level."""
+        result = safe_logger_tool("Debug message", "debug")
+        assert result.get("safe") is True
+        assert result.get("level") == "debug"
+
+    def test_valid_warning_level(self):
+        """Test logging at warning level."""
+        result = safe_logger_tool("Warning message", "warning")
+        assert result.get("safe") is True
+        assert result.get("level") == "warning"
+
+    def test_valid_error_level(self):
+        """Test logging at error level."""
+        result = safe_logger_tool("Error message", "error")
+        assert result.get("safe") is True
+        assert result.get("level") == "error"
+
+    def test_valid_critical_level(self):
+        """Test logging at critical level."""
+        result = safe_logger_tool("Critical message", "critical")
+        assert result.get("safe") is True
+        assert result.get("level") == "critical"
+
+    def test_invalid_log_level(self):
+        """Invalid log level should return error."""
+        result = safe_logger_tool("Test message", "invalid")
+        assert result.get("error") is True
+        assert "valid_levels" in result
+
+    def test_message_too_long(self):
+        """Overly long message should be rejected."""
+        long_message = "A" * 6000  # Exceeds 5000 limit
+        result = safe_logger_tool(long_message)
+        assert result.get("error") is True
+        assert "validation" in result.get("result", "").lower()
+
+    def test_malicious_payload_not_executed(self):
+        """Malicious payload in message should be stored, not executed."""
+        malicious = "__import__('os').system('rm -rf /')"
+        result = safe_logger_tool(malicious, "info")
+        # Should succeed and store as data, not execute
+        assert result.get("safe") is True
+        assert result.get("executed") is False
+
+
+class TestSafeJsonFormatterTool:
+    """Unit tests for safe_json_formatter_tool function."""
+
+    def test_valid_json_object(self):
+        """Valid JSON object should be parsed and formatted."""
+        result = safe_json_formatter_tool('{"key": "value"}')
+        assert result.get("safe") is True
+        assert result.get("error") is None or result.get("error") is False
+        assert result.get("executed") is False
+
+    def test_valid_json_array(self):
+        """Valid JSON array should be parsed."""
+        result = safe_json_formatter_tool('[1, 2, 3]')
+        assert result.get("safe") is True
+        assert result.get("array_length") == 3
+
+    def test_valid_json_nested(self):
+        """Nested JSON should be handled."""
+        result = safe_json_formatter_tool('{"outer": {"inner": "value"}}')
+        assert result.get("safe") is True
+        assert result.get("key_count") == 1
+
+    def test_invalid_json(self):
+        """Invalid JSON should return error without crashing."""
+        result = safe_json_formatter_tool("not valid json")
+        assert result.get("error") is True
+        assert result.get("valid") is False
+
+    def test_custom_indent(self):
+        """Custom indent parameter should be respected."""
+        result = safe_json_formatter_tool('{"a": 1}', indent=4)
+        assert result.get("safe") is True
+        assert result.get("indent_used") == 4
+
+    def test_indent_clamped(self):
+        """Indent should be clamped to 0-4 range."""
+        result = safe_json_formatter_tool('{"a": 1}', indent=10)
+        assert result.get("indent_used") == 4  # Clamped to max
+
+        result = safe_json_formatter_tool('{"a": 1}', indent=-5)
+        assert result.get("indent_used") == 0  # Clamped to min
+
+    def test_json_with_malicious_content(self):
+        """JSON with malicious-looking content should be parsed safely."""
+        # This tests that json.loads() is used, not eval()
+        malicious_json = '{"cmd": "__import__(\\\"os\\\").system(\\\"whoami\\\")"}'
+        result = safe_json_formatter_tool(malicious_json)
+        # Should parse successfully as data
+        assert result.get("safe") is True
+        assert result.get("executed") is False
+
+    def test_json_too_long(self):
+        """Overly long JSON should be rejected."""
+        long_json = '{"data": "' + "A" * 15000 + '"}'
+        result = safe_json_formatter_tool(long_json)
+        assert result.get("error") is True
+
+
+class TestSafeUrlValidatorTool:
+    """Unit tests for safe_url_validator_tool function."""
+
+    def test_valid_http_url(self):
+        """Valid HTTP URL should be accepted."""
+        result = safe_url_validator_tool("http://example.com")
+        assert result.get("safe") is True
+        assert result.get("valid") is True
+        assert result.get("fetched") is False
+        assert result.get("scheme") == "http"
+
+    def test_valid_https_url(self):
+        """Valid HTTPS URL should be accepted."""
+        result = safe_url_validator_tool("https://example.com/path")
+        assert result.get("safe") is True
+        assert result.get("valid") is True
+        assert result.get("scheme") == "https"
+
+    def test_url_with_port(self):
+        """URL with port should be accepted."""
+        result = safe_url_validator_tool("https://example.com:8080/api")
+        assert result.get("safe") is True
+        assert result.get("valid") is True
+
+    def test_url_with_query_params(self):
+        """URL with query parameters should be accepted."""
+        result = safe_url_validator_tool("https://example.com/search?q=test&page=1")
+        assert result.get("safe") is True
+        assert result.get("valid") is True
+
+    def test_invalid_url_no_scheme(self):
+        """URL without scheme should be rejected."""
+        result = safe_url_validator_tool("example.com")
+        assert result.get("error") is True
+        assert result.get("valid") is False
+
+    def test_invalid_url_ftp_scheme(self):
+        """FTP scheme should be rejected (only http/https allowed)."""
+        result = safe_url_validator_tool("ftp://files.example.com")
+        assert result.get("error") is True
+        assert result.get("valid") is False
+
+    def test_ssrf_localhost_not_fetched(self):
+        """SSRF attempt with localhost should be validated but NOT fetched."""
+        result = safe_url_validator_tool("http://localhost/admin")
+        # Should be valid URL format but marked as internal
+        assert result.get("fetched") is False
+        assert result.get("internal_address_detected") is True
+        assert result.get("ssrf_risk") is False  # No risk because not fetched
+
+    def test_ssrf_internal_ip_not_fetched(self):
+        """SSRF attempt with internal IP should be validated but NOT fetched."""
+        result = safe_url_validator_tool("http://192.168.1.1/admin")
+        assert result.get("fetched") is False
+        assert result.get("internal_address_detected") is True
+
+    def test_ssrf_loopback_not_fetched(self):
+        """SSRF attempt with 127.0.0.1 should be validated but NOT fetched."""
+        result = safe_url_validator_tool("http://127.0.0.1:8000/secret")
+        assert result.get("fetched") is False
+        assert result.get("internal_address_detected") is True
+
+    def test_url_too_long(self):
+        """Overly long URL should be rejected."""
+        long_url = "https://example.com/" + "a" * 3000
+        result = safe_url_validator_tool(long_url)
+        assert result.get("error") is True
+
+    def test_malicious_url_payload_not_fetched(self):
+        """Malicious URL payloads should be validated but NOT fetched."""
+        # This would be dangerous if fetched, but we only validate
+        result = safe_url_validator_tool("http://evil.com/inject?cmd=whoami")
+        assert result.get("safe") is True
+        assert result.get("fetched") is False
+        assert result.get("valid") is True
 
 
 if __name__ == "__main__":

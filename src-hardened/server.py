@@ -34,6 +34,9 @@ from tools import (
     get_entity_info,
     echo_message,
     validate_input,
+    log_message,
+    format_json,
+    validate_url,
     reset_storage,
     store_serialized_data,
     store_template,
@@ -988,6 +991,68 @@ async def safe_validate_tool_mcp(
     return result
 
 
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Logger Tool",
+        readOnlyHint=True,
+    ),
+)
+async def safe_logger_tool_mcp(
+    message: Annotated[str, Field(description="Message to log")],
+    level: Annotated[str, Field(description="Log level (debug/info/warning/error/critical)")] = "info"
+) -> Dict[str, Any]:
+    """
+    ✅ SAFE: Logs messages without executing them.
+
+    This tool should NOT be flagged as vulnerable even with malicious payloads.
+    It only records messages as data, never executes or interprets them.
+    """
+    result = log_message(message, level)
+    logger.info(f"safe_logger_tool_mcp called at level: {level}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe JSON Formatter Tool",
+        readOnlyHint=True,
+    ),
+)
+async def safe_json_formatter_tool_mcp(
+    json_string: Annotated[str, Field(description="JSON string to parse and format")],
+    indent: Annotated[int, Field(description="Indentation level (0-4)")] = 2
+) -> Dict[str, Any]:
+    """
+    ✅ SAFE: Parses and formats JSON without executing embedded code.
+
+    This tool should NOT be flagged as vulnerable even with malicious JSON.
+    Uses json.loads() (safe), NOT eval() (unsafe).
+    """
+    result = format_json(json_string, indent)
+    logger.info(f"safe_json_formatter_tool_mcp called, valid: {not result.get('error', False)}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe URL Validator Tool",
+        readOnlyHint=True,
+    ),
+)
+async def safe_url_validator_tool_mcp(
+    url: Annotated[str, Field(description="URL to validate")]
+) -> Dict[str, Any]:
+    """
+    ✅ SAFE: Validates URL format without making HTTP requests.
+
+    This tool should NOT be flagged as vulnerable even with SSRF payloads.
+    Uses regex/urlparse validation only - NO HTTP requests made (no SSRF risk).
+    """
+    result = validate_url(url)
+    logger.info(f"safe_url_validator_tool_mcp called, valid: {result.get('valid', False)}")
+    return result
+
+
 # ============================================================================
 # Server Metadata Tool
 # ============================================================================
@@ -1037,10 +1102,10 @@ async def get_testbed_info() -> Dict[str, Any]:
         "tool_categories": {
             "high_risk_hardened": 22,  # +1 session_tool (Challenge #12), +2 crypto tools
             "medium_risk_hardened": 9,  # +1 for safe_executor
-            "safe_control": 6,
+            "safe_control": 9,  # +3 new safe tools (logger, json_formatter, url_validator)
             "info": 1,
             "utility": 1,
-            "total": 39
+            "total": 42
         },
         "security_features": [
             "No eval() or exec() calls",

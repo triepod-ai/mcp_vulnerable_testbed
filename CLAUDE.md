@@ -7,17 +7,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **THIS IS AN INTENTIONALLY VULNERABLE MCP SERVER FOR SECURITY TESTING ONLY**
 
 - **Purpose**: Testing MCP Inspector security assessment tool
+- **Inspector Repo**: [triepod-ai/inspector-assessment](https://github.com/triepod-ai/inspector-assessment)
 - **Dual Setup**: Vulnerable (broken) and Hardened (fixed) versions side-by-side
 - **Vulnerable version** (`src/`): DO NOT fix vulnerabilities - keep broken for testing
 - **Hardened version** (`src-hardened/`): Apply Inspector-guided fixes here
 - **DO** analyze, document, or answer questions about security behavior
 - **DO NOT** use in production or expose to untrusted networks
 
+### Code Organization Pattern (Intentional Difference)
+
+| Version | Pattern | Why |
+|---------|---------|-----|
+| **Hardened** (`src-hardened/`) | Modular package structure with `tools/` subpackage | Best practice, maintainable, organized |
+| **Vulnerable** (`src/`) | Monolithic single-file structure | Intentionally inefficient to mirror poorly-maintained real-world servers |
+
+The vulnerable server's monolithic structure is deliberate - it simulates the kind of disorganized codebases where security vulnerabilities often hide.
+
 ## Testing Options (3 Available Testbeds)
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 39 (31 vulnerable + 6 safe + 2 utility)
+- **Tools**: 42 (31 vulnerable + 9 safe + 2 utility)
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
 - **Vulnerable Tools**: 22 HIGH risk + 9 MEDIUM risk = 31 total (includes AUP violations, session, crypto)
@@ -35,7 +45,7 @@ cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp
 
 ### Option 2: Our Hardened Testbed (port 10901)
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
-- **Tools**: Same 39 tools with all vulnerabilities mitigated
+- **Tools**: Same 42 tools with all vulnerabilities mitigated
 - **Transport**: HTTP at `http://localhost:10901/mcp`
 - **Focus**: Verify fixes work, baseline comparison
 - **Detection Rate**: 0 vulnerabilities (all 31 mitigated)
@@ -74,13 +84,13 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 39 | 31 (22 HIGH + 9 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 39 | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 42 | 31 (22 HIGH + 9 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 42 | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture
 
-This is a FastMCP-based server implementing 39 tools in four categories:
+This is a FastMCP-based server implementing 42 tools in four categories:
 
 ### Tool Categories
 
@@ -92,7 +102,7 @@ This is a FastMCP-based server implementing 39 tools in four categories:
    - Execute unicode/nested payloads, package typosquatting, rug pull behavior, AUP violations, blacklist bypass
    - Test patterns: Unicode Bypass, Nested Injection, Package Squatting, Rug Pull (after 10+ calls), AUP violations (Categories D-K), Blacklist Bypass
 
-3. **SAFE Control Tools** (6): `src/safe_tools.py`
+3. **SAFE Control Tools** (9): `src/safe_tools.py`
    - Store/reflect input without execution (critical distinction)
    - Should NOT be flagged as vulnerable by security tools
    - Test false positive rates
@@ -224,10 +234,20 @@ This testbed includes thirteen advanced challenges for evaluating security audit
 
 ### Key Files
 
-- `src/server.py` - FastMCP server with 39 tool endpoints (31 vulnerable + 6 safe + 2 utility)
+**Vulnerable Server** (`src/`) - Monolithic structure:
+- `src/server.py` - FastMCP server with 42 tool endpoints (31 vulnerable + 9 safe + 2 utility)
 - `src/vulnerable_tools.py` - Deliberately vulnerable implementations (22 HIGH + 9 MEDIUM risk)
-- `src/safe_tools.py` - Safe control group implementations (6 tools with input validation)
+- `src/safe_tools.py` - Safe control group implementations (9 tools with input validation)
 - `src/config.py` - Vulnerability modes, fake credentials, state tracking
+
+**Hardened Server** (`src-hardened/`) - Modular package structure:
+- `src-hardened/server.py` - Main server entry point
+- `src-hardened/tools/__init__.py` - Package exports
+- `src-hardened/tools/vulnerable_tools.py` - Mitigated versions of vulnerable tools
+- `src-hardened/tools/safe_tools.py` - Safe tools (unchanged)
+- `src-hardened/config.py` - Configuration
+
+**Test Resources**:
 - `test_payloads.json` - All test patterns with example payloads
 - `expected_results.json` - Expected detection outcomes for validation
 - `docs/VULNERABILITY-VALIDATION-RESULTS.md` - **Live testing proof that vulnerabilities are REAL (not simulated)**

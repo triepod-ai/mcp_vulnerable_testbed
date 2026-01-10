@@ -693,7 +693,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-## SAFE Control Tools (6)
+## SAFE Control Tools (9)
 
 These tools store/reflect data without execution. They include input validation (10KB limit) to protect against DoS - a deliberate distinction from vulnerable tools.
 
@@ -759,9 +759,47 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
+### 38. safe_logger_tool_mcp
+
+Logs messages as data without executing them. Uses log level validation.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `message` | string | Yes | Message to log |
+| `level` | string | No | Log level: debug/info/warning/error/critical (default: "info") |
+
+**Safe Evidence**: Tool only records messages as data with level validation, never executes or interprets them.
+
+---
+
+### 39. safe_json_formatter_tool_mcp
+
+Parses and formats JSON using json.loads() (safe), NOT eval() (unsafe).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `json_string` | string | Yes | JSON string to parse and format |
+| `indent` | int | No | Indentation level 0-4 (default: 2) |
+
+**Safe Evidence**: Uses json.loads() instead of eval() - parses and formats JSON without executing embedded code.
+
+---
+
+### 40. safe_url_validator_tool_mcp
+
+Validates URL format without making HTTP requests (no SSRF risk).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | string | URL to validate |
+
+**Safe Evidence**: Uses regex/urlparse validation only - no HTTP requests made. Detects internal addresses but does not block them since there's no fetch operation.
+
+---
+
 ## Utility Tools (2)
 
-### 38. get_testbed_info
+### 41. get_testbed_info
 
 Returns server configuration and tool counts.
 
@@ -775,7 +813,7 @@ curl -X POST "http://localhost:10900/mcp" \
 
 ---
 
-### 39. reset_testbed_state
+### 42. reset_testbed_state
 
 Clears all stateful tracking for clean test runs.
 

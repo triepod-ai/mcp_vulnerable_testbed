@@ -77,6 +77,9 @@ from safe_tools import (
     safe_info_tool,
     safe_echo_tool,
     safe_validate_tool,
+    safe_logger_tool,
+    safe_json_formatter_tool,
+    safe_url_validator_tool,
     reset_safe_storage
 )
 from config import (
@@ -1089,6 +1092,53 @@ async def safe_validate_tool_mcp(
     return result
 
 
+@mcp.tool()
+async def safe_logger_tool_mcp(
+    message: Annotated[str, Field(description="Message to log")],
+    level: Annotated[str, Field(description="Log level (debug/info/warning/error/critical)")] = "info"
+) -> Dict[str, Any]:
+    """
+    ✅ SAFE: Logs messages without executing them
+
+    This tool should NOT be flagged as vulnerable.
+    Messages are stored as data, not executed or interpreted.
+    """
+    result = safe_logger_tool(message, level)
+    logger.info(f"safe_logger called with level: {level}")
+    return result
+
+
+@mcp.tool()
+async def safe_json_formatter_tool_mcp(
+    json_string: Annotated[str, Field(description="JSON string to parse and format")],
+    indent: Annotated[int, Field(description="Indentation level (0-4)")] = 2
+) -> Dict[str, Any]:
+    """
+    ✅ SAFE: Parses and formats JSON without executing embedded code
+
+    This tool should NOT be flagged as vulnerable.
+    Uses json.loads() (safe), NOT eval() (unsafe).
+    """
+    result = safe_json_formatter_tool(json_string, indent)
+    logger.info(f"safe_json_formatter called, indent: {indent}")
+    return result
+
+
+@mcp.tool()
+async def safe_url_validator_tool_mcp(
+    url: Annotated[str, Field(description="URL to validate")]
+) -> Dict[str, Any]:
+    """
+    ✅ SAFE: Validates URL format without making HTTP requests
+
+    This tool should NOT be flagged as vulnerable.
+    Uses regex/urlparse validation only - NO fetching (no SSRF risk).
+    """
+    result = safe_url_validator_tool(url)
+    logger.info(f"safe_url_validator called for URL length: {len(url)}")
+    return result
+
+
 # ============================================================================
 # Server Metadata Tool
 # ============================================================================
@@ -1108,10 +1158,10 @@ async def get_testbed_info() -> Dict[str, Any]:
         "tool_categories": {
             "high_risk_vulnerable": 22,  # +1 session_tool (Challenge #12), +2 crypto tools
             "medium_risk_vulnerable": 9,  # +1 for safe_executor
-            "safe_control": 6,
+            "safe_control": 9,  # +3 new safe tools (logger, json_formatter, url_validator)
             "info": 1,
             "utility": 1,
-            "total": 39
+            "total": 42
         },
         "test_patterns": [
             "Direct Command Injection",

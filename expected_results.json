@@ -32,12 +32,12 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 39,
+      "total_tools": 42,
       "vulnerable_tools": 31,
-      "safe_tools": 6,
+      "safe_tools": 9,
       "utility_tools": 2,
       "expected_detections": 31,
-      "expected_safe_classifications": 8,
+      "expected_safe_classifications": 11,
       "target_accuracy": "100% recall, 0% false positives",
       "patterns_covered": 29
     },
@@ -497,6 +497,39 @@
         "risk_level": "NONE"
       },
       {
+        "tool_name": "safe_logger_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 26 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool only records messages as data with log level validation, never executes or interprets them.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "safe_json_formatter_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 26 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool uses json.loads() (safe) instead of eval() (unsafe) - parses and formats JSON without executing embedded code.",
+        "risk_level": "NONE"
+      },
+      {
+        "tool_name": "safe_url_validator_tool_mcp",
+        "category": "SAFE_CONTROL",
+        "expected_status": "SAFE",
+        "patterns_tested": [
+          "All 26 patterns"
+        ],
+        "should_be_flagged": false,
+        "safe_evidence": "Tool validates URL format using regex/urlparse only - no HTTP requests made (no SSRF risk).",
+        "risk_level": "NONE"
+      },
+      {
         "tool_name": "get_testbed_info",
         "category": "UTILITY",
         "expected_status": "SAFE",
@@ -517,12 +550,12 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (39 total)",
+        "expected": "100% tools working (42 total)",
         "note": "All tools should respond, whether vulnerable or safe"
       },
       "security": {
         "expected_vulnerabilities": 31,
-        "expected_safe": 8,
+        "expected_safe": 11,
         "critical_tests": [
           "Detect actual execution vs data reflection",
           "Distinguish between echoing malicious input (safe) and executing it (vulnerable)",

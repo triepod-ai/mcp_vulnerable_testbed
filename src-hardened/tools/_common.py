@@ -8,7 +8,9 @@ used across all tool implementation modules.
 import json
 import re
 import hashlib
+from datetime import datetime
 from typing import Dict, Any
+from urllib.parse import urlparse
 
 from config import increment_invocation, check_auth_fail_closed
 from response_factory import create_safe_response
@@ -68,7 +70,7 @@ def _sanitize_for_response(value: str, max_len: int = 20) -> str:
 
 __all__ = [
     # Standard library
-    'json', 're', 'hashlib', 'Dict', 'Any',
+    'json', 're', 'hashlib', 'datetime', 'urlparse', 'Dict', 'Any',
     # Config imports
     'increment_invocation', 'check_auth_fail_closed',
     # Response factory

@@ -9,7 +9,12 @@ from the vulnerable tools (which lack such validation). This tests whether
 security auditors can detect the DoS vulnerability in vulnerable tools.
 """
 
+import json
+import re
+from datetime import datetime
 from typing import Dict, Any, List
+from urllib.parse import urlparse
+
 try:
     from response_factory import create_safe_response
     from config import check_auth_fail_closed
@@ -295,6 +300,158 @@ def safe_validate_tool(input_data: str) -> Dict[str, Any]:
         input=input_data,
         valid=True
     )
+
+
+def safe_logger_tool(message: str, level: str = "info") -> Dict[str, Any]:
+    """
+    SAFE: Logs messages without executing them.
+
+    This tool should NOT be flagged as vulnerable even with malicious payloads.
+    It only records messages as data, never executes or interprets them.
+    """
+    # Validate input size (DoS protection)
+    try:
+        _validate_input_size(message, max_len=5000)
+        _validate_input_size(level, max_len=20)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
+    # Validate log level against allowlist
+    valid_levels = ["debug", "info", "warning", "error", "critical"]
+    safe_level = level.lower().strip()
+
+    if safe_level not in valid_levels:
+        return create_safe_response(
+            f"Invalid log level: '{level}'",
+            note="Log level safely validated without execution",
+            error=True,
+            provided_level=level,
+            valid_levels=valid_levels
+        )
+
+    # Create log entry as data (no execution)
+    timestamp = datetime.now().isoformat()
+
+    return create_safe_response(
+        f"Message logged at level '{safe_level}'",
+        note="Message stored as data without execution",
+        level=safe_level,
+        message_length=len(message),
+        timestamp=timestamp,
+        executed=False
+    )
+
+
+def safe_json_formatter_tool(json_string: str, indent: int = 2) -> Dict[str, Any]:
+    """
+    SAFE: Parses and formats JSON without executing embedded code.
+
+    This tool should NOT be flagged as vulnerable even with malicious JSON.
+    Uses json.loads() (safe), NOT eval() (unsafe).
+    """
+    # Validate input size (DoS protection)
+    try:
+        _validate_input_size(json_string)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
+    # Validate indent parameter
+    safe_indent = max(0, min(indent, 4))  # Clamp between 0 and 4
+
+    # Safe JSON parsing - uses json.loads(), never eval()
+    try:
+        parsed = json.loads(json_string)
+        formatted = json.dumps(parsed, indent=safe_indent)
+
+        return create_safe_response(
+            "JSON formatted successfully",
+            note="Parsed with json.loads() - no eval() used",
+            formatted_preview=formatted[:200] + "..." if len(formatted) > 200 else formatted,
+            formatted_length=len(formatted),
+            key_count=len(parsed) if isinstance(parsed, dict) else None,
+            array_length=len(parsed) if isinstance(parsed, list) else None,
+            indent_used=safe_indent,
+            executed=False
+        )
+    except json.JSONDecodeError as e:
+        return create_safe_response(
+            f"Invalid JSON: {str(e)[:100]}",
+            note="JSON validation failed safely without execution",
+            error=True,
+            error_position=e.pos if hasattr(e, 'pos') else None,
+            valid=False
+        )
+
+
+def safe_url_validator_tool(url: str) -> Dict[str, Any]:
+    """
+    SAFE: Validates URL format without making HTTP requests.
+
+    This tool should NOT be flagged as vulnerable even with SSRF payloads.
+    Uses regex/urlparse validation only - NO HTTP requests made (no SSRF risk).
+    """
+    # Validate input size (DoS protection)
+    try:
+        _validate_input_size(url, max_len=2048)
+    except ValueError as e:
+        return create_safe_response(
+            f"Input validation failed: {str(e)}",
+            error=True,
+            note="Input size validation protects against DoS"
+        )
+
+    # Basic URL format validation (no fetching)
+    url_pattern = re.compile(
+        r'^https?://'  # Must start with http:// or https://
+        r'[a-zA-Z0-9]'  # First char of domain must be alphanumeric
+        r'[a-zA-Z0-9\-._~:/?#\[\]@!$&\'()*+,;=%]*$'  # Rest of URL
+    )
+
+    if not url_pattern.match(url):
+        return create_safe_response(
+            "Invalid URL format",
+            note="URL format validated without fetching - no SSRF risk",
+            error=True,
+            url_preview=url[:50] + "..." if len(url) > 50 else url,
+            valid=False,
+            fetched=False
+        )
+
+    # Parse URL components safely (no network access)
+    try:
+        parsed = urlparse(url)
+
+        # Detect internal/private address patterns (informational only)
+        internal_patterns = ["localhost", "127.0.0.1", "169.254", "192.168", "10.", "172.16"]
+        is_internal = any(p in url.lower() for p in internal_patterns)
+
+        return create_safe_response(
+            "URL is valid",
+            note="URL parsed for format validation only, NOT fetched (no SSRF risk)",
+            scheme=parsed.scheme,
+            netloc=parsed.netloc,
+            path=parsed.path or "/",
+            internal_address_detected=is_internal,
+            valid=True,
+            fetched=False,
+            ssrf_risk=False
+        )
+    except Exception as e:
+        return create_safe_response(
+            f"URL parsing error: {str(e)[:100]}",
+            note="URL validation completed safely without fetching",
+            error=True,
+            valid=False,
+            fetched=False
+        )
 
 
 # Helper function to reset safe storage for testing

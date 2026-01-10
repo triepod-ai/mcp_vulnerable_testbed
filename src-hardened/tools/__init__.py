@@ -20,6 +20,9 @@ from .core import (
     get_entity_info,
     echo_message,
     validate_input,
+    log_message,
+    format_json,
+    validate_url,
     reset_storage,
 )
 
@@ -80,6 +83,9 @@ __all__ = [
     'get_entity_info',
     'echo_message',
     'validate_input',
+    'log_message',
+    'format_json',
+    'validate_url',
     'reset_storage',
     # Hardened implementations
     'store_expression',
