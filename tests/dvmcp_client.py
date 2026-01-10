@@ -50,7 +50,15 @@ class DVMCPClient:
         self._thread_error: Optional[str] = None
 
     def _next_id(self) -> int:
-        """Generate next message ID (thread-safe)."""
+        """Generate next message ID (thread-safe).
+
+        Uses a lock to ensure unique, incrementing IDs across concurrent
+        tool calls. Each JSON-RPC request requires a unique message ID
+        for response correlation.
+
+        Returns:
+            int: The next unique message ID (1, 2, 3, ...)
+        """
         with self._id_lock:
             self._message_id += 1
             return self._message_id
@@ -312,7 +320,20 @@ class DVMCPClient:
             return f"Error: {e}"
 
     def close(self):
-        """Clean up client resources."""
+        """Clean up client resources and terminate background threads.
+
+        Performs cleanup in this order:
+        1. Signals SSE listener thread to stop via _running flag
+        2. Clears session state (session_id, endpoint_url)
+        3. Waits up to 5 seconds for SSE thread to terminate
+        4. Issues ResourceWarning if thread doesn't terminate (daemon will be abandoned)
+        5. Drains response queue to release any blocked producers
+
+        Note:
+            If the SSE thread doesn't terminate within timeout, a ResourceWarning
+            is issued but the thread is left as a daemon (will be cleaned up on
+            process exit).
+        """
         import warnings
 
         self._running = False

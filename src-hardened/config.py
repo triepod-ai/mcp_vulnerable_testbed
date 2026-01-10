@@ -4,6 +4,18 @@ Configuration for Hardened MCP Testbed Server
 Server configuration and runtime settings for the secure testbed version.
 """
 
+# NOTE: This config intentionally duplicates some code from src/config.py
+# The duplication is by design to mirror the project's architecture:
+# - Vulnerable server: Monolithic single-file structure (simulates poorly-maintained code)
+# - Hardened server: Modular package structure (best practice)
+#
+# Shared utilities (~40%): _validate_token_format(), check_auth_fail_closed(),
+#                          increment_invocation(), reset_state()
+# Intentionally removed: FAKE_ENV credentials, session state, fail-open auth,
+#                        vulnerability modes, SENSITIVE_FILES fixtures
+#
+# See: https://github.com/triepod-ai/mcp-vulnerable-testbed/issues/9
+
 import os
 from typing import Literal
 
