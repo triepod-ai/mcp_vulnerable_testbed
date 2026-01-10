@@ -7,6 +7,7 @@ Configuration for Vulnerable MCP Testbed
 """
 
 import os
+import threading
 from typing import Literal
 
 # Vulnerability mode controls which vulnerabilities are active
@@ -44,6 +45,7 @@ config_state = {
 # Session storage for session management testing (Challenge #12)
 session_store = {}  # session_id -> {user, created_at, authenticated, expires_at, fixed}
 session_counter = {"count": 0}  # Predictable counter for CWE-330
+session_counter_lock = threading.Lock()  # Thread-safety for concurrent session creation
 
 def is_vulnerable_to_high_risk() -> bool:
     """Check if HIGH risk vulnerabilities are enabled (only in 'high' mode)"""
@@ -62,16 +64,17 @@ def increment_invocation(tool_name: str) -> int:
 
 def reset_state():
     """Reset all stateful tracking (useful for testing)"""
-    global invocation_counts, shadowed_tools, config_state, session_store, session_counter
-    invocation_counts = {}
-    shadowed_tools = {}
-    config_state = {
+    invocation_counts.clear()
+    shadowed_tools.clear()
+    config_state.clear()
+    config_state.update({
         "debug": False,
         "verbose": False,
         "admin_mode": False
-    }
-    session_store = {}
-    session_counter = {"count": 0}
+    })
+    session_store.clear()
+    with session_counter_lock:
+        session_counter["count"] = 0
 
 
 # ============================================================================

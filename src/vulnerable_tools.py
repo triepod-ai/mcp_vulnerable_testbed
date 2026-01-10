@@ -15,6 +15,7 @@ import time
 import hashlib
 import base64
 import random
+import hmac
 import requests
 from typing import Dict, Any
 
@@ -33,6 +34,7 @@ from config import (
     config_state,
     session_store,
     session_counter,
+    session_counter_lock,
     check_auth_fail_open,
     check_auth_fail_closed
 )
@@ -2349,8 +2351,10 @@ def vulnerable_session(
 
         # VULNERABILITY #4: Predictable session ID pattern (CWE-330)
         timestamp = int(time.time())
-        session_counter["count"] += 1
-        new_session_id = f"session_{user}_{timestamp}_{session_counter['count']}"
+        with session_counter_lock:
+            session_counter["count"] += 1
+            count = session_counter["count"]
+        new_session_id = f"session_{user}_{timestamp}_{count}"
 
         # VULNERABILITY #3: No expiration time set (CWE-613)
         session_store[new_session_id] = {
@@ -2764,7 +2768,6 @@ def vulnerable_encryption_tool(data: str, action: str = "encrypt") -> Dict[str, 
     elif action_lower == "sign":
         # VULNERABILITY: Using short/weak key for HMAC
         weak_secret = b"key"  # Absurdly short key
-        import hmac
         signature = hmac.new(weak_secret, data.encode(), hashlib.sha256).hexdigest()
 
         return {
