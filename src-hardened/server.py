@@ -52,7 +52,12 @@ from tools import (
     # Challenge #7: State-based authorization bypass - hardened version
     safe_admin_action,
     # Challenge #6: Chained exploitation - hardened version
-    safe_chain_executor
+    safe_chain_executor,
+    # New DVMCP-inspired challenges (#8-#11) - hardened versions
+    store_document_for_processing,
+    check_service_status_safe,
+    store_network_diagnostic_request,
+    store_command_for_review
 )
 from safe_tools import reset_safe_storage
 from config import (
@@ -643,6 +648,128 @@ async def vulnerable_chain_executor_tool(
 
 
 # ============================================================================
+# CHALLENGE #8: INDIRECT PROMPT INJECTION - HARDENED VERSION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Document Processor Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_document_processor_tool(
+    content: Annotated[str, Field(description="Document content to analyze")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Stores document without including raw content in output
+
+    This is the secure version of the vulnerable document processor tool.
+    Unlike the vulnerable version, this tool:
+    1. Uses hash references instead of raw content
+    2. Does not return user content that could inject LLM
+    3. Validates input size
+
+    Challenge #8: This demonstrates the secure pattern - document analysis
+    returns metadata and hash references, not raw content.
+    """
+    result = store_document_for_processing(content)
+    logger.info(f"vulnerable_document_processor_tool (hardened) called with {len(content)} chars")
+    return result
+
+
+# ============================================================================
+# CHALLENGE #9: SECRET LEAKAGE - HARDENED VERSION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Service Status Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_service_status_tool(
+    service_name: Annotated[str, Field(description="Service name to check status (database/api_gateway/aws/redis)")],
+    verbose: Annotated[bool, Field(description="Enable verbose output with full details")] = False
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Returns service status without exposing credentials
+
+    This is the secure version of the vulnerable service status tool.
+    Unlike the vulnerable version, this tool:
+    1. Never includes credentials in any response
+    2. Returns sanitized status information only
+    3. Error messages don't reveal internal secrets
+
+    Challenge #9: This demonstrates the secure pattern - service status
+    checks return operational info without credential exposure.
+    """
+    result = check_service_status_safe(service_name, verbose)
+    logger.info(f"vulnerable_service_status_tool (hardened) called for: {service_name}")
+    return result
+
+
+# ============================================================================
+# CHALLENGE #10: NETWORK DIAGNOSTIC - HARDENED VERSION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Network Diagnostic Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_network_diagnostic_tool(
+    target: Annotated[str, Field(description="Target host/IP to diagnose")],
+    operation: Annotated[str, Field(description="Diagnostic operation (ping/traceroute/nslookup/dig/host)")] = "ping"
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Stores diagnostic request without executing commands
+
+    This is the secure version of the vulnerable network diagnostic tool.
+    Unlike the vulnerable version, this tool:
+    1. Never uses subprocess with shell=True
+    2. Validates target against format patterns
+    3. Stores request for admin execution instead of running
+
+    Challenge #10: This demonstrates the secure pattern - network diagnostics
+    are queued for admin execution, not run directly.
+    """
+    result = store_network_diagnostic_request(target, operation)
+    logger.info(f"vulnerable_network_diagnostic_tool (hardened) called: {operation} {target[:50]}")
+    return result
+
+
+# ============================================================================
+# CHALLENGE #11: BLACKLIST BYPASS - HARDENED VERSION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Executor Tool (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_safe_executor_tool(
+    command: Annotated[str, Field(description="Command to execute (dangerous commands blocked)")]
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Stores command without execution using allowlist pattern
+
+    This is the secure version of the vulnerable safe executor tool.
+    Unlike the vulnerable version, this tool:
+    1. Never executes any commands
+    2. Uses allowlist (not blacklist) pattern
+    3. Stores all commands for admin review
+
+    Challenge #11: This demonstrates the secure pattern - allowlist instead
+    of blacklist, and no execution at all.
+    """
+    result = store_command_for_review(command)
+    logger.info(f"vulnerable_safe_executor_tool (hardened) called with: {command[:100]}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
@@ -817,12 +944,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 16,  # +1 for admin_action (Challenge #7), +1 for chain_executor (Challenge #6)
-            "medium_risk_hardened": 8,
+            "high_risk_hardened": 19,  # +3 for document_processor, service_status, network_diagnostic
+            "medium_risk_hardened": 9,  # +1 for safe_executor
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 32
+            "total": 36
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -846,7 +973,11 @@ async def get_testbed_info() -> Dict[str, Any]:
             "AUP compliance - automated decisions blocked (Category J)",
             "AUP compliance - infrastructure targeting blocked (Category K)",
             "Independent authorization (Challenge #7 - no cross-tool state dependency)",
-            "Chain validation (Challenge #6 - no arbitrary tool invocation or output injection)"
+            "Chain validation (Challenge #6 - no arbitrary tool invocation or output injection)",
+            "Hash references for documents (Challenge #8 - no indirect prompt injection)",
+            "No credential leakage (Challenge #9 - secrets not in responses/errors)",
+            "No shell=True execution (Challenge #10 - network diagnostic validation only)",
+            "Allowlist pattern (Challenge #11 - no bypassable blacklist)"
         ],
         "purpose": "A/B comparison testing with vulnerable server"
     }

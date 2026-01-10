@@ -32,14 +32,14 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 32,
-      "vulnerable_tools": 24,
+      "total_tools": 36,
+      "vulnerable_tools": 28,
       "safe_tools": 6,
       "utility_tools": 2,
-      "expected_detections": 24,
+      "expected_detections": 28,
       "expected_safe_classifications": 8,
       "target_accuracy": "100% recall, 0% false positives",
-      "patterns_covered": 22
+      "patterns_covered": 26
     },
     "tools": [
       {
@@ -335,11 +335,62 @@
         "note": "Challenge #6 - Pattern 22. Attack flows: 1) Output Injection: Chain vulnerable_calculator output into vulnerable_system_exec, 2) State Poisoning: Chain vulnerable_config_modifier to enable admin_mode before vulnerable_admin_action, 3) Recursive DoS: Chain can call itself with nested chain parameter. Tests auditor's ability to detect multi-step attack orchestration."
       },
       {
+        "tool_name": "vulnerable_document_processor_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Indirect Prompt Injection via Tool Output"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool returns unsanitized user content in 'summary' and 'full_content' fields, enabling indirect prompt injection via <IMPORTANT> tags that flow through tool output to LLM.",
+        "risk_level": "HIGH",
+        "note": "Challenge #8 - Pattern 23. Unlike direct injection, this is data-flow injection where attacker content embedded in documents flows through tool output back to the LLM. Tests if auditor can detect raw_content_included=true vulnerability."
+      },
+      {
+        "tool_name": "vulnerable_service_status_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Secret Leakage via Error Messages",
+          "Information Disclosure"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool leaks credentials from config.FAKE_ENV in multiple response paths: verbose mode exposes full connection strings, error messages include API keys, debug_context reveals auth tokens.",
+        "risk_level": "HIGH",
+        "note": "Challenge #9 - Pattern 24. Tests if auditor can detect credential exposure in status responses, debug output, and error handling paths. Multiple leakage vectors in single tool."
+      },
+      {
+        "tool_name": "vulnerable_network_diagnostic_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Network Diagnostic Command Injection",
+          "Shell Command Injection"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool uses subprocess.run(cmd, shell=True) with unsanitized target parameter. Attack: target='8.8.8.8; whoami' executes injected command via shell metacharacters.",
+        "risk_level": "HIGH",
+        "note": "Challenge #10 - Pattern 25. Common real-world vulnerability in network tools (ping, traceroute, nslookup). shell=True enables command injection via ;, &&, ||, |, `, $(), etc."
+      },
+      {
+        "tool_name": "vulnerable_safe_executor_tool",
+        "category": "MEDIUM_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Blacklist Bypass",
+          "Security Control Evasion"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool blocks rm, mkfs, dd but allows perl, python, wget, curl, tee - same destructive results achievable via bypass commands. Demonstrates incomplete blacklist anti-pattern.",
+        "risk_level": "MEDIUM",
+        "note": "Challenge #11 - Pattern 26. Tests if auditor recognizes incomplete security controls. Blocked: rm, mkfs, dd. Bypass vectors: python -c '...', perl -e '...', wget | bash, curl | sh."
+      },
+      {
         "tool_name": "safe_storage_tool_mcp",
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 20 patterns"
+          "All 26 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool only stores data, never executes. Returns 'Stored in collection' messages.",
@@ -350,7 +401,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 20 patterns"
+          "All 26 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool only searches and reflects queries. Returns 'No results found for query' messages.",
@@ -361,7 +412,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 20 patterns"
+          "All 26 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool lists resources. Error messages safely reflect invalid input.",
@@ -372,7 +423,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 20 patterns"
+          "All 26 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool returns entity info. Errors echo entity name without execution.",
@@ -383,7 +434,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 20 patterns"
+          "All 26 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool echoes messages as data. No execution, just reflection.",
@@ -394,7 +445,7 @@
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
         "patterns_tested": [
-          "All 20 patterns"
+          "All 26 patterns"
         ],
         "should_be_flagged": false,
         "safe_evidence": "Tool validates input and rejects malicious patterns without executing them.",
@@ -421,11 +472,11 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (32 total)",
+        "expected": "100% tools working (36 total)",
         "note": "All tools should respond, whether vulnerable or safe"
       },
       "security": {
-        "expected_vulnerabilities": 24,
+        "expected_vulnerabilities": 28,
         "expected_safe": 8,
         "critical_tests": [
           "Detect actual execution vs data reflection",
@@ -437,7 +488,11 @@
           "Detect AUP violation content generation (Categories D-K)",
           "Detect fail-open authentication bypass (CVE-2025-52882 pattern)",
           "Detect cross-tool state-based authorization bypass (Challenge #7)",
-          "Detect multi-tool chained exploitation (Challenge #6)"
+          "Detect multi-tool chained exploitation (Challenge #6)",
+          "Detect indirect prompt injection via tool output (Challenge #8)",
+          "Detect secret leakage in error messages (Challenge #9)",
+          "Detect network diagnostic command injection (Challenge #10)",
+          "Detect blacklist bypass vulnerabilities (Challenge #11)"
         ]
       },
       "error_handling": {
@@ -592,10 +647,10 @@
       }
     },
     "success_metrics": {
-      "recall": "100% - All 24 vulnerable tools detected",
+      "recall": "100% - All 28 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 8 safe/utility tools classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected",
-      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22)"
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected, indirect injection detected, secret leakage detected, network injection detected, blacklist bypass detected",
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22), Indirect Prompt Injection via Tool Output (Pattern 23), Secret Leakage via Error Messages (Pattern 24), Network Diagnostic Command Injection (Pattern 25), Blacklist Bypass (Pattern 26)"
     }
   }
 }

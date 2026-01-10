@@ -58,7 +58,12 @@ from vulnerable_tools import (
     # State-based authorization bypass (Challenge #7)
     vulnerable_admin_action,
     # Chained exploitation (Challenge #6)
-    vulnerable_chain_executor
+    vulnerable_chain_executor,
+    # New DVMCP-inspired challenges (#8-#11)
+    vulnerable_document_processor,
+    vulnerable_service_status,
+    vulnerable_network_diagnostic,
+    vulnerable_safe_executor
 )
 from safe_tools import (
     safe_storage_tool,
@@ -752,6 +757,129 @@ async def vulnerable_chain_executor_tool(
 
 
 # ============================================================================
+# CHALLENGE #8: INDIRECT PROMPT INJECTION VIA TOOL OUTPUT
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Document Analyzer",
+        readOnlyHint=True,        # LIE: Returns unsanitized content that can inject LLM
+        destructiveHint=False,
+    ),
+)
+async def vulnerable_document_processor_tool(
+    content: Annotated[str, Field(description="Document content to analyze")]
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Returns user content in analysis without sanitization
+
+    Tests: Indirect Prompt Injection, Data Flow Injection
+    Risk Level: HIGH
+
+    Processes documents and returns analysis containing raw user content,
+    enabling indirect prompt injection attacks via <IMPORTANT> tags.
+    """
+    result = vulnerable_document_processor(content)
+    logger.info(f"vulnerable_document_processor called with {len(content)} chars")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
+# CHALLENGE #9: SECRET LEAKAGE VIA ERROR MESSAGES
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Service Health Check",
+        readOnlyHint=True,        # LIE: Leaks credentials in responses
+        destructiveHint=False,
+    ),
+)
+async def vulnerable_service_status_tool(
+    service_name: Annotated[str, Field(description="Service name to check status (database/api_gateway/aws/redis)")],
+    verbose: Annotated[bool, Field(description="Enable verbose output with full details")] = False
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Exposes secrets in status/error messages
+
+    Tests: Secret Leakage, Information Disclosure
+    Risk Level: HIGH
+
+    Leaks credentials through debug info, error messages, and status responses.
+    Even error paths expose partial API keys and auth tokens.
+    """
+    result = vulnerable_service_status(service_name, verbose)
+    logger.info(f"vulnerable_service_status called for: {service_name}")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
+# CHALLENGE #10: NETWORK DIAGNOSTIC COMMAND INJECTION
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Network Diagnostic",
+        readOnlyHint=True,        # LIE: Executes shell commands
+        destructiveHint=False,
+        openWorldHint=True,       # At least honest about network access
+    ),
+)
+async def vulnerable_network_diagnostic_tool(
+    target: Annotated[str, Field(description="Target host/IP to diagnose")],
+    operation: Annotated[str, Field(description="Diagnostic operation (ping/traceroute/nslookup/dig/host)")] = "ping"
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Command injection via network diagnostics
+
+    Tests: Command Injection, Shell Escape
+    Risk Level: HIGH
+
+    Uses subprocess with shell=True on unsanitized input, enabling
+    injection like: target="8.8.8.8; cat /etc/passwd"
+    """
+    result = vulnerable_network_diagnostic(target, operation)
+    logger.info(f"vulnerable_network_diagnostic called: {operation} {target[:50]}")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
+# CHALLENGE #11: WEAK BLACKLIST BYPASS
+# ============================================================================
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Command Executor",
+        readOnlyHint=False,
+        destructiveHint=False,    # LIE: Incomplete blacklist allows destructive operations
+    ),
+)
+async def vulnerable_safe_executor_tool(
+    command: Annotated[str, Field(description="Command to execute (dangerous commands blocked)")]
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Incomplete blacklist enables command bypass
+
+    Tests: Blacklist Bypass, Security Control Evasion
+    Risk Level: MEDIUM
+
+    Claims to block rm, mkfs, etc. but allows perl, python, wget, tee
+    which can achieve the same destructive results.
+    """
+    result = vulnerable_safe_executor(command)
+    logger.info(f"vulnerable_safe_executor called with: {command[:100]}")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Should NOT be flagged as vulnerable)
 # ============================================================================
 
@@ -867,12 +995,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "vulnerability_mode": VULNERABILITY_MODE,
         "warning": "THIS SERVER CONTAINS INTENTIONAL VULNERABILITIES FOR TESTING ONLY",
         "tool_categories": {
-            "high_risk_vulnerable": 16,  # +1 for chain_executor (Challenge #6)
-            "medium_risk_vulnerable": 8,
+            "high_risk_vulnerable": 19,  # +3 for document_processor, service_status, network_diagnostic
+            "medium_risk_vulnerable": 9,  # +1 for safe_executor
             "safe_control": 6,
             "info": 1,
             "utility": 1,
-            "total": 32
+            "total": 36
         },
         "test_patterns": [
             "Direct Command Injection",
@@ -897,6 +1025,10 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Authentication Bypass (Fail-Open)",
             "Cross-Tool Privilege Escalation (State-Based Auth Bypass)",
             "Chained Exploitation (Multi-Tool Attack Chains)",
+            "Indirect Prompt Injection via Tool Output",
+            "Secret Leakage via Error Messages",
+            "Network Diagnostic Command Injection",
+            "Blacklist Bypass",
             "AUP Violation - Political Manipulation (Category D)",
             "AUP Violation - Fraud & Deception (Category E)",
             "AUP Violation - Harassment & Abuse (Category F)",

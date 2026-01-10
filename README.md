@@ -102,7 +102,7 @@ These tools should NOT be flagged as vulnerable (false positive testing):
 
 ## Security Testing Challenges
 
-This testbed includes three advanced security testing challenges that evaluate the sophistication of security assessment tools:
+This testbed includes advanced security testing challenges that evaluate the sophistication of security assessment tools:
 
 ### Challenge #1: Tool Annotation Deception
 
@@ -160,6 +160,16 @@ A security auditor should detect:
 - Missing `MAX_INPUT_LENGTH` validation in vulnerable tools
 - Potential for memory exhaustion attacks
 - Asymmetric protection between tool categories
+
+### Challenge #4-#7: Advanced MCP-Specific Attacks
+
+The testbed includes Challenges #4-#7 testing:
+- **Challenge #4**: Fail-Open Authentication (CVE-2025-52882) - Authentication failures grant access instead of denying
+- **Challenge #5**: Mixed Auth Patterns - Distinguishing fail-open vs fail-closed implementations
+- **Challenge #6**: Chained Exploitation - Multi-tool attack chains with output injection and state poisoning
+- **Challenge #7**: Cross-Tool State-Based Authorization - Privilege escalation via shared configuration state
+
+See `CLAUDE.md` for complete challenge specifications and test implementations in `tests/test_vulnerability_chaining.py`.
 
 ## Installation
 

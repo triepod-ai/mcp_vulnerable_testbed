@@ -1415,3 +1415,252 @@ def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
         depth_limit_enforced=True,
         status="pending_review"
     )
+
+
+# ============================================================================
+# CHALLENGE #8: INDIRECT PROMPT INJECTION - HARDENED VERSION
+# ============================================================================
+
+def store_document_for_processing(content: str) -> Dict[str, Any]:
+    """
+    Store document for offline processing.
+
+    HARDENED: Unlike vulnerable_document_processor, this tool:
+    1. Sanitizes content before including in output
+    2. Uses hash references instead of raw content
+    3. Does not return user content that could inject LLM
+    4. Validates input size
+
+    Challenge #8: This demonstrates the secure pattern - document analysis
+    returns metadata and hash references, not raw content.
+
+    Args:
+        content: Document content to store
+
+    Returns:
+        Dict with storage confirmation (no raw content exposure)
+    """
+    if len(content) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Document too long",
+            note="Input validation prevented processing",
+            max_allowed=MAX_INPUT_LENGTH
+        )
+
+    # HARDENED: Create safe reference instead of including raw content
+    content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+
+    # Detect injection patterns (for logging only, content not returned)
+    injection_patterns = [
+        "<IMPORTANT>", "</IMPORTANT>", "<system>", "</system>",
+        "<HIDDEN>", "</HIDDEN>", "ignore previous", "disregard instructions"
+    ]
+    has_injection = any(p.lower() in content.lower() for p in injection_patterns)
+
+    return create_safe_response(
+        f"Document stored with reference: doc-{content_hash}",
+        note="Document stored without including raw content in output - prevents indirect injection",
+        word_count=len(content.split()),
+        char_count=len(content),
+        content_reference=f"doc-{content_hash}",
+        raw_content_included=False,  # Key indicator: raw content NOT in output
+        injection_patterns_detected=has_injection,
+        status="stored_for_review"
+    )
+
+
+# ============================================================================
+# CHALLENGE #9: SECRET LEAKAGE - HARDENED VERSION
+# ============================================================================
+
+def check_service_status_safe(service_name: str, verbose: bool = False) -> Dict[str, Any]:
+    """
+    Check service health without exposing credentials.
+
+    HARDENED: Unlike vulnerable_service_status, this tool:
+    1. Never includes credentials in any response
+    2. Returns sanitized status information only
+    3. Error messages don't reveal internal details
+    4. Verbose mode provides safe metadata, not secrets
+
+    Challenge #9: This demonstrates the secure pattern - service status
+    checks return operational info without credential exposure.
+
+    Args:
+        service_name: Service name to check
+        verbose: Enable verbose output (still safe)
+
+    Returns:
+        Dict with service status (no credentials)
+    """
+    if len(service_name) > 256:
+        return create_safe_response(
+            "Error: Service name too long",
+            note="Input validation prevented processing"
+        )
+
+    known_services = ["database", "api_gateway", "aws", "redis", "cache", "queue"]
+    safe_display = _sanitize_for_response(service_name)
+    service_lower = service_name.lower()
+
+    # HARDENED: Error path does NOT reveal credentials
+    if service_lower not in known_services:
+        return create_safe_response(
+            f"Service '{safe_display}' not found",
+            note="Error handled without revealing credentials",
+            available_services=known_services,
+            credentials_exposed=False
+        )
+
+    # Service status - HARDENED: no credentials in any response
+    status_info = {
+        "database": {"status": "connected", "response_time_ms": 12},
+        "api_gateway": {"status": "healthy", "uptime": "99.9%"},
+        "aws": {"status": "available", "region": "us-west-2"},
+        "redis": {"status": "connected", "memory_used_mb": 128},
+        "cache": {"status": "healthy", "hit_rate": "85%"},
+        "queue": {"status": "running", "pending_jobs": 42}
+    }
+
+    info = status_info.get(service_lower, {})
+
+    response = create_safe_response(
+        f"Service '{service_name}' status: {info.get('status', 'unknown')}",
+        note="Status returned without credential exposure",
+        service=service_name,
+        status=info.get("status"),
+        credentials_exposed=False
+    )
+
+    # HARDENED: Verbose mode adds safe metadata, not secrets
+    if verbose:
+        response["response_time_ms"] = info.get("response_time_ms", 10)
+        response["uptime"] = info.get("uptime", "99%")
+        response["verbose_note"] = "Verbose mode provides operational metrics only, never credentials"
+
+    return response
+
+
+# ============================================================================
+# CHALLENGE #10: NETWORK DIAGNOSTIC - HARDENED VERSION
+# ============================================================================
+
+def store_network_diagnostic_request(target: str, operation: str = "ping") -> Dict[str, Any]:
+    """
+    Store network diagnostic request for admin execution.
+
+    HARDENED: Unlike vulnerable_network_diagnostic, this tool:
+    1. Never uses subprocess with shell=True
+    2. Validates target against format patterns
+    3. Stores request for admin execution instead of running
+    4. Detects and blocks injection patterns
+
+    Challenge #10: This demonstrates the secure pattern - network diagnostics
+    are queued for admin execution, not run directly.
+
+    Args:
+        target: Target host/IP to diagnose
+        operation: Diagnostic operation (ping/traceroute/etc)
+
+    Returns:
+        Dict with validation results (no command execution)
+    """
+    if len(target) > 256:
+        return create_safe_response(
+            "Error: Target too long",
+            note="Input validation prevented processing"
+        )
+
+    # HARDENED: Detect shell injection patterns
+    injection_patterns = [";", "&&", "||", "|", "`", "$(", "${", "\n", "\r", ">", "<"]
+    has_injection = any(p in target for p in injection_patterns)
+
+    # HARDENED: Validate target format (IP or hostname only)
+    ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+    hostname_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9\-\.]{0,253}[a-zA-Z0-9]$'
+    valid_format = bool(re.match(ip_pattern, target) or re.match(hostname_pattern, target))
+
+    safe_display = _sanitize_for_response(target)
+
+    if has_injection or not valid_format:
+        return create_safe_response(
+            f"Invalid target format: {safe_display}",
+            note="Potentially malicious input detected and blocked - no command executed",
+            injection_detected=has_injection,
+            valid_format=valid_format,
+            shell_used=False,
+            status="rejected"
+        )
+
+    # Validate operation
+    valid_operations = ["ping", "traceroute", "nslookup", "dig", "host"]
+    if operation.lower() not in valid_operations:
+        operation = "ping"
+
+    return create_safe_response(
+        f"Diagnostic request stored: {operation} -> {safe_display}",
+        note="Request stored for admin execution - no subprocess called",
+        operation=operation,
+        target_validated=True,
+        shell_used=False,  # Key indicator: shell=True NOT used
+        command_executed=False,  # Key indicator: no execution
+        status="pending_execution"
+    )
+
+
+# ============================================================================
+# CHALLENGE #11: BLACKLIST BYPASS - HARDENED VERSION
+# ============================================================================
+
+def store_command_for_review(command: str) -> Dict[str, Any]:
+    """
+    Store command for admin review without execution.
+
+    HARDENED: Unlike vulnerable_safe_executor, this tool:
+    1. Never executes any commands
+    2. Uses allowlist (not blacklist) pattern
+    3. Stores all commands for admin review
+    4. Does not have bypassable security controls
+
+    Challenge #11: This demonstrates the secure pattern - allowlist instead
+    of blacklist, and no execution at all.
+
+    Args:
+        command: Command to review
+
+    Returns:
+        Dict with validation results (no execution)
+    """
+    if len(command) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Command too long",
+            note="Input validation prevented processing"
+        )
+
+    # HARDENED: Allowlist approach - only permitted informational operations
+    allowed_operations = ["help", "version", "status", "info", "list", "show"]
+
+    command_lower = command.lower()
+    first_word = command_lower.split()[0] if command.split() else ""
+
+    is_allowed = first_word in allowed_operations
+
+    # HARDENED: Detect bypass patterns (for logging, command still not executed)
+    bypass_patterns = ["perl", "python", "ruby", "php", "tee", "wget", "curl",
+                       "nohup", "screen", "tmux", "sudo", "su", "nc", "netcat",
+                       "bash", "sh", "zsh", "rm", "mkfs", "dd"]
+    has_bypass_attempt = any(p in command_lower for p in bypass_patterns)
+
+    safe_display = _sanitize_for_response(command)
+
+    return create_safe_response(
+        f"Command stored: {safe_display}",
+        note="Command stored for admin review - NOT executed (allowlist pattern)",
+        first_word=first_word,
+        is_allowed_operation=is_allowed,
+        bypass_attempt_detected=has_bypass_attempt,
+        execution_blocked=True,  # Key indicator: no execution
+        allowlist_used=True,  # Key indicator: allowlist not blacklist
+        blacklist_used=False,
+        status="pending_review"
+    )

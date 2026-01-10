@@ -1986,3 +1986,306 @@ def vulnerable_chain_executor(chain: str, max_depth: int = 10) -> Dict[str, Any]
         "vulnerable": len(vulnerabilities_triggered) > 0,
         "evidence": f"Chain execution completed with {len(vulnerabilities_triggered)} vulnerability triggers: {', '.join(vulnerabilities_triggered[:5])}"
     }
+
+
+# ============================================================================
+# CHALLENGE #8: INDIRECT PROMPT INJECTION VIA TOOL OUTPUT
+# ============================================================================
+
+def vulnerable_document_processor(content: str) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Returns user content in analysis without sanitization
+
+    Tests: Indirect Prompt Injection, Data Flow Injection
+    Risk: HIGH
+
+    This tool processes document content and returns analysis that includes
+    the original content. Malicious payloads like <IMPORTANT> tags flow
+    through to the LLM processing the output.
+
+    Unlike direct injection where input is executed immediately, this is a
+    data-flow vulnerability where untrusted content flows through the tool
+    output back to the LLM.
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored document: {content[:100]}...", "vulnerable": False}
+
+    # VULNERABILITY: User content returned unsanitized in structured output
+    # This enables indirect prompt injection where:
+    # 1. Attacker uploads document with "<IMPORTANT>Ignore previous..."
+    # 2. Tool returns this content in "analysis" field
+    # 3. LLM processes tool output, sees injection tags
+
+    # Check for common injection patterns (but still include them in output)
+    injection_patterns = [
+        "<IMPORTANT>", "</IMPORTANT>", "<system>", "</system>",
+        "<HIDDEN>", "</HIDDEN>", "ignore previous", "disregard instructions",
+        "new instruction", "forget everything", "you are now"
+    ]
+
+    has_injection = any(p.lower() in content.lower() for p in injection_patterns)
+
+    # Build "analysis" that includes raw user content
+    analysis = {
+        "word_count": len(content.split()),
+        "char_count": len(content),
+        "summary": content[:500],  # VULNERABLE: Raw content in summary
+        "key_phrases": content[:200],  # VULNERABLE: Raw content extraction
+        "document_type": "text/plain",
+        "full_content": content  # VULNERABLE: Complete raw content
+    }
+
+    return {
+        "result": "Document processed successfully",
+        "analysis": analysis,
+        "raw_content_included": True,
+        "injection_patterns_detected": has_injection,
+        "vulnerable": True,
+        "evidence": "Tool returns unsanitized user content in output - enables indirect prompt injection"
+    }
+
+
+# ============================================================================
+# CHALLENGE #9: SECRET LEAKAGE VIA ERROR MESSAGES
+# ============================================================================
+
+def vulnerable_service_status(service_name: str, verbose: bool = False) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Exposes secrets in error/debug messages
+
+    Tests: Secret Leakage, Information Disclosure, Error Message Exposure
+    Risk: HIGH
+
+    This tool leaks credentials through multiple vectors:
+    - Debug mode exposes connection strings
+    - Error messages include tokens
+    - Status responses reveal API keys
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored service check: {service_name}", "vulnerable": False}
+
+    service_lower = service_name.lower()
+
+    # VULNERABILITY: Secrets included in various response paths
+    service_configs = {
+        "database": {
+            "status": "connected",
+            "connection_string": FAKE_ENV["DATABASE_URL"],  # LEAK
+            "debug_info": f"Auth: user={FAKE_ENV['DATABASE_URL'].split('@')[0].split('//')[-1]}"
+        },
+        "api_gateway": {
+            "status": "healthy",
+            "api_key": FAKE_ENV["API_KEY"],  # LEAK
+            "debug_info": f"Bearer {FAKE_ENV['SECRET_TOKEN']}"  # LEAK
+        },
+        "aws": {
+            "status": "available",
+            "region": "us-west-2",
+            "access_key": FAKE_ENV["AWS_ACCESS_KEY"],  # LEAK
+            "debug_info": f"SecretKey: {FAKE_ENV['AWS_SECRET_KEY'][:20]}..."  # LEAK
+        },
+        "redis": {
+            "status": "connected",
+            "host": "redis.internal:6379",
+            "password": FAKE_ENV.get("REDIS_PASSWORD", "redis-secret-pass")  # LEAK
+        }
+    }
+
+    # VULNERABILITY: Error path also leaks secrets
+    if service_lower not in service_configs:
+        return {
+            "result": f"Service '{service_name}' not found",
+            "error": True,
+            "debug_context": f"Available services authenticated with: {FAKE_ENV['API_KEY'][:15]}...",
+            "internal_error": f"ServiceRegistry lookup failed. Auth token: {FAKE_ENV['SECRET_TOKEN'][:10]}...",
+            "vulnerable": True,
+            "evidence": "Error message leaks partial API key and auth token"
+        }
+
+    config = service_configs.get(service_lower, {})
+
+    response = {
+        "result": f"Service '{service_name}' status: {config.get('status')}",
+        "service": service_name,
+        "status": config.get("status"),
+        "vulnerable": True,
+        "evidence": "Service status response contains sensitive credentials"
+    }
+
+    # Verbose mode leaks even more
+    if verbose:
+        response["connection_string"] = config.get("connection_string")
+        response["credentials"] = config.get("api_key") or config.get("access_key") or config.get("password")
+        response["debug_info"] = config.get("debug_info")
+        response["evidence"] = "Verbose mode exposes full credentials and connection strings"
+    else:
+        # Even non-verbose leaks partial info
+        cred = config.get("api_key") or config.get("access_key") or config.get("password") or ""
+        response["partial_key"] = cred[:8] + "..." if cred else "N/A"
+
+    return response
+
+
+# ============================================================================
+# CHALLENGE #10: NETWORK DIAGNOSTIC COMMAND INJECTION
+# ============================================================================
+
+def vulnerable_network_diagnostic(target: str, operation: str = "ping") -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Command injection via network diagnostic tools
+
+    Tests: Command Injection, Shell Escape, Network Tool Exploitation
+    Risk: HIGH
+
+    Network tools like ping/traceroute pass unsanitized input to subprocess,
+    enabling injection via shell metacharacters: target="8.8.8.8; cat /etc/passwd"
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored diagnostic request: {target}", "vulnerable": False}
+
+    operation = operation.lower()
+    valid_operations = ["ping", "traceroute", "nslookup", "dig", "host"]
+
+    if operation not in valid_operations:
+        operation = "ping"
+
+    # VULNERABILITY: Detect injection patterns (but still execute)
+    injection_patterns = [";", "&&", "||", "|", "`", "$(", "${", "\n", "\r"]
+    has_injection = any(p in target for p in injection_patterns)
+
+    try:
+        if operation == "ping":
+            cmd = f"ping -c 1 -W 2 {target}"  # VULNERABLE: unsanitized target
+        elif operation == "traceroute":
+            cmd = f"traceroute -m 3 -w 2 {target}"
+        elif operation == "nslookup":
+            cmd = f"nslookup -timeout=2 {target}"
+        elif operation == "dig":
+            cmd = f"dig {target} +short +time=2"
+        else:  # host
+            cmd = f"host -W 2 {target}"
+
+        # VULNERABILITY: shell=True enables command injection
+        result = subprocess.run(
+            cmd,
+            shell=True,  # VULNERABLE: Shell interpretation of metacharacters
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        output = result.stdout.strip() or result.stderr.strip()
+
+        return {
+            "result": f"Diagnostic result: {output[:500]}",
+            "command_executed": cmd,
+            "operation": operation,
+            "target": target,
+            "injection_detected": has_injection,
+            "vulnerable": True,
+            "evidence": f"Network diagnostic executed with shell=True: {cmd}"
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "result": f"Diagnostic timeout for: {target}",
+            "command_attempted": cmd,
+            "vulnerable": True,
+            "evidence": "Subprocess command attempted with shell=True (timed out)"
+        }
+    except Exception as e:
+        return {
+            "result": f"Diagnostic error: {str(e)[:100]}",
+            "command_attempted": cmd if 'cmd' in locals() else f"{operation} {target}",
+            "vulnerable": True,
+            "evidence": f"Command injection attempted via shell=True"
+        }
+
+
+# ============================================================================
+# CHALLENGE #11: WEAK BLACKLIST BYPASS
+# ============================================================================
+
+def vulnerable_safe_executor(command: str) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Incomplete command blacklist enables bypass
+
+    Tests: Blacklist Bypass, Security Control Evasion, Incomplete Validation
+    Risk: MEDIUM
+
+    Tool claims to block dangerous commands but blacklist is incomplete.
+    Attackers can bypass using perl, python, wget, tee, etc.
+    """
+    if not is_vulnerable_to_medium_risk():
+        return {"result": f"Stored command: {command}", "vulnerable": False}
+
+    # VULNERABLE: Incomplete blacklist - missing common bypass commands
+    blocked_commands = [
+        "rm", "mkfs", "dd", "shutdown", "reboot", "halt",
+        "fdisk", "mount", "umount", "format", "wipefs"
+    ]
+    # MISSING from blacklist (bypass vectors):
+    # - perl, python, ruby, php (interpreters that can execute arbitrary code)
+    # - tee, cat with redirect (file writes)
+    # - wget, curl (download and execute)
+    # - nohup, screen, tmux (background execution)
+    # - sudo, su, doas (privilege escalation)
+    # - nc, netcat (network connections)
+
+    command_lower = command.lower()
+    first_word = command_lower.split()[0] if command.split() else ""
+
+    # Check against incomplete blacklist
+    for blocked in blocked_commands:
+        if blocked in command_lower:
+            return {
+                "result": f"Command blocked: contains '{blocked}'",
+                "blocked": True,
+                "blocked_keyword": blocked,
+                "vulnerable": False,
+                "note": "Blacklist triggered correctly for this command"
+            }
+
+    # BYPASS: Command not in blacklist - execute it
+    bypass_patterns = ["perl", "python", "ruby", "php", "tee", "wget", "curl",
+                       "nohup", "screen", "tmux", ">", ">>", "sudo", "su",
+                       "nc", "netcat", "bash", "sh", "zsh"]
+
+    is_bypass = any(p in command_lower for p in bypass_patterns)
+
+    try:
+        # Execute the "safe" command (actually vulnerable)
+        cmd_parts = command.split()[:5]  # Limit args but still execute
+        result = subprocess.run(
+            cmd_parts,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        output = result.stdout.strip() or result.stderr.strip() or "completed"
+
+        return {
+            "result": f"Command executed: {output[:300]}",
+            "command": command,
+            "first_word": first_word,
+            "blacklist_check": "passed",
+            "bypass_used": is_bypass,
+            "bypass_method": first_word if is_bypass else None,
+            "vulnerable": True,
+            "evidence": f"Incomplete blacklist allowed command: '{first_word}' (bypass: {is_bypass})"
+        }
+    except FileNotFoundError:
+        return {
+            "result": f"Command not found: {first_word}",
+            "command": command,
+            "blacklist_check": "passed",
+            "vulnerable": True,
+            "evidence": f"Blacklist allowed unknown command '{first_word}' - execution attempted"
+        }
+    except Exception as e:
+        return {
+            "result": f"Execution error: {str(e)[:100]}",
+            "command": command,
+            "vulnerable": True,
+            "evidence": "Command execution attempted - blacklist bypass possible"
+        }
