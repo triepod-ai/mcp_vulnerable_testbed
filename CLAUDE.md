@@ -109,7 +109,7 @@ This is a FastMCP-based server implementing 57 tools and 8 resources in five cat
    - Test false positive rates with enhanced set (+6 new safe tools)
    - Include input size validation (deliberate distinction from vulnerable tools)
 
-4. **MCP Resources** (9): `src/server.py`
+4. **MCP Resources** (12): `src/server.py`
    - `notes://{user_id}` - User notes with injection points (Challenge #14)
    - `internal://secrets` - Internal secrets resource
    - `company://data/{department}` - Company data with path traversal
@@ -119,6 +119,9 @@ This is a FastMCP-based server implementing 57 tools and 8 resources in five cat
    - `blob://{size}/{mime_base}/{mime_subtype}` - Blob DoS generator (Challenge #24)
    - `polyglot://{base_type}/{hidden_type}` - Polyglot file generator (Challenge #24)
    - `mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}` - MIME type mismatch (CWE-436)
+   - `database://{schema}/{table}/{column}/{filter}` - Multi-param SQL injection (Challenge #23)
+   - `api://{version}/{service}/{endpoint}/{param}` - Multi-param API injection (Challenge #23)
+   - `file://{env}/{app}/{path}/{filename}` - Multi-param file injection (Challenge #23)
 
 5. **Utility Tools** (2): `src/server.py`
    - `get_testbed_info` - Server metadata and tool counts
@@ -126,7 +129,7 @@ This is a FastMCP-based server implementing 57 tools and 8 resources in five cat
 
 ### Security Testing Challenges
 
-This testbed includes 21 advanced challenges for evaluating security auditor sophistication:
+This testbed includes 22 advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -337,6 +340,31 @@ This testbed includes 21 advanced challenges for evaluating security auditor sop
 - **Source**: [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `tools.ts`
 - Tests if auditors detect content type validation failures
 - **Test Coverage**: `tests/test_content_type_confusion.py` (28+ tests)
+
+**Challenge #23: Multi-Parameter Template Resource Injection**
+- Three vulnerable MCP resources with 4 parameters each, testing multi-point injection
+- `database://{schema}/{table}/{column}/{filter}` - SQL injection simulation (CWE-610, CWE-89, CWE-943)
+  - SCHEMA: Path traversal to escape database context
+  - TABLE: SQL injection characters
+  - COLUMN: Wildcard (*) to reveal all columns
+  - FILTER: SQL injection in WHERE clause
+  - Leaks internal.secrets via traversal
+- `api://{version}/{service}/{endpoint}/{param}` - Version downgrade attack (CWE-610, CWE-22)
+  - VERSION: Downgrade to v1 (weaker security)
+  - SERVICE: Service enumeration
+  - ENDPOINT: Path traversal to admin functions
+  - PARAM: Parameter injection for auth bypass
+  - v1 admin endpoint grants access without MFA
+- `file://{env}/{app}/{path}/{filename}` - Environment hopping (CWE-22, CWE-610)
+  - ENV: Production/staging environment hopping
+  - APP: Cross-application isolation bypass
+  - PATH: Directory traversal
+  - FILENAME: Null byte injection (%00)
+  - Exposes /etc/passwd, .env, config files
+- **MCP Specificity**: HIGH - Multi-segment resource URIs are common in MCP, each parameter creates injection surface
+- **Source**: [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `resources.ts`
+- Tests if auditors detect multi-parameter injection patterns
+- **Test Coverage**: `tests/test_multi_param_injection.py` (28+ tests)
 
 **Challenge #24: Binary Resource Attacks (Conformance-Inspired)**
 - Four vulnerable MCP resources testing binary blob handling vulnerabilities

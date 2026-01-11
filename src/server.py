@@ -631,6 +631,313 @@ def vulnerable_mime_mismatch_resource(
 
 
 # ============================================================================
+# CHALLENGE #23: MULTI-PARAMETER TEMPLATE RESOURCE INJECTION
+# ============================================================================
+
+# Fake database for database:// resource
+FAKE_DB = {
+    "public": {
+        "users": {
+            "columns": ["id", "name", "email"],
+            "data": [
+                {"id": 1, "name": "Alice", "email": "alice@example.com"},
+                {"id": 2, "name": "Bob", "email": "bob@example.com"},
+            ],
+        },
+        "products": {
+            "columns": ["id", "name", "price"],
+            "data": [{"id": 1, "name": "Widget", "price": 9.99}],
+        },
+    },
+    "internal": {
+        "secrets": {
+            "columns": ["key", "value"],
+            "data": [
+                {"key": "api_key", "value": "sk-secret-12345"},
+                {"key": "db_password", "value": "super_secret_pw"},
+            ],
+        },
+    },
+}
+
+# Fake API services for api:// resource
+FAKE_SERVICES = {
+    "v1": {
+        "auth": {
+            "login": "Legacy auth (weak)",
+            "admin": "ADMIN ACCESS (v1 bug - no MFA required)",
+        },
+        "users": {"list": "User list", "create": "Create user"},
+    },
+    "v2": {
+        "auth": {"login": "Secure auth (MFA)", "admin": "Requires MFA"},
+        "users": {"list": "User list (paginated)", "create": "Create user (validated)"},
+    },
+}
+
+
+@mcp.resource("database://{schema}/{table}/{column}/{filter}")
+def vulnerable_database_resource(
+    schema: str, table: str, column: str, filter: str
+) -> Dict[str, Any]:
+    """
+    VULNERABLE: Multi-Parameter Database Resource
+
+    Tests: Multi-Point Injection, Parameter Interaction, SQL Injection via URI
+    Risk Level: HIGH
+    CWE: CWE-610, CWE-89, CWE-943
+
+    Challenge #23: This resource has 4 injection points:
+
+    1. SCHEMA - Can escape to different database (path traversal)
+    2. TABLE - Can access unauthorized tables (enumeration)
+    3. COLUMN - Can reveal hidden columns (wildcard)
+    4. FILTER - SQL injection in WHERE clause
+
+    Each parameter is vulnerable independently, but can also be combined
+    for compound attacks.
+
+    Attack examples:
+    - database://production/users/password/1 OR 1=1
+    - database://information_schema/tables/*/1
+    - database://../internal/secrets/key/1
+    """
+    logger.warning(
+        f"VULNERABILITY TRIGGERED: Multi-param database resource - "
+        f"schema={schema}, table={table}, column={column}, filter={filter}"
+    )
+
+    # Detect injection patterns in each parameter
+    injection_detected = []
+
+    if ".." in schema or "/" in schema:
+        injection_detected.append(f"Path traversal in schema: {schema}")
+    if "'" in table or ";" in table or "DROP" in table.upper():
+        injection_detected.append(f"SQL chars in table: {table}")
+    if "*" in column:
+        injection_detected.append(f"Wildcard in column: {column}")
+    if "OR" in filter.upper() or "1=1" in filter or "--" in filter:
+        injection_detected.append(f"SQL injection in filter: {filter}")
+
+    result = {
+        "uri": f"database://{schema}/{table}/{column}/{filter}",
+        "schema": schema,
+        "table": table,
+        "column": column,
+        "filter": filter,
+        "vulnerable": True,
+        "cwe_ids": ["CWE-610", "CWE-89", "CWE-943"],
+        "injection_vectors_detected": injection_detected,
+        "injection_count": len(injection_detected),
+    }
+
+    # Vulnerable: Attempt to access data without validation
+    # Normalize path traversal (simulated exploitation)
+    effective_schema = schema.replace("../", "").replace("..", "")
+    if effective_schema in FAKE_DB:
+        if table in FAKE_DB[effective_schema]:
+            table_data = FAKE_DB[effective_schema][table]
+            result["columns_available"] = table_data["columns"]
+
+            # Wildcard reveals all columns
+            if column == "*" or column in table_data["columns"]:
+                result["data"] = table_data["data"]
+                result["data_exposed"] = True
+                result["rows_returned"] = len(table_data["data"])
+    elif ".." in schema:
+        # Path traversal detected - still return internal data (vulnerability)
+        if "internal" in FAKE_DB:
+            result["traversal_successful"] = True
+            result["data"] = FAKE_DB["internal"]["secrets"]["data"]
+            result["data_exposed"] = True
+
+    # Always leak schema info (information disclosure)
+    result["available_schemas"] = list(FAKE_DB.keys())
+
+    return result
+
+
+@mcp.resource("api://{version}/{service}/{endpoint}/{param}")
+def vulnerable_api_resource(
+    version: str, service: str, endpoint: str, param: str
+) -> Dict[str, Any]:
+    """
+    VULNERABLE: Multi-Parameter API Resource
+
+    Tests: Version Downgrade, Service Discovery, Parameter Pollution
+    Risk Level: HIGH
+    CWE: CWE-610, CWE-22
+
+    Challenge #23: 4 injection points with different attack surfaces:
+
+    1. VERSION - Downgrade attack (v1 has weaker auth than v2)
+    2. SERVICE - Service enumeration and discovery
+    3. ENDPOINT - Endpoint traversal to admin functions
+    4. PARAM - Parameter injection for auth bypass
+
+    Attack examples:
+    - api://v1/auth/admin/token=admin (version downgrade + admin endpoint)
+    - api://v2/../internal/secrets/x (path traversal across params)
+    - api://v2/users/../../admin/create (endpoint traversal)
+    """
+    logger.warning(
+        f"VULNERABILITY TRIGGERED: Multi-param API resource - "
+        f"version={version}, service={service}, endpoint={endpoint}, param={param}"
+    )
+
+    injection_detected = []
+
+    # Detect version downgrade
+    if version == "v1":
+        injection_detected.append(f"Version downgrade to v1 (weaker security)")
+
+    # Detect path traversal
+    full_path = f"{service}/{endpoint}"
+    if ".." in full_path:
+        injection_detected.append(f"Path traversal detected: {full_path}")
+
+    # Detect parameter injection
+    if "=" in param or "admin" in param.lower():
+        injection_detected.append(f"Parameter injection: {param}")
+
+    result = {
+        "uri": f"api://{version}/{service}/{endpoint}/{param}",
+        "version": version,
+        "service": service,
+        "endpoint": endpoint,
+        "param": param,
+        "vulnerable": True,
+        "cwe_ids": ["CWE-610", "CWE-22"],
+        "injection_vectors_detected": injection_detected,
+        "injection_count": len(injection_detected),
+    }
+
+    # Vulnerable: Version downgrade allowed without restriction
+    if version == "v1":
+        result["warning"] = "Using deprecated API version with known vulnerabilities"
+        result["v1_admin_bug"] = "v1 admin endpoint has auth bypass - no MFA required"
+        if service == "auth" and endpoint == "admin":
+            result["admin_access_granted"] = True
+            result["admin_token"] = "admin_v1_token_bypass_12345"
+
+    # Vulnerable: Service enumeration
+    result["available_services"] = list(FAKE_SERVICES.get(version, {}).keys())
+    result["available_versions"] = list(FAKE_SERVICES.keys())
+
+    # Vulnerable: Path traversal across parameters
+    if ".." in full_path:
+        result["path_traversal_detected"] = True
+        result["normalized_path"] = full_path.replace("../", "")
+        result["traversal_successful"] = True
+
+    # Get endpoint data if exists
+    if version in FAKE_SERVICES:
+        if service in FAKE_SERVICES[version]:
+            if endpoint in FAKE_SERVICES[version][service]:
+                result["endpoint_data"] = FAKE_SERVICES[version][service][endpoint]
+
+    return result
+
+
+@mcp.resource("file://{env}/{app}/{path}/{filename}")
+def vulnerable_file_resource(
+    env: str, app: str, path: str, filename: str
+) -> Dict[str, Any]:
+    """
+    VULNERABLE: Multi-Parameter File Path Resource
+
+    Tests: Environment Hopping, App Isolation Bypass, Path Traversal
+    Risk Level: HIGH
+    CWE: CWE-22, CWE-610
+
+    Challenge #23: 4 injection points simulating file storage hierarchy:
+
+    1. ENV - Production/staging/dev environment hopping
+    2. APP - Cross-application file access
+    3. PATH - Directory traversal within app
+    4. FILENAME - Filename injection (null bytes, etc.)
+
+    Attack examples:
+    - file://production/../staging/secrets/.env (env hopping)
+    - file://prod/app1/../app2/config/db.yml (app isolation bypass)
+    - file://prod/app/../../../../etc/passwd (classic traversal)
+    - file://prod/app/config/db.yml%00.txt (null byte injection)
+    """
+    logger.warning(
+        f"VULNERABILITY TRIGGERED: Multi-param file resource - "
+        f"env={env}, app={app}, path={path}, filename={filename}"
+    )
+
+    injection_detected = []
+    full_path = f"/{env}/{app}/{path}/{filename}"
+
+    # Detect path traversal
+    if ".." in full_path:
+        count = full_path.count("..")
+        injection_detected.append(f"Path traversal ({count} levels): {full_path}")
+
+    # Detect null byte injection
+    if "%00" in full_path or "\x00" in full_path:
+        injection_detected.append(f"Null byte injection in: {filename}")
+
+    # Detect environment hopping
+    if ".." in env or "/" in env:
+        injection_detected.append(f"Environment hopping attempt: {env}")
+
+    # Detect app isolation bypass
+    if ".." in app:
+        injection_detected.append(f"App isolation bypass attempt: {app}")
+
+    result = {
+        "uri": f"file://{env}/{app}/{path}/{filename}",
+        "env": env,
+        "app": app,
+        "path": path,
+        "filename": filename,
+        "full_path": full_path,
+        "vulnerable": True,
+        "cwe_ids": ["CWE-22", "CWE-610"],
+        "injection_vectors_detected": injection_detected,
+        "injection_count": len(injection_detected),
+    }
+
+    # Vulnerable: Environment access without validation
+    if env not in ["sandbox"]:
+        result["environment_access"] = f"Accessing {env} environment (unrestricted)"
+
+    # Vulnerable: Path traversal succeeds
+    if ".." in full_path:
+        result["traversal_successful"] = True
+        result["traversal_count"] = full_path.count("..")
+
+    # Vulnerable: Null byte injection detection
+    if "%00" in filename:
+        result["null_byte_injection"] = True
+        result["effective_filename"] = filename.split("%00")[0]
+
+    # Simulate file content based on sensitive patterns
+    simulated_content = None
+    if "passwd" in filename.lower() or "shadow" in filename.lower():
+        result["sensitive_file_requested"] = True
+        simulated_content = "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin"
+    elif ".env" in filename.lower():
+        result["env_file_requested"] = True
+        simulated_content = "DB_PASSWORD=secret123\nAPI_KEY=sk-1234-secret\nAWS_SECRET=AKIAIOSFODNN7EXAMPLE"
+    elif "config" in filename.lower() or "db.yml" in filename.lower():
+        result["config_file_requested"] = True
+        simulated_content = "database:\n  host: internal-db.company.com\n  password: super_secret_db_pw"
+    elif "secret" in filename.lower() or "key" in filename.lower():
+        result["secret_file_requested"] = True
+        simulated_content = "-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy...\n-----END RSA PRIVATE KEY-----"
+
+    if simulated_content:
+        result["simulated_content"] = simulated_content
+        result["data_exposed"] = True
+
+    return result
+
+
+# ============================================================================
 # CHALLENGE #15: TOOL DESCRIPTION POISONING (DVMCP-Inspired)
 # ============================================================================
 
@@ -2542,12 +2849,12 @@ async def get_testbed_info() -> Dict[str, Any]:
             "total_tools": 57,  # +1 for C#20
         },
         "resource_categories": {
-            "vulnerable_resources": 7,  # notes://, internal://secrets, company://data + binary://, blob://, polyglot://, mime://
+            "vulnerable_resources": 10,  # notes://, internal://secrets, company://data + binary://, blob://, polyglot://, mime:// + database://, api://, file://
             "safe_resources": 2,  # public://announcements, public://help
-            "total_resources": 9,  # 7 vulnerable + 2 safe (includes Challenge #24 binary resources + mime://)
+            "total_resources": 12,  # 10 vulnerable + 2 safe (includes Challenge #24 binary resources + Challenge #23 multi-param)
         },
         "challenges": {
-            "total": 20,
+            "total": 21,
             "list": [
                 "Challenge #1: Tool Annotation Deception",
                 "Challenge #2: Temporal Rug Pull",
@@ -2569,6 +2876,7 @@ async def get_testbed_info() -> Dict[str, Any]:
                 "Challenge #18: JWT Token Leakage (NEW - DVMCP)",
                 "Challenge #19: SSE Session Desync Attack (NEW - MCP Conformance)",
                 "Challenge #20: Content Type Confusion Attack (NEW)",
+                "Challenge #23: Multi-Parameter Template Resource Injection (NEW)",
             ],
         },
         "test_patterns": [
@@ -2629,6 +2937,13 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Blind Base64 Decode (CWE-20, CWE-400)",
             "Embedded URI SSRF (CWE-611)",
             "Magic Byte Bypass (CWE-434)",
+            # Multi-Parameter Template Injection patterns (Challenge #23)
+            "Multi-Parameter URI Injection (CWE-610)",
+            "Cross-Parameter Path Traversal (CWE-22)",
+            "SQL Injection via URI Parameters (CWE-89)",
+            "Version Downgrade Attack",
+            "Environment Hopping",
+            "Null Byte Injection",
         ],
         "purpose": "Testing MCP Inspector security assessment tool",
         "dvmcp_coverage": "Patterns adapted from DVMCP Challenges 1-7, 9-10",
