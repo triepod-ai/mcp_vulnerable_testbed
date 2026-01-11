@@ -12,7 +12,7 @@ Usage:
 import pytest
 import time
 import concurrent.futures
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 
 # Fixtures provided by conftest.py: vulnerable_client, hardened_client
@@ -28,8 +28,7 @@ class TestConcurrentRequests:
 
         def make_request(i: int) -> Dict[str, Any]:
             return vulnerable_client.call_tool(
-                "vulnerable_calculator_tool",
-                {"query": f"2+{i}"}
+                "vulnerable_calculator_tool", {"query": f"2+{i}"}
             )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -37,13 +36,15 @@ class TestConcurrentRequests:
             results = [f.result() for f in concurrent.futures.as_completed(futures)]
 
         # All requests should complete
-        assert len(results) == num_requests, \
+        assert len(results) == num_requests, (
             f"Expected {num_requests} results, got {len(results)}"
+        )
 
         # All should be valid responses
         for i, result in enumerate(results):
-            assert isinstance(result, dict), \
+            assert isinstance(result, dict), (
                 f"Result {i} should be dict, got: {type(result)}"
+            )
 
     def test_concurrent_requests_hardened(self, hardened_client):
         """Hardened server should handle concurrent requests."""
@@ -52,8 +53,7 @@ class TestConcurrentRequests:
 
         def make_request(i: int) -> Dict[str, Any]:
             return hardened_client.call_tool(
-                "safe_storage_tool_mcp",
-                {"data": f"concurrent_data_{i}"}
+                "safe_storage_tool_mcp", {"data": f"concurrent_data_{i}"}
             )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -61,8 +61,9 @@ class TestConcurrentRequests:
             results = [f.result() for f in concurrent.futures.as_completed(futures)]
 
         # All requests should complete
-        assert len(results) == num_requests, \
+        assert len(results) == num_requests, (
             f"Expected {num_requests} results, got {len(results)}"
+        )
 
     def test_mixed_tool_concurrent_requests(self, vulnerable_client):
         """Server should handle concurrent requests to different tools."""
@@ -95,10 +96,7 @@ class TestResponseTime:
         """Simple requests should complete quickly."""
         start = time.time()
 
-        result = vulnerable_client.call_tool(
-            "safe_echo_tool_mcp",
-            {"message": "hello"}
-        )
+        result = vulnerable_client.call_tool("safe_echo_tool_mcp", {"message": "hello"})
 
         elapsed = time.time() - start
 
@@ -111,10 +109,7 @@ class TestResponseTime:
 
         for i in range(10):
             start = time.time()
-            vulnerable_client.call_tool(
-                "safe_storage_tool_mcp",
-                {"data": f"test_{i}"}
-            )
+            vulnerable_client.call_tool("safe_storage_tool_mcp", {"data": f"test_{i}"})
             times.append(time.time() - start)
 
         avg_time = sum(times) / len(times)
@@ -136,8 +131,7 @@ class TestMemoryHandling:
 
         start = time.time()
         result = vulnerable_client.call_tool(
-            "vulnerable_calculator_tool",
-            {"query": payload}
+            "vulnerable_calculator_tool", {"query": payload}
         )
         elapsed = time.time() - start
 
@@ -145,23 +139,20 @@ class TestMemoryHandling:
 
         # Larger payloads may be slower but should still complete
         max_time = 10.0 if size > 10000 else 5.0
-        assert elapsed < max_time, \
+        assert elapsed < max_time, (
             f"Payload of {size} bytes took too long: {elapsed:.2f}s"
+        )
 
     def test_many_small_requests(self, vulnerable_client):
         """Server should handle many small requests without memory leak."""
         for i in range(100):
             result = vulnerable_client.call_tool(
-                "safe_storage_tool_mcp",
-                {"data": f"small_data_{i}"}
+                "safe_storage_tool_mcp", {"data": f"small_data_{i}"}
             )
             assert isinstance(result, dict), f"Request {i} failed"
 
         # Final request should still work
-        final = vulnerable_client.call_tool(
-            "get_testbed_info",
-            {}
-        )
+        final = vulnerable_client.call_tool("get_testbed_info", {})
         assert isinstance(final, dict), "Server should still be responsive"
 
 
@@ -175,17 +166,15 @@ class TestRugPullStateMemory:
         # Make many rug pull calls
         for i in range(100):
             result = vulnerable_client.call_tool(
-                "vulnerable_rug_pull_tool",
-                {"action": f"action_{i}"}
+                "vulnerable_rug_pull_tool", {"action": f"action_{i}"}
             )
             assert isinstance(result, dict), f"Call {i} failed"
 
         # Server should still be responsive
-        info = vulnerable_client.call_tool(
-            "get_testbed_info",
-            {}
+        info = vulnerable_client.call_tool("get_testbed_info", {})
+        assert isinstance(info, dict), (
+            "Server should be responsive after many rug pull calls"
         )
-        assert isinstance(info, dict), "Server should be responsive after many rug pull calls"
 
 
 class TestErrorRecovery:
@@ -208,8 +197,7 @@ class TestErrorRecovery:
 
         # Server should still work
         result = vulnerable_client.call_tool(
-            "safe_echo_tool_mcp",
-            {"message": "still working"}
+            "safe_echo_tool_mcp", {"message": "still working"}
         )
         assert isinstance(result, dict), "Server should recover after invalid requests"
 
@@ -217,14 +205,12 @@ class TestErrorRecovery:
         """Server should recover after slow requests."""
         # Large payload that might be slow
         vulnerable_client.call_tool(
-            "vulnerable_calculator_tool",
-            {"query": "A" * 50000}
+            "vulnerable_calculator_tool", {"query": "A" * 50000}
         )
 
         # Normal request should still work
         result = vulnerable_client.call_tool(
-            "safe_echo_tool_mcp",
-            {"message": "quick request"}
+            "safe_echo_tool_mcp", {"message": "quick request"}
         )
         assert isinstance(result, dict), "Server should handle requests after slow ones"
 
@@ -242,8 +228,7 @@ class TestServerStability:
         while time.time() - start_time < 10 and request_count < 50:
             try:
                 result = vulnerable_client.call_tool(
-                    "safe_storage_tool_mcp",
-                    {"data": f"load_test_{request_count}"}
+                    "safe_storage_tool_mcp", {"data": f"load_test_{request_count}"}
                 )
                 if not isinstance(result, dict):
                     errors += 1
@@ -254,12 +239,15 @@ class TestServerStability:
 
         error_rate = errors / request_count if request_count > 0 else 1.0
 
-        print(f"\nSustained load: {request_count} requests, {errors} errors ({error_rate:.1%})")
+        print(
+            f"\nSustained load: {request_count} requests, {errors} errors ({error_rate:.1%})"
+        )
 
         assert error_rate < 0.1, f"Error rate too high: {error_rate:.1%}"
 
     def test_both_servers_stable(self, vulnerable_client, hardened_client):
         """Both servers should remain stable under identical load."""
+
         def load_test(client, server_name: str) -> Dict[str, Any]:
             start_time = time.time()
             success = 0
@@ -268,8 +256,7 @@ class TestServerStability:
             for i in range(20):
                 try:
                     result = client.call_tool(
-                        "safe_storage_tool_mcp",
-                        {"data": f"stability_test_{i}"}
+                        "safe_storage_tool_mcp", {"data": f"stability_test_{i}"}
                     )
                     if isinstance(result, dict):
                         success += 1
@@ -285,7 +272,7 @@ class TestServerStability:
                 "success": success,
                 "errors": errors,
                 "elapsed": elapsed,
-                "rate": success / elapsed if elapsed > 0 else 0
+                "rate": success / elapsed if elapsed > 0 else 0,
             }
 
         vuln_stats = load_test(vulnerable_client, "vulnerable")
@@ -295,10 +282,12 @@ class TestServerStability:
         print(f"Hardened: {hard_stats}")
 
         # Both should have >90% success rate
-        assert vuln_stats["errors"] < vuln_stats["success"] * 0.1, \
+        assert vuln_stats["errors"] < vuln_stats["success"] * 0.1, (
             f"Vulnerable server error rate too high: {vuln_stats}"
-        assert hard_stats["errors"] < hard_stats["success"] * 0.1, \
+        )
+        assert hard_stats["errors"] < hard_stats["success"] * 0.1, (
             f"Hardened server error rate too high: {hard_stats}"
+        )
 
 
 class TestPerformanceSummary:
@@ -308,6 +297,7 @@ class TestPerformanceSummary:
         """
         Establish performance baseline for both servers.
         """
+
         def measure_performance(client, name: str) -> Dict[str, float]:
             # Warm up
             client.call_tool("safe_echo_tool_mcp", {"message": "warmup"})
@@ -324,16 +314,22 @@ class TestPerformanceSummary:
                 "min": min(times),
                 "max": max(times),
                 "avg": sum(times) / len(times),
-                "p95": sorted(times)[int(len(times) * 0.95)]
+                "p95": sorted(times)[int(len(times) * 0.95)],
             }
 
         vuln_perf = measure_performance(vulnerable_client, "vulnerable")
         hard_perf = measure_performance(hardened_client, "hardened")
 
         print("\n=== Performance Baseline ===")
-        print(f"Vulnerable: min={vuln_perf['min']:.3f}s, avg={vuln_perf['avg']:.3f}s, max={vuln_perf['max']:.3f}s")
-        print(f"Hardened:   min={hard_perf['min']:.3f}s, avg={hard_perf['avg']:.3f}s, max={hard_perf['max']:.3f}s")
+        print(
+            f"Vulnerable: min={vuln_perf['min']:.3f}s, avg={vuln_perf['avg']:.3f}s, max={vuln_perf['max']:.3f}s"
+        )
+        print(
+            f"Hardened:   min={hard_perf['min']:.3f}s, avg={hard_perf['avg']:.3f}s, max={hard_perf['max']:.3f}s"
+        )
 
         # Both should have reasonable performance
-        assert vuln_perf['avg'] < 2.0, f"Vulnerable avg too slow: {vuln_perf['avg']:.2f}s"
-        assert hard_perf['avg'] < 2.0, f"Hardened avg too slow: {hard_perf['avg']:.2f}s"
+        assert vuln_perf["avg"] < 2.0, (
+            f"Vulnerable avg too slow: {vuln_perf['avg']:.2f}s"
+        )
+        assert hard_perf["avg"] < 2.0, f"Hardened avg too slow: {hard_perf['avg']:.2f}s"

@@ -29,6 +29,7 @@ INSPECTOR_TIMEOUT_SLOW = int(os.getenv("INSPECTOR_TIMEOUT_SLOW", "300"))
 @dataclass
 class InspectorFinding:
     """Parsed vulnerability finding from Inspector CLI."""
+
     test_name: str
     tool_name: str
     risk_level: str
@@ -42,6 +43,7 @@ class InspectorFinding:
 @dataclass
 class InspectorResult:
     """Parsed Inspector CLI assessment result."""
+
     server_name: str
     overall_status: str
     overall_risk_level: str
@@ -55,7 +57,7 @@ def run_inspector_assessment(
     config_path: str,
     tool_name: Optional[str] = None,
     modules: Optional[List[str]] = None,
-    timeout: int = 120
+    timeout: int = 120,
 ) -> InspectorResult:
     """
     Run MCP Inspector CLI assessment and parse results.
@@ -75,9 +77,14 @@ def run_inspector_assessment(
     """
     # Build command
     cmd = [
-        "npm", "run", "assess", "--",
-        "--server", server_name,
-        "--config", config_path
+        "npm",
+        "run",
+        "assess",
+        "--",
+        "--server",
+        server_name,
+        "--config",
+        config_path,
     ]
     if tool_name:
         cmd.extend(["--tool", tool_name])
@@ -87,11 +94,7 @@ def run_inspector_assessment(
     # Run Inspector CLI
     try:
         result = subprocess.run(
-            cmd,
-            cwd=INSPECTOR_DIR,
-            capture_output=True,
-            text=True,
-            timeout=timeout
+            cmd, cwd=INSPECTOR_DIR, capture_output=True, text=True, timeout=timeout
         )
     except subprocess.TimeoutExpired:
         pytest.skip(f"Inspector CLI timed out after {timeout}s")
@@ -101,7 +104,11 @@ def run_inspector_assessment(
         pytest.skip(f"OS error running Inspector CLI: {e}")
 
     # Check for execution errors (note: exit code 1 is expected for FAIL status)
-    if result.returncode != 0 and "FAIL" not in result.stdout and "PASS" not in result.stdout:
+    if (
+        result.returncode != 0
+        and "FAIL" not in result.stdout
+        and "PASS" not in result.stdout
+    ):
         pytest.skip(f"Inspector CLI failed unexpectedly: {result.stderr[:500]}")
 
     # Parse output file
@@ -138,7 +145,9 @@ def _parse_inspector_output(raw: Dict[str, Any], server_name: str) -> InspectorR
 
     # Parse any other modules
     for module_name, module_data in modules_data.items():
-        if module_name not in ("security", "aupCompliance") and isinstance(module_data, dict):
+        if module_name not in ("security", "aupCompliance") and isinstance(
+            module_data, dict
+        ):
             findings.extend(_parse_module_findings(module_data))
 
     # Extract overall risk level from summary or modules
@@ -150,7 +159,7 @@ def _parse_inspector_output(raw: Dict[str, Any], server_name: str) -> InspectorR
         overall_risk_level=overall_risk,
         findings=findings,
         modules_run=raw.get("modulesRun", []),
-        raw_output=raw
+        raw_output=raw,
     )
 
 
@@ -169,16 +178,20 @@ def _parse_module_findings(module_data: Dict[str, Any]) -> List[InspectorFinding
         if isinstance(cwe_ids, str):
             cwe_ids = [cwe_ids]
 
-        findings.append(InspectorFinding(
-            test_name=finding.get("testName", finding.get("test_name", "")),
-            tool_name=finding.get("toolName", finding.get("tool_name", "")),
-            risk_level=finding.get("riskLevel", finding.get("risk_level", "UNKNOWN")),
-            vulnerable=finding.get("vulnerable", False),
-            cwe_ids=cwe_ids,
-            evidence=finding.get("evidence", ""),
-            description=finding.get("description", ""),
-            raw=finding
-        ))
+        findings.append(
+            InspectorFinding(
+                test_name=finding.get("testName", finding.get("test_name", "")),
+                tool_name=finding.get("toolName", finding.get("tool_name", "")),
+                risk_level=finding.get(
+                    "riskLevel", finding.get("risk_level", "UNKNOWN")
+                ),
+                vulnerable=finding.get("vulnerable", False),
+                cwe_ids=cwe_ids,
+                evidence=finding.get("evidence", ""),
+                description=finding.get("description", ""),
+                raw=finding,
+            )
+        )
 
     # Parse promptInjectionTests (where Session/Crypto CWE data lives in v1.30+)
     for test in module_data.get("promptInjectionTests", []):
@@ -195,18 +208,20 @@ def _parse_module_findings(module_data: Dict[str, Any]) -> List[InspectorFinding
             cwe_ids.extend(test["cryptoCweIds"])
         # Extract from description if not found elsewhere: "...(CWE-384)..."
         if not cwe_ids:
-            cwe_ids = re.findall(r'CWE-\d+', test.get("description", ""))
+            cwe_ids = re.findall(r"CWE-\d+", test.get("description", ""))
 
-        findings.append(InspectorFinding(
-            test_name=test.get("testName", ""),
-            tool_name=test.get("toolName", ""),
-            risk_level=test.get("riskLevel", "HIGH"),
-            vulnerable=True,
-            cwe_ids=cwe_ids,
-            evidence=test.get("evidence", ""),
-            description=test.get("description", ""),
-            raw=test
-        ))
+        findings.append(
+            InspectorFinding(
+                test_name=test.get("testName", ""),
+                tool_name=test.get("toolName", ""),
+                risk_level=test.get("riskLevel", "HIGH"),
+                vulnerable=True,
+                cwe_ids=cwe_ids,
+                evidence=test.get("evidence", ""),
+                description=test.get("description", ""),
+                raw=test,
+            )
+        )
 
     return findings
 
@@ -229,17 +244,13 @@ def _extract_risk_level(raw: Dict[str, Any]) -> str:
 
 
 def extract_findings_for_tool(
-    result: InspectorResult,
-    tool_name: str
+    result: InspectorResult, tool_name: str
 ) -> List[InspectorFinding]:
     """Extract findings specific to a tool from assessment results."""
     return [f for f in result.findings if f.tool_name == tool_name]
 
 
-def has_cwe_detection(
-    findings: List[InspectorFinding],
-    cwe_id: str
-) -> bool:
+def has_cwe_detection(findings: List[InspectorFinding], cwe_id: str) -> bool:
     """
     Check if any finding includes the specified CWE ID.
 
@@ -262,8 +273,9 @@ def has_cwe_detection(
         if cwe_id in finding.description:
             return True
         # Check raw data for sessionCweIds/cryptoCweIds directly
-        raw_cwe = (finding.raw.get("sessionCweIds", []) or []) + \
-                  (finding.raw.get("cryptoCweIds", []) or [])
+        raw_cwe = (finding.raw.get("sessionCweIds", []) or []) + (
+            finding.raw.get("cryptoCweIds", []) or []
+        )
         if cwe_id in raw_cwe:
             return True
         # Check raw finding data as string fallback
@@ -281,7 +293,9 @@ def get_highest_risk_level(findings: List[InspectorFinding]) -> str:
     priority = {"HIGH": 3, "MEDIUM": 2, "LOW": 1, "UNKNOWN": 0}
     highest = "UNKNOWN"
     for finding in findings:
-        if finding.vulnerable and priority.get(finding.risk_level, 0) > priority.get(highest, 0):
+        if finding.vulnerable and priority.get(finding.risk_level, 0) > priority.get(
+            highest, 0
+        ):
             highest = finding.risk_level
     return highest
 
@@ -298,7 +312,7 @@ def check_inspector_available() -> bool:
             ["npm", "run", "assess", "--", "--help"],
             cwd=INSPECTOR_DIR,
             capture_output=True,
-            timeout=30
+            timeout=30,
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):

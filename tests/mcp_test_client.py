@@ -33,7 +33,7 @@ class MCPClient:
                 self.url,
                 headers={
                     "Content-Type": "application/json",
-                    "Accept": "application/json, text/event-stream"
+                    "Accept": "application/json, text/event-stream",
                 },
                 json={
                     "jsonrpc": "2.0",
@@ -41,11 +41,11 @@ class MCPClient:
                     "params": {
                         "protocolVersion": "2024-11-05",
                         "capabilities": {},
-                        "clientInfo": {"name": "pytest", "version": "1.0"}
+                        "clientInfo": {"name": "pytest", "version": "1.0"},
                     },
-                    "id": 1
+                    "id": 1,
                 },
-                timeout=10
+                timeout=10,
             )
             self.session_id = response.headers.get("mcp-session-id")
 
@@ -56,13 +56,10 @@ class MCPClient:
                     headers={
                         "Content-Type": "application/json",
                         "Accept": "application/json, text/event-stream",
-                        "mcp-session-id": self.session_id
+                        "mcp-session-id": self.session_id,
                     },
-                    json={
-                        "jsonrpc": "2.0",
-                        "method": "notifications/initialized"
-                    },
-                    timeout=5
+                    json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+                    timeout=5,
                 )
             return self.session_id is not None
         except Exception as e:
@@ -91,18 +88,15 @@ class MCPClient:
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json, text/event-stream",
-                    "mcp-session-id": self.session_id
+                    "mcp-session-id": self.session_id,
                 },
                 json={
                     "jsonrpc": "2.0",
                     "id": 2,
                     "method": "tools/call",
-                    "params": {
-                        "name": tool_name,
-                        "arguments": arguments
-                    }
+                    "params": {"name": tool_name, "arguments": arguments},
                 },
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
         except requests.RequestException as e:
@@ -144,15 +138,15 @@ class MCPClient:
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json, text/event-stream",
-                    "mcp-session-id": self.session_id
+                    "mcp-session-id": self.session_id,
                 },
                 json={
                     "jsonrpc": "2.0",
                     "id": 3,
                     "method": "resources/read",
-                    "params": {"uri": uri}
+                    "params": {"uri": uri},
                 },
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
         except requests.RequestException as e:
@@ -167,7 +161,10 @@ class MCPClient:
                     return {"error": True, "result": f"Invalid JSON response: {e}"}
                 # Check for JSON-RPC error
                 if "error" in data:
-                    return {"error": True, "result": data["error"].get("message", str(data["error"]))}
+                    return {
+                        "error": True,
+                        "result": data["error"].get("message", str(data["error"])),
+                    }
                 result = data.get("result", {})
                 # Return contents array or full result
                 if "contents" in result:

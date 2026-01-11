@@ -48,6 +48,7 @@ def pytest_configure(config):
 # Shared Test Helpers
 # ============================================================================
 
+
 def check_server_error(result: dict) -> dict:
     """Skip test if result indicates server import bug.
 
@@ -143,6 +144,7 @@ def hardened_client():
 def test_payloads():
     """Load test payloads from JSON file."""
     import json
+
     payloads_file = Path(__file__).parent.parent / "test_payloads.json"
     if not payloads_file.exists():
         pytest.skip(f"Test payloads file not found: {payloads_file}")
@@ -153,6 +155,7 @@ def test_payloads():
 # ============================================================================
 # DVMCP (Damn Vulnerable MCP Server) Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def dvmcp_challenge4_client():
@@ -173,7 +176,7 @@ def dvmcp_challenge4_client():
 
     # First check if DVMCP server is reachable
     try:
-        response = requests.get("http://localhost:9004/", timeout=2)
+        requests.get("http://localhost:9004/", timeout=2)
     except requests.RequestException:
         pytest.skip("DVMCP Challenge 4 not reachable (port 9004)")
 
@@ -183,27 +186,28 @@ def dvmcp_challenge4_client():
 
     try:
         subprocess.run(
-            ["docker", "exec", "dvmcp", "rm", "-f",
-             "/tmp/dvmcp_challenge4/state/state.json"],
+            [
+                "docker",
+                "exec",
+                "dvmcp",
+                "rm",
+                "-f",
+                "/tmp/dvmcp_challenge4/state/state.json",
+            ],
             capture_output=True,
             timeout=5,
-            check=False  # Explicit: don't raise on non-zero exit
+            check=False,  # Explicit: don't raise on non-zero exit
         )
     except FileNotFoundError:
         warnings.warn(
-            "Docker not found in PATH - DVMCP state reset skipped",
-            UserWarning
+            "Docker not found in PATH - DVMCP state reset skipped", UserWarning
         )
     except TimeoutExpired:
         warnings.warn(
-            "Docker exec timed out - DVMCP state may not be reset",
-            UserWarning
+            "Docker exec timed out - DVMCP state may not be reset", UserWarning
         )
     except OSError as e:
-        warnings.warn(
-            f"Failed to reset DVMCP state: {e}",
-            UserWarning
-        )
+        warnings.warn(f"Failed to reset DVMCP state: {e}", UserWarning)
 
     client = DVMCPClient(DVMCP_CHALLENGE_URLS[4])
     if not client.connect():
@@ -263,7 +267,7 @@ def inspector_cli_available():
             ["npm", "run", "assess", "--", "--help"],
             cwd=INSPECTOR_DIR,
             capture_output=True,
-            timeout=30
+            timeout=30,
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
@@ -277,6 +281,7 @@ def inspector_config_file(tmp_path_factory):
     Returns path to a JSON config file suitable for Inspector CLI.
     """
     import json
+
     config_dir = tmp_path_factory.mktemp("inspector_config")
     config_path = config_dir / "vulnerable-mcp-config.json"
     config_path.write_text(json.dumps(VULNERABLE_CONFIG))
@@ -290,6 +295,7 @@ def hardened_inspector_config(tmp_path_factory):
     Returns path to a JSON config file suitable for Inspector CLI.
     """
     import json
+
     config_dir = tmp_path_factory.mktemp("hardened_config")
     config_path = config_dir / "hardened-mcp-config.json"
     config_path.write_text(json.dumps(HARDENED_CONFIG))

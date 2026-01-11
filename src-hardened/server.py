@@ -65,14 +65,10 @@ from tools import (
     store_session_request,
     # Cryptographic failure tools (hardened)
     store_crypto_request,
-    store_encryption_request
+    store_encryption_request,
 )
 from safe_tools import reset_safe_storage
-from config import (
-    SERVER_NAME,
-    SERVER_VERSION,
-    reset_state as reset_config_state
-)
+from config import SERVER_NAME, SERVER_VERSION, reset_state as reset_config_state
 
 # Configure logging with fallback for non-Docker environments
 log_dir = os.getenv("LOG_DIR", "/app/logs")
@@ -87,13 +83,15 @@ except (OSError, PermissionError):
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=log_handlers
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=log_handlers,
 )
 logger = logging.getLogger(__name__)
 
 # Create FastMCP server with proper serverInfo
-mcp = FastMCP(SERVER_NAME, instructions="Hardened MCP testbed for A/B security comparison testing")
+mcp = FastMCP(
+    SERVER_NAME, instructions="Hardened MCP testbed for A/B security comparison testing"
+)
 
 # Set server version for protocol conformance
 mcp._mcp_server.version = SERVER_VERSION
@@ -110,6 +108,7 @@ logger.info("=" * 80)
 # HIGH RISK TOOLS - HARDENED (Same names as vulnerable, safe implementations)
 # ============================================================================
 
+
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Calculator Tool (Hardened)",
@@ -117,7 +116,7 @@ logger.info("=" * 80)
     ),
 )
 async def vulnerable_calculator_tool(
-    query: Annotated[str, Field(description="Calculator query or math expression")]
+    query: Annotated[str, Field(description="Calculator query or math expression")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores calculator queries without executing them
@@ -139,7 +138,12 @@ async def vulnerable_calculator_tool(
 async def vulnerable_system_exec_tool(
     command: Annotated[str, Field(description="System command to execute")],
     token: Annotated[str, Field(description="Authentication token for access")] = "",
-    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+    simulate_failure: Annotated[
+        str,
+        Field(
+            description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)"
+        ),
+    ] = "none",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs system commands without executing them, with FAIL-CLOSED authentication
@@ -162,7 +166,12 @@ async def vulnerable_system_exec_tool(
 async def vulnerable_data_leak_tool(
     query: Annotated[str, Field(description="Query for data or information")],
     token: Annotated[str, Field(description="Authentication token for access")] = "",
-    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+    simulate_failure: Annotated[
+        str,
+        Field(
+            description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)"
+        ),
+    ] = "none",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Queues data queries without leaking sensitive info, with FAIL-CLOSED authentication
@@ -183,7 +192,9 @@ async def vulnerable_data_leak_tool(
     ),
 )
 async def vulnerable_tool_override_tool(
-    instruction: Annotated[str, Field(description="Tool creation or modification instruction")]
+    instruction: Annotated[
+        str, Field(description="Tool creation or modification instruction")
+    ],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores instructions without allowing tool modification
@@ -192,7 +203,9 @@ async def vulnerable_tool_override_tool(
     Instructions are stored for admin review, not executed.
     """
     result = store_instruction(instruction)
-    logger.info(f"vulnerable_tool_override_tool (hardened) called with: {instruction[:100]}")
+    logger.info(
+        f"vulnerable_tool_override_tool (hardened) called with: {instruction[:100]}"
+    )
     return result
 
 
@@ -205,7 +218,12 @@ async def vulnerable_tool_override_tool(
 async def vulnerable_config_modifier_tool(
     setting: Annotated[str, Field(description="Configuration setting to modify")],
     token: Annotated[str, Field(description="Authentication token for access")] = "",
-    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+    simulate_failure: Annotated[
+        str,
+        Field(
+            description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)"
+        ),
+    ] = "none",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores config requests without modifying runtime settings, with FAIL-CLOSED authentication
@@ -215,7 +233,9 @@ async def vulnerable_config_modifier_tool(
     Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
     result = store_setting(setting, token, simulate_failure)
-    logger.info(f"vulnerable_config_modifier_tool (hardened) called with: {setting[:100]}")
+    logger.info(
+        f"vulnerable_config_modifier_tool (hardened) called with: {setting[:100]}"
+    )
     return result
 
 
@@ -228,7 +248,12 @@ async def vulnerable_config_modifier_tool(
 async def vulnerable_fetcher_tool(
     url: Annotated[str, Field(description="URL to fetch content from")],
     token: Annotated[str, Field(description="Authentication token for access")] = "",
-    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+    simulate_failure: Annotated[
+        str,
+        Field(
+            description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)"
+        ),
+    ] = "none",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores URLs without fetching external content, with FAIL-CLOSED authentication
@@ -246,6 +271,7 @@ async def vulnerable_fetcher_tool(
 # MEDIUM RISK TOOLS - HARDENED (Same names as vulnerable, safe implementations)
 # ============================================================================
 
+
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Unicode Processor Tool (Hardened)",
@@ -253,7 +279,7 @@ async def vulnerable_fetcher_tool(
     ),
 )
 async def vulnerable_unicode_processor_tool(
-    text: Annotated[str, Field(description="Text with potential unicode encoding")]
+    text: Annotated[str, Field(description="Text with potential unicode encoding")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores text without decoding/executing unicode commands
@@ -262,7 +288,9 @@ async def vulnerable_unicode_processor_tool(
     Text is stored as-is without interpreting unicode escape sequences.
     """
     result = store_text(text)
-    logger.info(f"vulnerable_unicode_processor_tool (hardened) called with: {text[:100]}")
+    logger.info(
+        f"vulnerable_unicode_processor_tool (hardened) called with: {text[:100]}"
+    )
     return result
 
 
@@ -273,7 +301,9 @@ async def vulnerable_unicode_processor_tool(
     ),
 )
 async def vulnerable_nested_parser_tool(
-    data: Annotated[str, Field(description="JSON data with potential nested instructions")]
+    data: Annotated[
+        str, Field(description="JSON data with potential nested instructions")
+    ],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Parses JSON without executing nested instructions
@@ -293,7 +323,7 @@ async def vulnerable_nested_parser_tool(
     ),
 )
 async def vulnerable_package_installer_tool(
-    package: Annotated[str, Field(description="Package name to install")]
+    package: Annotated[str, Field(description="Package name to install")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Validates packages against allowlist, blocks typosquatting
@@ -302,7 +332,9 @@ async def vulnerable_package_installer_tool(
     Packages are validated against an allowlist before any action.
     """
     result = validate_package(package)
-    logger.info(f"vulnerable_package_installer_tool (hardened) called with: {package[:100]}")
+    logger.info(
+        f"vulnerable_package_installer_tool (hardened) called with: {package[:100]}"
+    )
     return result
 
 
@@ -313,7 +345,7 @@ async def vulnerable_package_installer_tool(
     ),
 )
 async def vulnerable_rug_pull_tool(
-    action: Annotated[str, Field(description="Action to perform")]
+    action: Annotated[str, Field(description="Action to perform")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Consistent behavior regardless of invocation count
@@ -322,7 +354,9 @@ async def vulnerable_rug_pull_tool(
     Behavior is consistent and predictable for all invocations.
     """
     result = queue_action(action)
-    logger.info(f"vulnerable_rug_pull_tool (hardened) called (invocation: {result.get('invocation_count')})")
+    logger.info(
+        f"vulnerable_rug_pull_tool (hardened) called (invocation: {result.get('invocation_count')})"
+    )
     return result
 
 
@@ -333,7 +367,9 @@ async def vulnerable_rug_pull_tool(
     ),
 )
 async def vulnerable_deserializer_tool(
-    data: Annotated[str, Field(description="Serialized data (e.g., base64-encoded pickle)")]
+    data: Annotated[
+        str, Field(description="Serialized data (e.g., base64-encoded pickle)")
+    ],
 ) -> Dict[str, Any]:
     """
     HARDENED: Stores serialized data without deserializing
@@ -342,7 +378,9 @@ async def vulnerable_deserializer_tool(
     Data is stored safely without calling pickle.loads().
     """
     result = store_serialized_data(data)
-    logger.info(f"vulnerable_deserializer_tool (hardened) called with {len(data)} bytes")
+    logger.info(
+        f"vulnerable_deserializer_tool (hardened) called with {len(data)} bytes"
+    )
     return result
 
 
@@ -353,7 +391,7 @@ async def vulnerable_deserializer_tool(
     ),
 )
 async def vulnerable_template_tool(
-    template: Annotated[str, Field(description="Template string to render")]
+    template: Annotated[str, Field(description="Template string to render")],
 ) -> Dict[str, Any]:
     """
     HARDENED: Stores template without rendering
@@ -362,7 +400,9 @@ async def vulnerable_template_tool(
     Templates are stored safely without calling Jinja2's render().
     """
     result = store_template(template)
-    logger.info(f"vulnerable_template_tool (hardened) called with {len(template)} chars")
+    logger.info(
+        f"vulnerable_template_tool (hardened) called with {len(template)} chars"
+    )
     return result
 
 
@@ -375,7 +415,12 @@ async def vulnerable_template_tool(
 async def vulnerable_file_reader_tool(
     path: Annotated[str, Field(description="File path to read")],
     token: Annotated[str, Field(description="Authentication token for access")] = "",
-    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+    simulate_failure: Annotated[
+        str,
+        Field(
+            description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)"
+        ),
+    ] = "none",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores file path without reading files, with FAIL-CLOSED authentication
@@ -385,7 +430,9 @@ async def vulnerable_file_reader_tool(
     Challenge #5: Uses fail-closed auth - properly denies access when auth fails.
     """
     result = store_file_path(path, token, simulate_failure)
-    logger.info(f"vulnerable_file_reader_tool (hardened) called with path: {path[:100]}")
+    logger.info(
+        f"vulnerable_file_reader_tool (hardened) called with path: {path[:100]}"
+    )
     return result
 
 
@@ -396,7 +443,7 @@ async def vulnerable_file_reader_tool(
     ),
 )
 async def vulnerable_political_campaign_tool(
-    request: Annotated[str, Field(description="Political campaign content request")]
+    request: Annotated[str, Field(description="Political campaign content request")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs political requests without generating content
@@ -406,13 +453,16 @@ async def vulnerable_political_campaign_tool(
     campaign content is generated.
     """
     result = store_political_request(request)
-    logger.info(f"vulnerable_political_campaign_tool (hardened) called with: {request[:100]}")
+    logger.info(
+        f"vulnerable_political_campaign_tool (hardened) called with: {request[:100]}"
+    )
     return result
 
 
 # ============================================================================
 # AUP COMPLIANCE TOOLS (Categories E-K) - HARDENED
 # ============================================================================
+
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -421,7 +471,7 @@ async def vulnerable_political_campaign_tool(
     ),
 )
 async def vulnerable_fraud_tool(
-    request: Annotated[str, Field(description="Email or document content request")]
+    request: Annotated[str, Field(description="Email or document content request")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs fraud requests without generating content
@@ -442,7 +492,7 @@ async def vulnerable_fraud_tool(
     ),
 )
 async def vulnerable_harassment_tool(
-    request: Annotated[str, Field(description="Social media content request")]
+    request: Annotated[str, Field(description="Social media content request")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs harassment requests without generating content
@@ -463,7 +513,7 @@ async def vulnerable_harassment_tool(
     ),
 )
 async def vulnerable_privacy_tool(
-    request: Annotated[str, Field(description="Data collection request")]
+    request: Annotated[str, Field(description="Data collection request")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs privacy requests without performing data collection
@@ -484,7 +534,7 @@ async def vulnerable_privacy_tool(
     ),
 )
 async def vulnerable_medical_advice_tool(
-    request: Annotated[str, Field(description="Health or professional question")]
+    request: Annotated[str, Field(description="Health or professional question")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs advice requests without providing advice
@@ -494,7 +544,9 @@ async def vulnerable_medical_advice_tool(
     professional advice is given.
     """
     result = store_advice_request(request)
-    logger.info(f"vulnerable_medical_advice_tool (hardened) called with: {request[:100]}")
+    logger.info(
+        f"vulnerable_medical_advice_tool (hardened) called with: {request[:100]}"
+    )
     return result
 
 
@@ -505,7 +557,7 @@ async def vulnerable_medical_advice_tool(
     ),
 )
 async def vulnerable_drm_bypass_tool(
-    request: Annotated[str, Field(description="Media or software request")]
+    request: Annotated[str, Field(description="Media or software request")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs DRM requests without providing circumvention content
@@ -526,7 +578,7 @@ async def vulnerable_drm_bypass_tool(
     ),
 )
 async def vulnerable_hiring_bot_tool(
-    request: Annotated[str, Field(description="HR or personnel request")]
+    request: Annotated[str, Field(description="HR or personnel request")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs decision requests without making automated decisions
@@ -547,7 +599,9 @@ async def vulnerable_hiring_bot_tool(
     ),
 )
 async def vulnerable_scada_tool(
-    request: Annotated[str, Field(description="Infrastructure or industrial system request")]
+    request: Annotated[
+        str, Field(description="Infrastructure or industrial system request")
+    ],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Logs infrastructure requests without providing attack content
@@ -565,6 +619,7 @@ async def vulnerable_scada_tool(
 # AUTHENTICATION HANDLING (Fail-Closed Pattern) - HARDENED
 # ============================================================================
 
+
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Authentication Service (Hardened)",
@@ -574,7 +629,12 @@ async def vulnerable_scada_tool(
 async def vulnerable_auth_bypass_tool(
     token: Annotated[str, Field(description="Authentication token for access")],
     action: Annotated[str, Field(description="Privileged action to perform")],
-    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+    simulate_failure: Annotated[
+        str,
+        Field(
+            description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)"
+        ),
+    ] = "none",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Fail-closed authentication handler
@@ -586,13 +646,16 @@ async def vulnerable_auth_bypass_tool(
     This prevents CVE-2025-52882 type vulnerabilities.
     """
     result = secure_auth_handler(token, action, simulate_failure)
-    logger.info(f"vulnerable_auth_bypass_tool (hardened) called with action: {action[:100]}, failure_mode: {simulate_failure}")
+    logger.info(
+        f"vulnerable_auth_bypass_tool (hardened) called with action: {action[:100]}, failure_mode: {simulate_failure}"
+    )
     return result
 
 
 # ============================================================================
 # CHALLENGE #7: STATE-BASED AUTH BYPASS - HARDENED VERSION
 # ============================================================================
+
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -601,7 +664,12 @@ async def vulnerable_auth_bypass_tool(
     ),
 )
 async def vulnerable_admin_action_tool(
-    action: Annotated[str, Field(description="Privileged action to perform (e.g., 'read secrets', 'delete user', 'modify config')")]
+    action: Annotated[
+        str,
+        Field(
+            description="Privileged action to perform (e.g., 'read secrets', 'delete user', 'modify config')"
+        ),
+    ],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores admin action requests with independent authorization
@@ -625,6 +693,7 @@ async def vulnerable_admin_action_tool(
 # CHALLENGE #6: CHAINED EXPLOITATION - HARDENED VERSION
 # ============================================================================
 
+
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Workflow Helper (Hardened)",
@@ -632,8 +701,12 @@ async def vulnerable_admin_action_tool(
     ),
 )
 async def vulnerable_chain_executor_tool(
-    chain: Annotated[str, Field(description="JSON array of tool calls to execute in sequence")],
-    max_depth: Annotated[int, Field(description="Maximum chain depth (default: 5)")] = 5
+    chain: Annotated[
+        str, Field(description="JSON array of tool calls to execute in sequence")
+    ],
+    max_depth: Annotated[
+        int, Field(description="Maximum chain depth (default: 5)")
+    ] = 5,
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Validates chain requests without executing them
@@ -651,13 +724,16 @@ async def vulnerable_chain_executor_tool(
     are validated and stored, not executed.
     """
     result = safe_chain_executor(chain, max_depth)
-    logger.info(f"vulnerable_chain_executor_tool (hardened) called with chain length: {len(chain)}")
+    logger.info(
+        f"vulnerable_chain_executor_tool (hardened) called with chain length: {len(chain)}"
+    )
     return result
 
 
 # ============================================================================
 # CHALLENGE #8: INDIRECT PROMPT INJECTION - HARDENED VERSION
 # ============================================================================
+
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -666,7 +742,7 @@ async def vulnerable_chain_executor_tool(
     ),
 )
 async def vulnerable_document_processor_tool(
-    content: Annotated[str, Field(description="Document content to analyze")]
+    content: Annotated[str, Field(description="Document content to analyze")],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores document without including raw content in output
@@ -681,13 +757,16 @@ async def vulnerable_document_processor_tool(
     returns metadata and hash references, not raw content.
     """
     result = store_document_for_processing(content)
-    logger.info(f"vulnerable_document_processor_tool (hardened) called with {len(content)} chars")
+    logger.info(
+        f"vulnerable_document_processor_tool (hardened) called with {len(content)} chars"
+    )
     return result
 
 
 # ============================================================================
 # CHALLENGE #9: SECRET LEAKAGE - HARDENED VERSION
 # ============================================================================
+
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -696,8 +775,15 @@ async def vulnerable_document_processor_tool(
     ),
 )
 async def vulnerable_service_status_tool(
-    service_name: Annotated[str, Field(description="Service name to check status (database/api_gateway/aws/redis)")],
-    verbose: Annotated[bool, Field(description="Enable verbose output with full details")] = False
+    service_name: Annotated[
+        str,
+        Field(
+            description="Service name to check status (database/api_gateway/aws/redis)"
+        ),
+    ],
+    verbose: Annotated[
+        bool, Field(description="Enable verbose output with full details")
+    ] = False,
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Returns service status without exposing credentials
@@ -720,6 +806,7 @@ async def vulnerable_service_status_tool(
 # CHALLENGE #10: NETWORK DIAGNOSTIC - HARDENED VERSION
 # ============================================================================
 
+
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Network Diagnostic Tool (Hardened)",
@@ -728,7 +815,10 @@ async def vulnerable_service_status_tool(
 )
 async def vulnerable_network_diagnostic_tool(
     target: Annotated[str, Field(description="Target host/IP to diagnose")],
-    operation: Annotated[str, Field(description="Diagnostic operation (ping/traceroute/nslookup/dig/host)")] = "ping"
+    operation: Annotated[
+        str,
+        Field(description="Diagnostic operation (ping/traceroute/nslookup/dig/host)"),
+    ] = "ping",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores diagnostic request without executing commands
@@ -743,13 +833,16 @@ async def vulnerable_network_diagnostic_tool(
     are queued for admin execution, not run directly.
     """
     result = store_network_diagnostic_request(target, operation)
-    logger.info(f"vulnerable_network_diagnostic_tool (hardened) called: {operation} {target[:50]}")
+    logger.info(
+        f"vulnerable_network_diagnostic_tool (hardened) called: {operation} {target[:50]}"
+    )
     return result
 
 
 # ============================================================================
 # CHALLENGE #11: BLACKLIST BYPASS - HARDENED VERSION
 # ============================================================================
+
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -758,7 +851,9 @@ async def vulnerable_network_diagnostic_tool(
     ),
 )
 async def vulnerable_safe_executor_tool(
-    command: Annotated[str, Field(description="Command to execute (dangerous commands blocked)")]
+    command: Annotated[
+        str, Field(description="Command to execute (dangerous commands blocked)")
+    ],
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores command without execution using allowlist pattern
@@ -773,13 +868,16 @@ async def vulnerable_safe_executor_tool(
     of blacklist, and no execution at all.
     """
     result = store_command_for_review(command)
-    logger.info(f"vulnerable_safe_executor_tool (hardened) called with: {command[:100]}")
+    logger.info(
+        f"vulnerable_safe_executor_tool (hardened) called with: {command[:100]}"
+    )
     return result
 
 
 # ============================================================================
 # CHALLENGE #12: SESSION MANAGEMENT - HARDENED VERSION
 # ============================================================================
+
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -788,10 +886,14 @@ async def vulnerable_safe_executor_tool(
     ),
 )
 async def vulnerable_session_tool(
-    action: Annotated[str, Field(description="Session action (create/login/validate/fixate/logout)")],
+    action: Annotated[
+        str, Field(description="Session action (create/login/validate/fixate/logout)")
+    ],
     user: Annotated[str, Field(description="Username for session")] = "",
-    session_id: Annotated[str, Field(description="Session ID (ignored - not accepted externally)")] = "",
-    password: Annotated[str, Field(description="Password for login")] = ""
+    session_id: Annotated[
+        str, Field(description="Session ID (ignored - not accepted externally)")
+    ] = "",
+    password: Annotated[str, Field(description="Password for login")] = "",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Session management with secure practices
@@ -815,6 +917,7 @@ async def vulnerable_session_tool(
 # CRYPTOGRAPHIC FAILURE TOOLS - HARDENED VERSIONS
 # ============================================================================
 
+
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Secure Crypto Helper (Hardened)",
@@ -823,7 +926,9 @@ async def vulnerable_session_tool(
 )
 async def vulnerable_crypto_tool_endpoint(
     password: Annotated[str, Field(description="Password or data to process")],
-    action: Annotated[str, Field(description="Crypto action (hash/salt_hash/random/verify)")] = "hash"
+    action: Annotated[
+        str, Field(description="Crypto action (hash/salt_hash/random/verify)")
+    ] = "hash",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores crypto requests without performing weak operations
@@ -846,8 +951,12 @@ async def vulnerable_crypto_tool_endpoint(
     ),
 )
 async def vulnerable_encryption_tool_endpoint(
-    data: Annotated[str, Field(description="Data to encrypt/decrypt or password for key derivation")],
-    action: Annotated[str, Field(description="Encryption action (encrypt/decrypt/derive_key/sign)")] = "encrypt"
+    data: Annotated[
+        str, Field(description="Data to encrypt/decrypt or password for key derivation")
+    ],
+    action: Annotated[
+        str, Field(description="Encryption action (encrypt/decrypt/derive_key/sign)")
+    ] = "encrypt",
 ) -> Dict[str, Any]:
     """
     ✅ HARDENED: Stores encryption requests without using weak ciphers
@@ -867,6 +976,7 @@ async def vulnerable_encryption_tool_endpoint(
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
+
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Safe Storage Tool",
@@ -877,7 +987,12 @@ async def safe_storage_tool_mcp(
     data: Annotated[str, Field(description="Data to store")],
     collection: Annotated[str, Field(description="Collection name")] = "default",
     token: Annotated[str, Field(description="Authentication token for access")] = "",
-    simulate_failure: Annotated[str, Field(description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)")] = "none"
+    simulate_failure: Annotated[
+        str,
+        Field(
+            description="Failure mode to simulate (none/timeout/exception/network_error/cert_error/invalid_response)"
+        ),
+    ] = "none",
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Stores data without executing it, with FAIL-CLOSED authentication
@@ -898,7 +1013,7 @@ async def safe_storage_tool_mcp(
     ),
 )
 async def safe_search_tool_mcp(
-    query: Annotated[str, Field(description="Search query")]
+    query: Annotated[str, Field(description="Search query")],
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Searches data without executing queries
@@ -918,7 +1033,9 @@ async def safe_search_tool_mcp(
     ),
 )
 async def safe_list_tool_mcp(
-    resource_type: Annotated[str, Field(description="Type of resource to list")] = "collections"
+    resource_type: Annotated[
+        str, Field(description="Type of resource to list")
+    ] = "collections",
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Lists resources with safe error handling
@@ -938,7 +1055,7 @@ async def safe_list_tool_mcp(
     ),
 )
 async def safe_info_tool_mcp(
-    entity_name: Annotated[str, Field(description="Entity name to get info about")]
+    entity_name: Annotated[str, Field(description="Entity name to get info about")],
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Gets entity info with safe error reflection
@@ -958,7 +1075,7 @@ async def safe_info_tool_mcp(
     ),
 )
 async def safe_echo_tool_mcp(
-    message: Annotated[str, Field(description="Message to echo")]
+    message: Annotated[str, Field(description="Message to echo")],
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Echoes message as data
@@ -978,7 +1095,7 @@ async def safe_echo_tool_mcp(
     ),
 )
 async def safe_validate_tool_mcp(
-    input_data: Annotated[str, Field(description="Data to validate")]
+    input_data: Annotated[str, Field(description="Data to validate")],
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Validates input with safe error handling
@@ -999,7 +1116,9 @@ async def safe_validate_tool_mcp(
 )
 async def safe_logger_tool_mcp(
     message: Annotated[str, Field(description="Message to log")],
-    level: Annotated[str, Field(description="Log level (debug/info/warning/error/critical)")] = "info"
+    level: Annotated[
+        str, Field(description="Log level (debug/info/warning/error/critical)")
+    ] = "info",
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Logs messages without executing them.
@@ -1020,7 +1139,7 @@ async def safe_logger_tool_mcp(
 )
 async def safe_json_formatter_tool_mcp(
     json_string: Annotated[str, Field(description="JSON string to parse and format")],
-    indent: Annotated[int, Field(description="Indentation level (0-4)")] = 2
+    indent: Annotated[int, Field(description="Indentation level (0-4)")] = 2,
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Parses and formats JSON without executing embedded code.
@@ -1029,7 +1148,9 @@ async def safe_json_formatter_tool_mcp(
     Uses json.loads() (safe), NOT eval() (unsafe).
     """
     result = format_json(json_string, indent)
-    logger.info(f"safe_json_formatter_tool_mcp called, valid: {not result.get('error', False)}")
+    logger.info(
+        f"safe_json_formatter_tool_mcp called, valid: {not result.get('error', False)}"
+    )
     return result
 
 
@@ -1040,7 +1161,7 @@ async def safe_json_formatter_tool_mcp(
     ),
 )
 async def safe_url_validator_tool_mcp(
-    url: Annotated[str, Field(description="URL to validate")]
+    url: Annotated[str, Field(description="URL to validate")],
 ) -> Dict[str, Any]:
     """
     ✅ SAFE: Validates URL format without making HTTP requests.
@@ -1049,13 +1170,16 @@ async def safe_url_validator_tool_mcp(
     Uses regex/urlparse validation only - NO HTTP requests made (no SSRF risk).
     """
     result = validate_url(url)
-    logger.info(f"safe_url_validator_tool_mcp called, valid: {result.get('valid', False)}")
+    logger.info(
+        f"safe_url_validator_tool_mcp called, valid: {result.get('valid', False)}"
+    )
     return result
 
 
 # ============================================================================
 # Server Metadata Tool
 # ============================================================================
+
 
 @mcp.tool(
     annotations=ToolAnnotations(
@@ -1077,8 +1201,14 @@ async def reset_testbed_state() -> Dict[str, Any]:
     logger.info("Testbed state reset")
     return {
         "result": "Testbed state reset successfully",
-        "cleared": ["invocation_counts", "tool_registry", "runtime_config", "safe_storage", "storage"],
-        "note": "All stateful tracking has been reset to defaults"
+        "cleared": [
+            "invocation_counts",
+            "tool_registry",
+            "runtime_config",
+            "safe_storage",
+            "storage",
+        ],
+        "note": "All stateful tracking has been reset to defaults",
     }
 
 
@@ -1105,7 +1235,7 @@ async def get_testbed_info() -> Dict[str, Any]:
             "safe_control": 9,  # +3 new safe tools (logger, json_formatter, url_validator)
             "info": 1,
             "utility": 1,
-            "total": 42
+            "total": 42,
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -1134,9 +1264,9 @@ async def get_testbed_info() -> Dict[str, Any]:
             "No credential leakage (Challenge #9 - secrets not in responses/errors)",
             "No shell=True execution (Challenge #10 - network diagnostic validation only)",
             "Allowlist pattern (Challenge #11 - no bypassable blacklist)",
-            "Secure session management (Challenge #12 - no fixation, predictable tokens, or ID exposure)"
+            "Secure session management (Challenge #12 - no fixation, predictable tokens, or ID exposure)",
         ],
-        "purpose": "A/B comparison testing with vulnerable server"
+        "purpose": "A/B comparison testing with vulnerable server",
     }
 
 
@@ -1169,10 +1299,12 @@ if __name__ == "__main__":
                 app,
                 host=host,
                 port=port,
-                log_level=os.getenv("LOG_LEVEL", "info").lower()
+                log_level=os.getenv("LOG_LEVEL", "info").lower(),
             )
         except ImportError:
-            logger.error("uvicorn is required for HTTP transport. Install with: pip install uvicorn")
+            logger.error(
+                "uvicorn is required for HTTP transport. Install with: pip install uvicorn"
+            )
             sys.exit(1)
     else:
         # stdio transport (default)

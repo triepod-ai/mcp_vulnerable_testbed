@@ -6,7 +6,6 @@ Ensures consistent response structure for reliable parsing.
 """
 
 import pytest
-import json
 from jsonschema import validate, ValidationError
 from pathlib import Path
 import sys
@@ -14,7 +13,11 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from response_factory import create_response, create_vulnerable_response, create_safe_response
+from response_factory import (
+    create_response,
+    create_vulnerable_response,
+    create_safe_response,
+)
 
 
 # JSON Schemas for response validation
@@ -26,7 +29,7 @@ VULNERABLE_RESPONSE_SCHEMA = {
         "vulnerable": {"type": "boolean", "const": True},
         "evidence": {"type": "string"},
     },
-    "additionalProperties": True
+    "additionalProperties": True,
 }
 
 SAFE_RESPONSE_SCHEMA = {
@@ -38,7 +41,7 @@ SAFE_RESPONSE_SCHEMA = {
         "vulnerable": {"type": "boolean", "const": False},
         "note": {"type": "string"},
     },
-    "additionalProperties": True
+    "additionalProperties": True,
 }
 
 NEUTRAL_RESPONSE_SCHEMA = {
@@ -48,7 +51,7 @@ NEUTRAL_RESPONSE_SCHEMA = {
         "result": {"type": "string"},
         "vulnerable": {"type": "boolean"},
     },
-    "additionalProperties": True
+    "additionalProperties": True,
 }
 
 
@@ -58,8 +61,7 @@ class TestResponseFactory:
     def test_create_vulnerable_response(self):
         """Vulnerable response has required fields."""
         response = create_vulnerable_response(
-            "Executed: 2+2 = 4",
-            "eval() executed user input"
+            "Executed: 2+2 = 4", "eval() executed user input"
         )
         validate(response, VULNERABLE_RESPONSE_SCHEMA)
         assert response["vulnerable"] is True
@@ -68,8 +70,7 @@ class TestResponseFactory:
     def test_create_safe_response(self):
         """Safe response has required fields."""
         response = create_safe_response(
-            "Data stored successfully",
-            "Input treated as data only"
+            "Data stored successfully", "Input treated as data only"
         )
         validate(response, SAFE_RESPONSE_SCHEMA)
         assert response["safe"] is True
@@ -82,7 +83,7 @@ class TestResponseFactory:
             vulnerable=True,
             evidence="SSRF detected",
             status_code=200,
-            content_length=1234
+            content_length=1234,
         )
         assert response["status_code"] == 200
         assert response["content_length"] == 1234
@@ -96,8 +97,7 @@ class TestResponseFactory:
     def test_vulnerable_response_requires_evidence(self):
         """Vulnerable response should include evidence."""
         response = create_vulnerable_response(
-            "Command executed",
-            "subprocess.run() called"
+            "Command executed", "subprocess.run() called"
         )
         assert "evidence" in response
         assert len(response["evidence"]) > 0
@@ -114,7 +114,7 @@ class TestSchemaValidation:
             "vulnerable": True,
             "evidence": "eval() executed mathematical expression",
             "expression": "15 + 37",
-            "computed_value": 52
+            "computed_value": 52,
         }
         validate(response, VULNERABLE_RESPONSE_SCHEMA)
 
@@ -127,7 +127,7 @@ class TestSchemaValidation:
             "total_items": 1,
             "safe": True,
             "vulnerable": False,
-            "note": "Data stored safely without execution"
+            "note": "Data stored safely without execution",
         }
         validate(response, SAFE_RESPONSE_SCHEMA)
 
@@ -139,7 +139,7 @@ class TestSchemaValidation:
             "evidence": "SSRF: Accessed internal network address",
             "status_code": 200,
             "content_length": 1024,
-            "content": "<!DOCTYPE html>..."
+            "content": "<!DOCTYPE html>...",
         }
         validate(response, VULNERABLE_RESPONSE_SCHEMA)
 
@@ -149,7 +149,7 @@ class TestSchemaValidation:
         response_safe = {
             "result": "Action completed safely",
             "vulnerable": False,
-            "invocation_count": 5
+            "invocation_count": 5,
         }
         validate(response_safe, NEUTRAL_RESPONSE_SCHEMA)
 
@@ -158,7 +158,7 @@ class TestSchemaValidation:
             "result": "Rug pull activated!",
             "vulnerable": True,
             "evidence": "Behavior changed after 10+ invocations",
-            "invocation_count": 11
+            "invocation_count": 11,
         }
         validate(response_malicious, VULNERABLE_RESPONSE_SCHEMA)
 
@@ -176,7 +176,7 @@ class TestInvalidResponses:
         """Vulnerable field must be boolean."""
         invalid_response = {
             "result": "test",
-            "vulnerable": "yes"  # Should be boolean
+            "vulnerable": "yes",  # Should be boolean
         }
         with pytest.raises(ValidationError):
             validate(invalid_response, VULNERABLE_RESPONSE_SCHEMA)

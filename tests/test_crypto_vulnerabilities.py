@@ -12,7 +12,6 @@ Usage:
     pytest tests/test_crypto_vulnerabilities.py -v --tb=short
 """
 
-import pytest
 import json
 from typing import Dict, Any
 
@@ -30,8 +29,7 @@ class TestCryptoVulnerabilities:
     def test_md5_hashing(self, vulnerable_client):
         """Test that crypto tool uses MD5 for password hashing (CWE-328)."""
         result = vulnerable_client.call_tool(
-            "vulnerable_crypto_tool_endpoint",
-            {"password": "test123", "action": "hash"}
+            "vulnerable_crypto_tool_endpoint", {"password": "test123", "action": "hash"}
         )
         assert result.get("vulnerable") is True
         assert result.get("algorithm") == "MD5"
@@ -43,7 +41,7 @@ class TestCryptoVulnerabilities:
         """Test that crypto tool uses static salt (CWE-916)."""
         result = vulnerable_client.call_tool(
             "vulnerable_crypto_tool_endpoint",
-            {"password": "mypassword", "action": "salt_hash"}
+            {"password": "mypassword", "action": "salt_hash"},
         )
         assert result.get("vulnerable") is True
         assert result.get("algorithm") == "SHA1"
@@ -54,8 +52,7 @@ class TestCryptoVulnerabilities:
     def test_predictable_rng(self, vulnerable_client):
         """Test that crypto tool uses predictable RNG (CWE-330)."""
         result = vulnerable_client.call_tool(
-            "vulnerable_crypto_tool_endpoint",
-            {"password": "seed", "action": "random"}
+            "vulnerable_crypto_tool_endpoint", {"password": "seed", "action": "random"}
         )
         assert result.get("vulnerable") is True
         assert result.get("rng_type") == "random.random()"
@@ -65,8 +62,7 @@ class TestCryptoVulnerabilities:
     def test_timing_attack_vulnerability(self, vulnerable_client):
         """Test that crypto tool uses non-constant-time comparison (CWE-208)."""
         result = vulnerable_client.call_tool(
-            "vulnerable_crypto_tool_endpoint",
-            {"password": "test", "action": "verify"}
+            "vulnerable_crypto_tool_endpoint", {"password": "test", "action": "verify"}
         )
         assert result.get("vulnerable") is True
         assert result.get("timing_safe") is False
@@ -80,7 +76,7 @@ class TestEncryptionVulnerabilities:
         """Test that encryption tool uses AES-ECB mode (CWE-327)."""
         result = vulnerable_client.call_tool(
             "vulnerable_encryption_tool_endpoint",
-            {"data": "AAAAAAAAAAAAAAAA", "action": "encrypt"}
+            {"data": "AAAAAAAAAAAAAAAA", "action": "encrypt"},
         )
         assert result.get("vulnerable") is True
         assert result.get("mode") in ["ECB", "stream"]  # ECB or XOR fallback
@@ -91,7 +87,7 @@ class TestEncryptionVulnerabilities:
         """Test that encryption tool uses hardcoded key (CWE-321)."""
         result = vulnerable_client.call_tool(
             "vulnerable_encryption_tool_endpoint",
-            {"data": "secret message", "action": "encrypt"}
+            {"data": "secret message", "action": "encrypt"},
         )
         assert result.get("vulnerable") is True
         assert result.get("key_source") == "hardcoded"
@@ -103,7 +99,7 @@ class TestEncryptionVulnerabilities:
         """Test that encryption tool uses MD5 for key derivation (CWE-916)."""
         result = vulnerable_client.call_tool(
             "vulnerable_encryption_tool_endpoint",
-            {"data": "mypassword", "action": "derive_key"}
+            {"data": "mypassword", "action": "derive_key"},
         )
         assert result.get("vulnerable") is True
         assert result.get("derivation_function") == "MD5"
@@ -115,7 +111,7 @@ class TestEncryptionVulnerabilities:
         """Test that encryption tool uses weak HMAC key (CWE-326)."""
         result = vulnerable_client.call_tool(
             "vulnerable_encryption_tool_endpoint",
-            {"data": "data to sign", "action": "sign"}
+            {"data": "data to sign", "action": "sign"},
         )
         assert result.get("vulnerable") is True
         assert result.get("key_length") == 3  # 3-byte key "key"
@@ -127,14 +123,14 @@ class TestEncryptionVulnerabilities:
         # Encrypt
         encrypt_result = vulnerable_client.call_tool(
             "vulnerable_encryption_tool_endpoint",
-            {"data": "Hello World", "action": "encrypt"}
+            {"data": "Hello World", "action": "encrypt"},
         )
         assert encrypt_result.get("ciphertext") is not None
 
         # Decrypt
         decrypt_result = vulnerable_client.call_tool(
             "vulnerable_encryption_tool_endpoint",
-            {"data": encrypt_result["ciphertext"], "action": "decrypt"}
+            {"data": encrypt_result["ciphertext"], "action": "decrypt"},
         )
         assert decrypt_result.get("vulnerable") is True
         assert "Hello World" in str(decrypt_result.get("plaintext", ""))
@@ -146,21 +142,24 @@ class TestHardenedCryptoTools:
     def test_hardened_crypto_no_execution(self, hardened_client):
         """Test hardened crypto tool stores request without executing."""
         result = hardened_client.call_tool(
-            "vulnerable_crypto_tool_endpoint",
-            {"password": "test123", "action": "hash"}
+            "vulnerable_crypto_tool_endpoint", {"password": "test123", "action": "hash"}
         )
         assert result.get("safe") is True
         assert result.get("vulnerable") is False or result.get("vulnerable") is None
         # Should NOT contain actual MD5 hash
         assert result.get("hash") is None
         # Should contain recommendation
-        assert "bcrypt" in str(result).lower() or "scrypt" in str(result).lower() or "argon2" in str(result).lower()
+        assert (
+            "bcrypt" in str(result).lower()
+            or "scrypt" in str(result).lower()
+            or "argon2" in str(result).lower()
+        )
 
     def test_hardened_encryption_no_execution(self, hardened_client):
         """Test hardened encryption tool stores request without encrypting."""
         result = hardened_client.call_tool(
             "vulnerable_encryption_tool_endpoint",
-            {"data": "secret data", "action": "encrypt"}
+            {"data": "secret data", "action": "encrypt"},
         )
         assert result.get("safe") is True
         assert result.get("vulnerable") is False or result.get("vulnerable") is None
@@ -184,10 +183,14 @@ class TestCryptoOWASPCompliance:
         for action, expected_cwe in actions:
             result = vulnerable_client.call_tool(
                 "vulnerable_crypto_tool_endpoint",
-                {"password": "test", "action": action}
+                {"password": "test", "action": action},
             )
-            assert result.get("vulnerable") is True, f"Action {action} should be vulnerable"
-            assert expected_cwe in str(result.get("cwe_ids", [])), f"Action {action} should have {expected_cwe}"
+            assert result.get("vulnerable") is True, (
+                f"Action {action} should be vulnerable"
+            )
+            assert expected_cwe in str(result.get("cwe_ids", [])), (
+                f"Action {action} should have {expected_cwe}"
+            )
 
     def test_encryption_owasp_coverage(self, vulnerable_client):
         """Verify encryption patterns are covered."""
@@ -199,23 +202,25 @@ class TestCryptoOWASPCompliance:
         for action, expected_cwe in actions:
             result = vulnerable_client.call_tool(
                 "vulnerable_encryption_tool_endpoint",
-                {"data": "test", "action": action}
+                {"data": "test", "action": action},
             )
-            assert result.get("vulnerable") is True, f"Action {action} should be vulnerable"
-            assert expected_cwe in str(result.get("cwe_ids", [])), f"Action {action} should have {expected_cwe}"
+            assert result.get("vulnerable") is True, (
+                f"Action {action} should be vulnerable"
+            )
+            assert expected_cwe in str(result.get("cwe_ids", [])), (
+                f"Action {action} should have {expected_cwe}"
+            )
 
     def test_all_tools_report_owasp_reference(self, vulnerable_client):
         """Verify all crypto tools reference OWASP A02:2021."""
         # Crypto tool
         result = vulnerable_client.call_tool(
-            "vulnerable_crypto_tool_endpoint",
-            {"password": "test", "action": "hash"}
+            "vulnerable_crypto_tool_endpoint", {"password": "test", "action": "hash"}
         )
         assert "A02:2021" in str(result.get("owasp", ""))
 
         # Encryption tool
         result = vulnerable_client.call_tool(
-            "vulnerable_encryption_tool_endpoint",
-            {"data": "test", "action": "encrypt"}
+            "vulnerable_encryption_tool_endpoint", {"data": "test", "action": "encrypt"}
         )
         assert "A02:2021" in str(result.get("owasp", ""))

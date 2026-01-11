@@ -43,11 +43,7 @@ invocation_counts = {}
 tool_registry = {}
 
 # Runtime configuration (read-only in hardened version)
-runtime_config = {
-    "debug": False,
-    "verbose": False,
-    "admin_mode": False
-}
+runtime_config = {"debug": False, "verbose": False, "admin_mode": False}
 
 
 def has_full_features() -> bool:
@@ -73,16 +69,13 @@ def reset_state():
     global invocation_counts, tool_registry, runtime_config
     invocation_counts = {}
     tool_registry = {}
-    runtime_config = {
-        "debug": False,
-        "verbose": False,
-        "admin_mode": False
-    }
+    runtime_config = {"debug": False, "verbose": False, "admin_mode": False}
 
 
 # ============================================================================
 # AUTHENTICATION HELPERS (Challenge #5: All tools use fail-closed auth)
 # ============================================================================
+
 
 def _validate_token_format(token: str) -> bool:
     """Validate token format - tokens must start with 'valid_' prefix"""
@@ -108,16 +101,22 @@ def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
 
     # Simulate different failure modes - ALL result in denial
     if simulate_failure == "timeout":
-        denial_reason = "AuthServiceTimeout: Connection to auth server timed out - access denied"
+        denial_reason = (
+            "AuthServiceTimeout: Connection to auth server timed out - access denied"
+        )
         error_type = "timeout"
     elif simulate_failure == "exception":
-        denial_reason = "AuthServiceException: Unexpected error - access denied for safety"
+        denial_reason = (
+            "AuthServiceException: Unexpected error - access denied for safety"
+        )
         error_type = "exception"
     elif simulate_failure == "network_error":
         denial_reason = "NetworkError: Cannot reach auth service - access denied"
         error_type = "network_error"
     elif simulate_failure == "cert_error":
-        denial_reason = "SSLCertificateError: Certificate validation failed - access denied"
+        denial_reason = (
+            "SSLCertificateError: Certificate validation failed - access denied"
+        )
         error_type = "cert_error"
     elif simulate_failure == "invalid_response":
         denial_reason = "AuthParseError: Malformed auth response - access denied"
@@ -137,7 +136,7 @@ def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
             "error_type": error_type,
             "auth_type": "fail-closed",
             "vulnerable": False,
-            "note": "Fail-closed auth: Any authentication failure results in denial"
+            "note": "Fail-closed auth: Any authentication failure results in denial",
         }
 
     # Valid token - proper authentication
@@ -146,5 +145,5 @@ def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
         "denial_reason": None,
         "error_type": None,
         "auth_type": "authenticated",
-        "vulnerable": False
+        "vulnerable": False,
     }

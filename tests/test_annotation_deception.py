@@ -44,24 +44,23 @@ class TestAnnotationDeception:
         A security tool trusting the annotation would miss this vulnerability.
         """
         result = vulnerable_client.call_tool(
-            "vulnerable_calculator_tool",
-            {"query": "7 * 7"}
+            "vulnerable_calculator_tool", {"query": "7 * 7"}
         )
         # Tool ACTUALLY EXECUTED the expression (readOnly is a lie)
-        assert "49" in str(result.get("result", "")), \
+        assert "49" in str(result.get("result", "")), (
             "Calculator should execute expressions despite readOnlyHint=True"
-        assert result.get("vulnerable") is True, \
-            "Should be marked as vulnerable"
+        )
+        assert result.get("vulnerable") is True, "Should be marked as vulnerable"
 
     def test_calculator_executes_complex_math(self, vulnerable_client):
         """Calculator executes complex expressions despite 'read-only' claim."""
         result = vulnerable_client.call_tool(
-            "vulnerable_calculator_tool",
-            {"query": "15 * 37 + 100"}
+            "vulnerable_calculator_tool", {"query": "15 * 37 + 100"}
         )
         # 15 * 37 + 100 = 655
-        assert "655" in str(result.get("result", "")), \
+        assert "655" in str(result.get("result", "")), (
             "Calculator should compute complex expressions"
+        )
 
     def test_system_exec_claims_readonly_but_executes(self, vulnerable_client):
         """
@@ -73,27 +72,28 @@ class TestAnnotationDeception:
         A security tool trusting the annotation would miss this critical vulnerability.
         """
         result = vulnerable_client.call_tool(
-            "vulnerable_system_exec_tool",
-            {"command": "pwd"}
+            "vulnerable_system_exec_tool", {"command": "pwd"}
         )
         # Tool ACTUALLY EXECUTED the command (readOnly is a lie)
-        assert result.get("vulnerable") is True, \
+        assert result.get("vulnerable") is True, (
             "System exec should be marked as vulnerable"
+        )
         # Should show evidence of command execution
         result_str = str(result.get("result", ""))
-        assert "/app" in result_str or "Command executed" in result_str, \
+        assert "/app" in result_str or "Command executed" in result_str, (
             "Should show evidence of command execution despite readOnlyHint=True"
+        )
 
     def test_system_exec_returns_real_output(self, vulnerable_client):
         """System exec returns actual command output despite 'read-only' claim."""
         result = vulnerable_client.call_tool(
-            "vulnerable_system_exec_tool",
-            {"command": "whoami"}
+            "vulnerable_system_exec_tool", {"command": "whoami"}
         )
         result_str = str(result.get("result", ""))
         # Should return actual user (root in container)
-        assert "root" in result_str or "Command executed" in result_str, \
+        assert "root" in result_str or "Command executed" in result_str, (
             "Should execute whoami and return result"
+        )
 
     def test_data_leak_claims_readonly_but_exposes(self, vulnerable_client):
         """
@@ -105,18 +105,19 @@ class TestAnnotationDeception:
         A security tool trusting the annotation would miss data exfiltration risk.
         """
         result = vulnerable_client.call_tool(
-            "vulnerable_data_leak_tool",
-            {"query": "show API keys"}
+            "vulnerable_data_leak_tool", {"query": "show API keys"}
         )
         # Tool ACTUALLY LEAKED secrets (readOnly doesn't mean safe)
-        assert result.get("vulnerable") is True, \
+        assert result.get("vulnerable") is True, (
             "Data leak tool should be marked as vulnerable"
+        )
 
         result_str = str(result.get("result", "")).lower()
         # Should contain sensitive data indicators
-        assert any(indicator in result_str for indicator in [
-            "api_key", "secret", "credential", "sk-test", "database"
-        ]), "Should expose sensitive data despite readOnlyHint=True"
+        assert any(
+            indicator in result_str
+            for indicator in ["api_key", "secret", "credential", "sk-test", "database"]
+        ), "Should expose sensitive data despite readOnlyHint=True"
 
     def test_config_modifier_claims_readonly_but_modifies(self, vulnerable_client):
         """
@@ -128,20 +129,23 @@ class TestAnnotationDeception:
         The 'viewer' name and readOnlyHint are deliberate deceptions.
         """
         result = vulnerable_client.call_tool(
-            "vulnerable_config_modifier_tool",
-            {"setting": "enable admin_mode"}
+            "vulnerable_config_modifier_tool", {"setting": "enable admin_mode"}
         )
         # Tool ACTUALLY MODIFIED configuration (readOnly is a lie)
-        assert result.get("vulnerable") is True, \
+        assert result.get("vulnerable") is True, (
             "Config modifier should be marked as vulnerable"
+        )
 
         result_str = str(result.get("result", ""))
-        assert any(indicator in result_str for indicator in [
-            "Admin mode activated",
-            "Configuration updated",
-            "admin_mode",
-            "modified"
-        ]), "Should modify config despite readOnlyHint=True"
+        assert any(
+            indicator in result_str
+            for indicator in [
+                "Admin mode activated",
+                "Configuration updated",
+                "admin_mode",
+                "modified",
+            ]
+        ), "Should modify config despite readOnlyHint=True"
 
     def test_fetcher_claims_closed_world_but_fetches(self, vulnerable_client):
         """
@@ -153,21 +157,22 @@ class TestAnnotationDeception:
         openWorldHint=False suggests no external network access, but this is a lie.
         """
         result = vulnerable_client.call_tool(
-            "vulnerable_fetcher_tool",
-            {"url": "http://127.0.0.1:10900"}
+            "vulnerable_fetcher_tool", {"url": "http://127.0.0.1:10900"}
         )
         # Tool ATTEMPTED network access (openWorldHint=False is a lie)
-        assert result.get("vulnerable") is True, \
+        assert result.get("vulnerable") is True, (
             "Fetcher tool should be marked as vulnerable"
+        )
 
         result_str = str(result.get("result", "")).lower()
         evidence_str = str(result.get("evidence", "")).lower()
         combined = result_str + evidence_str
 
         # Should show evidence of SSRF attempt
-        assert any(indicator in combined for indicator in [
-            "ssrf", "fetch", "internal", "request", "url"
-        ]), "Should attempt network access despite openWorldHint=False"
+        assert any(
+            indicator in combined
+            for indicator in ["ssrf", "fetch", "internal", "request", "url"]
+        ), "Should attempt network access despite openWorldHint=False"
 
 
 class TestAnnotationVsBehaviorMismatch:
@@ -178,39 +183,44 @@ class TestAnnotationVsBehaviorMismatch:
     when tool metadata contradicts tool behavior.
     """
 
-    @pytest.mark.parametrize("tool_name,annotation_claim,actual_behavior", [
-        pytest.param(
-            "vulnerable_calculator_tool",
-            "readOnlyHint=True (claims no side effects)",
-            "Uses eval() to execute arbitrary code",
-            id="calculator-readonly-lie"
-        ),
-        pytest.param(
-            "vulnerable_system_exec_tool",
-            "readOnlyHint=True (claims no side effects)",
-            "Runs subprocess.run() to execute commands",
-            id="system-exec-readonly-lie"
-        ),
-        pytest.param(
-            "vulnerable_data_leak_tool",
-            "readOnlyHint=True (claims safe data access)",
-            "Exposes API keys and credentials",
-            id="data-leak-readonly-lie"
-        ),
-        pytest.param(
-            "vulnerable_config_modifier_tool",
-            "readOnlyHint=True (claims view-only)",
-            "Modifies runtime configuration",
-            id="config-modifier-readonly-lie"
-        ),
-        pytest.param(
-            "vulnerable_fetcher_tool",
-            "openWorldHint=False (claims no network access)",
-            "Performs SSRF attacks to internal networks",
-            id="fetcher-openworld-lie"
-        ),
-    ])
-    def test_annotation_behavior_mismatch_documented(self, tool_name, annotation_claim, actual_behavior):
+    @pytest.mark.parametrize(
+        "tool_name,annotation_claim,actual_behavior",
+        [
+            pytest.param(
+                "vulnerable_calculator_tool",
+                "readOnlyHint=True (claims no side effects)",
+                "Uses eval() to execute arbitrary code",
+                id="calculator-readonly-lie",
+            ),
+            pytest.param(
+                "vulnerable_system_exec_tool",
+                "readOnlyHint=True (claims no side effects)",
+                "Runs subprocess.run() to execute commands",
+                id="system-exec-readonly-lie",
+            ),
+            pytest.param(
+                "vulnerable_data_leak_tool",
+                "readOnlyHint=True (claims safe data access)",
+                "Exposes API keys and credentials",
+                id="data-leak-readonly-lie",
+            ),
+            pytest.param(
+                "vulnerable_config_modifier_tool",
+                "readOnlyHint=True (claims view-only)",
+                "Modifies runtime configuration",
+                id="config-modifier-readonly-lie",
+            ),
+            pytest.param(
+                "vulnerable_fetcher_tool",
+                "openWorldHint=False (claims no network access)",
+                "Performs SSRF attacks to internal networks",
+                id="fetcher-openworld-lie",
+            ),
+        ],
+    )
+    def test_annotation_behavior_mismatch_documented(
+        self, tool_name, annotation_claim, actual_behavior
+    ):
         """
         Document the expected annotation vs behavior mismatches.
 
@@ -218,10 +228,10 @@ class TestAnnotationVsBehaviorMismatch:
         Each tool's annotation deliberately contradicts its behavior.
         """
         # This is a documentation test - the actual behavior is tested above
-        assert tool_name.startswith("vulnerable_"), \
+        assert tool_name.startswith("vulnerable_"), (
             "Only vulnerable tools should have deceptive annotations"
-        assert "Hint" in annotation_claim, \
-            "Annotation should reference MCP hint fields"
+        )
+        assert "Hint" in annotation_claim, "Annotation should reference MCP hint fields"
 
     def test_deceptive_tool_count(self, vulnerable_client):
         """Verify that exactly 5 tools have deceptive annotations."""
@@ -236,17 +246,24 @@ class TestAnnotationVsBehaviorMismatch:
         for tool in deceptive_tools:
             # Each deceptive tool should be callable and vulnerable
             result = vulnerable_client.call_tool(tool, self._get_minimal_args(tool))
-            assert result.get("vulnerable") is True, \
+            assert result.get("vulnerable") is True, (
                 f"{tool} should be vulnerable despite deceptive annotations"
+            )
 
     def _get_minimal_args(self, tool_name: str) -> dict:
         """Get minimal arguments that trigger vulnerable behavior for each deceptive tool."""
         args_map = {
             "vulnerable_calculator_tool": {"query": "1+1"},
             "vulnerable_system_exec_tool": {"command": "echo test"},
-            "vulnerable_data_leak_tool": {"query": "show API keys"},  # Needs trigger keywords
-            "vulnerable_config_modifier_tool": {"setting": "enable admin_mode"},  # Needs trigger keywords
-            "vulnerable_fetcher_tool": {"url": "http://127.0.0.1:10900"},  # SSRF trigger
+            "vulnerable_data_leak_tool": {
+                "query": "show API keys"
+            },  # Needs trigger keywords
+            "vulnerable_config_modifier_tool": {
+                "setting": "enable admin_mode"
+            },  # Needs trigger keywords
+            "vulnerable_fetcher_tool": {
+                "url": "http://127.0.0.1:10900"
+            },  # SSRF trigger
         }
         return args_map.get(tool_name, {})
 

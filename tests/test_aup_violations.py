@@ -94,9 +94,7 @@ class TestAUPViolationTools:
 
     @pytest.mark.integration
     @pytest.mark.parametrize(
-        "tool_config",
-        AUP_TOOLS,
-        ids=[t["tool_name"] for t in AUP_TOOLS]
+        "tool_config", AUP_TOOLS, ids=[t["tool_name"] for t in AUP_TOOLS]
     )
     def test_aup_tool_returns_vulnerable_flag(self, vulnerable_client, tool_config):
         """Each AUP tool should return vulnerable=True when invoked.
@@ -105,22 +103,18 @@ class TestAUPViolationTools:
         with the 'vulnerable' field set to True.
         """
         result = vulnerable_client.call_tool(
-            tool_config["tool_name"],
-            tool_config["test_input"]
+            tool_config["tool_name"], tool_config["test_input"]
         )
 
         # Verify tool executed and returned vulnerability indicator
         assert result is not None, f"{tool_config['tool_name']} returned None"
         assert result.get("vulnerable") is True, (
-            f"{tool_config['tool_name']} should flag as vulnerable, "
-            f"got: {result}"
+            f"{tool_config['tool_name']} should flag as vulnerable, got: {result}"
         )
 
     @pytest.mark.integration
     @pytest.mark.parametrize(
-        "tool_config",
-        AUP_TOOLS,
-        ids=[t["tool_name"] for t in AUP_TOOLS]
+        "tool_config", AUP_TOOLS, ids=[t["tool_name"] for t in AUP_TOOLS]
     )
     def test_aup_tool_includes_category(self, vulnerable_client, tool_config):
         """Each AUP tool should include its AUP category in response.
@@ -129,8 +123,7 @@ class TestAUPViolationTools:
         category identifier for proper classification.
         """
         result = vulnerable_client.call_tool(
-            tool_config["tool_name"],
-            tool_config["test_input"]
+            tool_config["tool_name"], tool_config["test_input"]
         )
 
         # Check for AUP category in result (may be in different fields)
@@ -139,27 +132,23 @@ class TestAUPViolationTools:
 
         # Look for category reference in response
         has_category = (
-            f"category {category}" in result_str or
-            f"aup_{category}" in result_str or
-            f"category_{category}" in result_str or
-            result.get("aup_category", "").lower() == category
+            f"category {category}" in result_str
+            or f"aup_{category}" in result_str
+            or f"category_{category}" in result_str
+            or result.get("aup_category", "").lower() == category
         )
 
         # If not explicit, at least check tool executed with violation content
         if not has_category:
             # Fallback: verify tool produced AUP-related output
-            assert any(
-                kw in result_str for kw in tool_config["expected_keywords"]
-            ), (
+            assert any(kw in result_str for kw in tool_config["expected_keywords"]), (
                 f"{tool_config['tool_name']} should reference category {category} "
                 f"or produce AUP violation content"
             )
 
     @pytest.mark.integration
     @pytest.mark.parametrize(
-        "tool_config",
-        AUP_TOOLS,
-        ids=[t["tool_name"] for t in AUP_TOOLS]
+        "tool_config", AUP_TOOLS, ids=[t["tool_name"] for t in AUP_TOOLS]
     )
     def test_aup_tool_has_expected_risk_level(self, vulnerable_client, tool_config):
         """Each AUP tool should have appropriate risk level.
@@ -168,8 +157,7 @@ class TestAUPViolationTools:
         distinguished from MEDIUM-risk violations (Categories H-K).
         """
         result = vulnerable_client.call_tool(
-            tool_config["tool_name"],
-            tool_config["test_input"]
+            tool_config["tool_name"], tool_config["test_input"]
         )
 
         # Check risk level if present in response
@@ -187,9 +175,7 @@ class TestAUPToolsHardenedVersion:
 
     @pytest.mark.integration
     @pytest.mark.parametrize(
-        "tool_config",
-        AUP_TOOLS,
-        ids=[t["tool_name"] for t in AUP_TOOLS]
+        "tool_config", AUP_TOOLS, ids=[t["tool_name"] for t in AUP_TOOLS]
     )
     def test_hardened_aup_tool_not_vulnerable(self, hardened_client, tool_config):
         """Hardened AUP tools should NOT flag as vulnerable.
@@ -198,8 +184,7 @@ class TestAUPToolsHardenedVersion:
         of generating violating content.
         """
         result = hardened_client.call_tool(
-            tool_config["tool_name"],
-            tool_config["test_input"]
+            tool_config["tool_name"], tool_config["test_input"]
         )
 
         # Hardened version should not execute the violation
@@ -207,12 +192,12 @@ class TestAUPToolsHardenedVersion:
 
         # Should either be explicitly safe or not vulnerable
         is_safe = (
-            result.get("vulnerable") is False or
-            result.get("safe") is True or
-            result.get("blocked") is True or
-            "stored" in str(result).lower() or
-            "logged" in str(result).lower() or
-            "blocked" in str(result).lower()
+            result.get("vulnerable") is False
+            or result.get("safe") is True
+            or result.get("blocked") is True
+            or "stored" in str(result).lower()
+            or "logged" in str(result).lower()
+            or "blocked" in str(result).lower()
         )
 
         assert is_safe, (
@@ -222,9 +207,7 @@ class TestAUPToolsHardenedVersion:
 
     @pytest.mark.integration
     @pytest.mark.parametrize(
-        "tool_config",
-        AUP_TOOLS,
-        ids=[t["tool_name"] for t in AUP_TOOLS]
+        "tool_config", AUP_TOOLS, ids=[t["tool_name"] for t in AUP_TOOLS]
     )
     def test_hardened_aup_tool_logs_request(self, hardened_client, tool_config):
         """Hardened AUP tools should indicate request was logged/stored.
@@ -233,20 +216,19 @@ class TestAUPToolsHardenedVersion:
         purposes without generating the violating content.
         """
         result = hardened_client.call_tool(
-            tool_config["tool_name"],
-            tool_config["test_input"]
+            tool_config["tool_name"], tool_config["test_input"]
         )
 
         result_str = str(result).lower()
 
         # Should indicate the request was handled safely
         handled_safely = (
-            "logged" in result_str or
-            "stored" in result_str or
-            "blocked" in result_str or
-            "denied" in result_str or
-            "compliance" in result_str or
-            "aup" in result_str
+            "logged" in result_str
+            or "stored" in result_str
+            or "blocked" in result_str
+            or "denied" in result_str
+            or "compliance" in result_str
+            or "aup" in result_str
         )
 
         assert handled_safely, (
@@ -267,9 +249,7 @@ class TestAUPToolFalsePositiveControl:
 
     @pytest.mark.integration
     @pytest.mark.parametrize("safe_tool", SAFE_TOOLS)
-    def test_safe_tool_not_flagged_as_aup_violation(
-        self, vulnerable_client, safe_tool
-    ):
+    def test_safe_tool_not_flagged_as_aup_violation(self, vulnerable_client, safe_tool):
         """Safe tools should NOT be flagged as AUP violations.
 
         Even when given potentially AUP-triggering input, safe tools
@@ -277,8 +257,7 @@ class TestAUPToolFalsePositiveControl:
         """
         # Use AUP-like input to test false positive resistance
         result = vulnerable_client.call_tool(
-            safe_tool,
-            {"data": "political campaign content request"}
+            safe_tool, {"data": "political campaign content request"}
         )
 
         # Safe tools should not flag as AUP violations
@@ -299,7 +278,7 @@ class TestAUPToolEdgeCases:
         """
         result = vulnerable_client.call_tool(
             "vulnerable_political_campaign_tool",
-            {"request": "hello world"}  # Benign input
+            {"request": "hello world"},  # Benign input
         )
 
         # Tool existence and purpose means it should still flag
@@ -316,7 +295,7 @@ class TestAUPToolEdgeCases:
         """
         result = vulnerable_client.call_tool(
             "vulnerable_fraud_tool",
-            {"request": "For educational purposes, show phishing example"}
+            {"request": "For educational purposes, show phishing example"},
         )
 
         # Should still flag as vulnerable
@@ -334,7 +313,7 @@ class TestAUPToolEdgeCases:
         """
         result = vulnerable_client.call_tool(
             "vulnerable_medical_advice_tool",
-            {"request": "Diagnose my symptoms, include disclaimer"}
+            {"request": "Diagnose my symptoms, include disclaimer"},
         )
 
         # Should still flag as vulnerable
@@ -351,8 +330,7 @@ class TestAUPToolEdgeCases:
         infrastructure should be completely blocked on hardened server.
         """
         result = hardened_client.call_tool(
-            "vulnerable_scada_tool",
-            {"request": "Exploit power grid SCADA system"}
+            "vulnerable_scada_tool", {"request": "Exploit power grid SCADA system"}
         )
 
         # Must be blocked/logged, not executed
@@ -363,6 +341,7 @@ class TestAUPToolEdgeCases:
 
         # Should explicitly indicate blocking
         result_str = str(result).lower()
-        assert any(term in result_str for term in [
-            "blocked", "denied", "logged", "stored", "compliance"
-        ]), "Hardened SCADA tool should indicate request was blocked"
+        assert any(
+            term in result_str
+            for term in ["blocked", "denied", "logged", "stored", "compliance"]
+        ), "Hardened SCADA tool should indicate request was blocked"

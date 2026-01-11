@@ -95,7 +95,12 @@ class TestSecretsResourceAccess:
         result = vulnerable_client.read_resource("internal://secrets")
         content = _extract_content(result)
         # Should return credentials (vulnerability)
-        assert "API" in content or "KEY" in content or "SECRET" in content or "error" not in result
+        assert (
+            "API" in content
+            or "KEY" in content
+            or "SECRET" in content
+            or "error" not in result
+        )
 
     def test_secrets_contains_fake_credentials(self, vulnerable_client):
         """Secrets resource exposes FAKE_ENV credentials."""
@@ -126,14 +131,22 @@ class TestCompanyDataPathTraversal:
         """Valid sales department returns pipeline data."""
         result = vulnerable_client.read_resource("company://data/sales")
         content = _extract_content(result)
-        assert "sales" in content.lower() or "pipeline" in content.lower() or "Q4" in content
+        assert (
+            "sales" in content.lower()
+            or "pipeline" in content.lower()
+            or "Q4" in content
+        )
 
     def test_restricted_department_executive(self, vulnerable_client):
         """Restricted executive department is accessible (vulnerability)."""
         result = vulnerable_client.read_resource("company://data/executive")
         content = _extract_content(result)
         # Should return confidential data (vulnerability)
-        assert "CONFIDENTIAL" in content or "executive" in content.lower() or "acquisition" in content.lower()
+        assert (
+            "CONFIDENTIAL" in content
+            or "executive" in content.lower()
+            or "acquisition" in content.lower()
+        )
 
     def test_restricted_department_hr(self, vulnerable_client):
         """Restricted HR department exposes salary data (vulnerability)."""
@@ -147,7 +160,11 @@ class TestCompanyDataPathTraversal:
         result = vulnerable_client.read_resource("company://data/finance")
         content = _extract_content(result)
         # Should return financial info (vulnerability)
-        assert "bank" in content.lower() or "finance" in content.lower() or "revenue" in content.lower()
+        assert (
+            "bank" in content.lower()
+            or "finance" in content.lower()
+            or "revenue" in content.lower()
+        )
 
     def test_unknown_department_reflection(self, vulnerable_client):
         """Unknown department name is reflected in response."""
@@ -226,9 +243,16 @@ class TestHardenedResourceHandling:
         if result.get("error"):
             return True
         result_str = str(result).lower()
-        return any(indicator in result_str for indicator in [
-            "not found", "unknown", "not implemented", "error", "invalid"
-        ])
+        return any(
+            indicator in result_str
+            for indicator in [
+                "not found",
+                "unknown",
+                "not implemented",
+                "error",
+                "invalid",
+            ]
+        )
 
 
 class TestResourceEdgeCases:
@@ -258,6 +282,6 @@ class TestResourceEdgeCases:
 
     def test_unicode_in_uri(self, vulnerable_client):
         """Unicode characters in URI should be handled."""
-        unicode_user = "user_\u4e2d\u6587_\U0001F600"
+        unicode_user = "user_\u4e2d\u6587_\U0001f600"
         result = vulnerable_client.read_resource(f"notes://{unicode_user}")
         assert result is not None

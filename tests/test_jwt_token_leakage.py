@@ -29,10 +29,7 @@ class TestJWTLeakageVulnerability:
         """Test that successful authentication returns a token."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         assert result.get("status") == "authenticated"
@@ -43,10 +40,7 @@ class TestJWTLeakageVulnerability:
         """Test that tool is flagged as vulnerable."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         assert result.get("vulnerable") is True
@@ -56,10 +50,7 @@ class TestJWTLeakageVulnerability:
         """Test that JWT is present in response body (the vulnerability)."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "user",
-                "password": "password"
-            }
+            {"username": "user", "password": "password"},
         )
         check_server_error(result)
         # Token should be in response body (VULNERABILITY)
@@ -73,10 +64,7 @@ class TestJWTLeakageVulnerability:
         """Test that returned JWT has valid format."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -99,10 +87,7 @@ class TestJWTLeakageVulnerability:
         """Test that refresh token is also leaked in response."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         # Refresh token should also be in response body (VULNERABILITY)
@@ -111,19 +96,19 @@ class TestJWTLeakageVulnerability:
         assert refresh, "Refresh token should be present"
 
     @pytest.mark.integration
-    @pytest.mark.parametrize("username,password", [
-        ("admin", "admin123"),
-        ("user", "password"),
-        ("test", "test123"),
-    ])
+    @pytest.mark.parametrize(
+        "username,password",
+        [
+            ("admin", "admin123"),
+            ("user", "password"),
+            ("test", "test123"),
+        ],
+    )
     def test_valid_credentials(self, vulnerable_client, username, password):
         """Test authentication with valid credentials."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": username,
-                "password": password
-            }
+            {"username": username, "password": password},
         )
         check_server_error(result)
         assert result.get("status") == "authenticated"
@@ -135,10 +120,7 @@ class TestJWTLeakageVulnerability:
         """Test that even failed auth has vulnerable flag."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "invalid",
-                "password": "wrongpassword"
-            }
+            {"username": "invalid", "password": "wrongpassword"},
         )
         # Invalid credentials may still trigger server error if json import is missing
         if result.get("isError") and "json" in str(result).lower():
@@ -151,10 +133,7 @@ class TestJWTLeakageVulnerability:
         """Test that token type is Bearer."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         assert result.get("token_type") == "Bearer"
@@ -164,10 +143,7 @@ class TestJWTLeakageVulnerability:
         """Test that expiry information is present."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         assert "expires_in" in result
@@ -178,14 +154,15 @@ class TestJWTLeakageVulnerability:
         """Test that evidence mentions session hijacking risk."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         evidence = result.get("evidence", "").lower()
-        assert "hijacking" in evidence or "response body" in evidence or "exposed" in evidence
+        assert (
+            "hijacking" in evidence
+            or "response body" in evidence
+            or "exposed" in evidence
+        )
 
 
 class TestJWTTokenStructure:
@@ -199,10 +176,7 @@ class TestJWTTokenStructure:
         """Test that JWT token has three parts (header.payload.signature)."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -214,10 +188,7 @@ class TestJWTTokenStructure:
         """Test that JWT header is valid base64."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -237,10 +208,7 @@ class TestJWTTokenStructure:
         """Test that JWT payload is valid base64."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -260,10 +228,7 @@ class TestJWTTokenStructure:
         """Test that JWT payload contains subject (sub) claim."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -279,10 +244,7 @@ class TestJWTTokenStructure:
         """Test that admin user gets admin role in token."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -297,10 +259,7 @@ class TestJWTTokenStructure:
         """Test that regular user gets user role in token."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "user",
-                "password": "password"
-            }
+            {"username": "user", "password": "password"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -315,10 +274,7 @@ class TestJWTTokenStructure:
         """Test that JWT payload contains expiry (exp) claim."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -334,10 +290,7 @@ class TestJWTTokenStructure:
         """Test that JWT payload contains issued-at (iat) claim."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
         token = result.get("token", "")
@@ -361,10 +314,7 @@ class TestHardenedAuthResponse:
         """Test that hardened version doesn't return token in body."""
         result = hardened_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # Hardened version should not have token in response body
@@ -383,10 +333,7 @@ class TestHardenedAuthResponse:
         """Test that hardened auth response is NOT vulnerable."""
         result = hardened_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # Hardened version should either be not vulnerable or store only
@@ -397,10 +344,7 @@ class TestHardenedAuthResponse:
         """Test that hardened version stores request for review."""
         result = hardened_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # Should either be not vulnerable or have stored pattern
@@ -413,10 +357,7 @@ class TestHardenedAuthResponse:
         """Test that hardened version doesn't leak refresh token."""
         result = hardened_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # If not vulnerable, refresh_token should not be in response
@@ -436,10 +377,7 @@ class TestAuthenticationBehavior:
         """Test authentication with invalid username."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "nonexistent",
-                "password": "password"
-            }
+            {"username": "nonexistent", "password": "password"},
         )
         check_server_error(result)
         assert result.get("status") == "failed"
@@ -450,10 +388,7 @@ class TestAuthenticationBehavior:
         """Test authentication with invalid password."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "wrongpassword"
-            }
+            {"username": "admin", "password": "wrongpassword"},
         )
         check_server_error(result)
         assert result.get("status") == "failed"
@@ -463,11 +398,7 @@ class TestAuthenticationBehavior:
     def test_empty_credentials(self, vulnerable_client):
         """Test authentication with empty credentials."""
         result = vulnerable_client.call_tool(
-            "vulnerable_auth_response_tool",
-            {
-                "username": "",
-                "password": ""
-            }
+            "vulnerable_auth_response_tool", {"username": "", "password": ""}
         )
         check_server_error(result)
         assert result.get("status") == "failed"
@@ -477,30 +408,26 @@ class TestAuthenticationBehavior:
         """Test that SQL injection attempts are handled."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin' OR '1'='1",
-                "password": "' OR '1'='1"
-            }
+            {"username": "admin' OR '1'='1", "password": "' OR '1'='1"},
         )
         check_server_error(result)
         # Should fail authentication (not vulnerable to SQL injection)
         assert result.get("status") == "failed"
 
     @pytest.mark.integration
-    @pytest.mark.parametrize("injection", [
-        "admin'; DROP TABLE users; --",
-        "' UNION SELECT * FROM passwords --",
-        "${7*7}",
-        "{{7*7}}",
-    ])
+    @pytest.mark.parametrize(
+        "injection",
+        [
+            "admin'; DROP TABLE users; --",
+            "' UNION SELECT * FROM passwords --",
+            "${7*7}",
+            "{{7*7}}",
+        ],
+    )
     def test_injection_attempts_fail(self, vulnerable_client, injection):
         """Test that injection attempts fail authentication."""
         result = vulnerable_client.call_tool(
-            "vulnerable_auth_response_tool",
-            {
-                "username": injection,
-                "password": "test"
-            }
+            "vulnerable_auth_response_tool", {"username": injection, "password": "test"}
         )
         check_server_error(result)
         # Should fail (no valid user matches injection string)
@@ -520,14 +447,19 @@ class TestTokenLeakageDetection:
         """Test that all authentication response fields are present."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(result)
-        expected_fields = ["status", "username", "token", "token_type",
-                          "expires_in", "refresh_token", "vulnerable", "evidence"]
+        expected_fields = [
+            "status",
+            "username",
+            "token",
+            "token_type",
+            "expires_in",
+            "refresh_token",
+            "vulnerable",
+            "evidence",
+        ]
         for field in expected_fields:
             assert field in result, f"Missing field: {field}"
 
@@ -536,10 +468,7 @@ class TestTokenLeakageDetection:
         """Test that failed auth still includes vulnerability evidence."""
         result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "invalid",
-                "password": "invalid"
-            }
+            {"username": "invalid", "password": "invalid"},
         )
         check_server_error(result)
         assert "evidence" in result
@@ -550,18 +479,12 @@ class TestTokenLeakageDetection:
         """Test that different users get different tokens."""
         admin_result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "admin",
-                "password": "admin123"
-            }
+            {"username": "admin", "password": "admin123"},
         )
         check_server_error(admin_result)
         user_result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
-            {
-                "username": "user",
-                "password": "password"
-            }
+            {"username": "user", "password": "password"},
         )
         check_server_error(user_result)
 

@@ -9,7 +9,8 @@ from the vulnerable tools (which lack such validation). This tests whether
 security auditors can detect the DoS vulnerability in vulnerable tools.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
+
 try:
     from response_factory import create_safe_response
 except ImportError:
@@ -51,7 +52,7 @@ def safe_storage_tool(data: str, collection: str = "default") -> Dict[str, Any]:
         return create_safe_response(
             f"Input validation failed: {str(e)}",
             error=True,
-            note="Input size validation protects against DoS"
+            note="Input size validation protects against DoS",
         )
 
     # Store data as-is without executing
@@ -59,11 +60,9 @@ def safe_storage_tool(data: str, collection: str = "default") -> Dict[str, Any]:
         safe_storage[collection] = []
 
     entry_id = len(safe_storage[collection]) + 1
-    safe_storage[collection].append({
-        "id": entry_id,
-        "data": data,
-        "collection": collection
-    })
+    safe_storage[collection].append(
+        {"id": entry_id, "data": data, "collection": collection}
+    )
 
     # Return confirmation that safely reflects the input
     return create_safe_response(
@@ -72,7 +71,7 @@ def safe_storage_tool(data: str, collection: str = "default") -> Dict[str, Any]:
         id=entry_id,
         collection=collection,
         input_length=len(data),
-        total_items=len(safe_storage[collection])
+        total_items=len(safe_storage[collection]),
     )
 
 
@@ -90,7 +89,7 @@ def safe_search_tool(query: str) -> Dict[str, Any]:
         return create_safe_response(
             f"Input validation failed: {str(e)}",
             error=True,
-            note="Input size validation protects against DoS"
+            note="Input size validation protects against DoS",
         )
 
     # Search through safe storage (mock implementation)
@@ -99,11 +98,9 @@ def safe_search_tool(query: str) -> Dict[str, Any]:
     for collection, items in safe_storage.items():
         for item in items:
             if query.lower() in str(item.get("data", "")).lower():
-                results.append({
-                    "collection": collection,
-                    "id": item["id"],
-                    "data": item["data"]
-                })
+                results.append(
+                    {"collection": collection, "id": item["id"], "data": item["data"]}
+                )
 
     if not results:
         # Safe error response that echoes the query
@@ -111,14 +108,14 @@ def safe_search_tool(query: str) -> Dict[str, Any]:
             f"No results found for query: '{query}'",
             note="Query processed safely without execution",
             query=query,
-            matches=0
+            matches=0,
         )
 
     return create_safe_response(
         f"Found {len(results)} results for: '{query}'",
         query=query,
         matches=results[:10],  # Limit to 10
-        total=len(results)
+        total=len(results),
     )
 
 
@@ -136,14 +133,14 @@ def safe_list_tool(resource_type: str = "collections") -> Dict[str, Any]:
         return create_safe_response(
             f"Input validation failed: {str(e)}",
             error=True,
-            note="Input size validation protects against DoS"
+            note="Input size validation protects against DoS",
         )
 
     if resource_type.lower() == "collections":
         return create_safe_response(
             f"Available collections: {', '.join(safe_collections)}",
             collections=safe_collections,
-            count=len(safe_collections)
+            count=len(safe_collections),
         )
 
     # Safe error handling - reflects input but doesn't execute
@@ -153,14 +150,12 @@ def safe_list_tool(resource_type: str = "collections") -> Dict[str, Any]:
             note="Error message safely reflects input without execution",
             error=True,
             requested=resource_type,
-            available=["collections", "items", "users"]
+            available=["collections", "items", "users"],
         )
 
     # Handle other valid types
     return create_safe_response(
-        f"Listing {resource_type}...",
-        type=resource_type,
-        items=[]
+        f"Listing {resource_type}...", type=resource_type, items=[]
     )
 
 
@@ -178,7 +173,7 @@ def safe_info_tool(entity_name: str) -> Dict[str, Any]:
         return create_safe_response(
             f"Input validation failed: {str(e)}",
             error=True,
-            note="Input size validation protects against DoS"
+            note="Input size validation protects against DoS",
         )
 
     # Check if entity exists in our safe storage
@@ -191,7 +186,7 @@ def safe_info_tool(entity_name: str) -> Dict[str, Any]:
             note="Error safely reflects unknown entity name",
             error=True,
             entity=entity_name,
-            available_entities=known_entities
+            available_entities=known_entities,
         )
 
     # Return info about known entity
@@ -200,13 +195,13 @@ def safe_info_tool(entity_name: str) -> Dict[str, Any]:
             f"Entity '{entity_name}' information",
             entity=entity_name,
             type="storage_collection",
-            item_count=len(safe_storage[entity_name])
+            item_count=len(safe_storage[entity_name]),
         )
 
     return create_safe_response(
         f"Entity '{entity_name}' information",
         entity=entity_name,
-        type="predefined_collection"
+        type="predefined_collection",
     )
 
 
@@ -224,13 +219,13 @@ def safe_echo_tool(message: str) -> Dict[str, Any]:
         return create_safe_response(
             f"Input validation failed: {str(e)}",
             error=True,
-            note="Input size validation protects against DoS"
+            note="Input size validation protects against DoS",
         )
 
     return create_safe_response(
         f"echo: {message[:50]}..." if len(message) > 50 else f"echo: {message}",
         note="message echoed as data without processing",
-        message_length=len(message)
+        message_length=len(message),
     )
 
 
@@ -247,7 +242,7 @@ def safe_validate_tool(input_data: str) -> Dict[str, Any]:
         return create_safe_response(
             f"Input validation failed: {str(e)}",
             error=True,
-            note="Input size validation protects against DoS"
+            note="Input size validation protects against DoS",
         )
 
     # Perform validation checks
@@ -260,7 +255,9 @@ def safe_validate_tool(input_data: str) -> Dict[str, Any]:
         validation_errors.append("Input contains potentially harmful script tags")
 
     if "delete" in input_data.lower() and "all" in input_data.lower():
-        validation_errors.append("Input contains potentially destructive command patterns")
+        validation_errors.append(
+            "Input contains potentially destructive command patterns"
+        )
 
     if validation_errors:
         return create_safe_response(
@@ -268,14 +265,14 @@ def safe_validate_tool(input_data: str) -> Dict[str, Any]:
             note="Malicious patterns detected and blocked without processing",
             input_length=len(input_data),
             valid=False,
-            errors=validation_errors
+            errors=validation_errors,
         )
 
     return create_safe_response(
         "validation passed - input accepted",
         note="input validated and stored safely",
         input_length=len(input_data),
-        valid=True
+        valid=True,
     )
 
 

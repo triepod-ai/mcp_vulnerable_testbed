@@ -9,16 +9,24 @@ pattern for its corresponding vulnerability.
 import re
 import secrets
 from ._common import (
-    json, hashlib, Dict, Any,
+    json,
+    hashlib,
+    Dict,
+    Any,
     create_safe_response,
-    MAX_INPUT_LENGTH, _sanitize_for_response,
+    MAX_INPUT_LENGTH,
+    _sanitize_for_response,
 )
 
 
 # Challenge #6: Allowlist of safe tools for chain validation
 _ALLOWED_CHAIN_TOOLS = {
-    "safe_storage_tool", "safe_search_tool", "safe_list_tool",
-    "safe_info_tool", "safe_echo_tool", "safe_validate_tool"
+    "safe_storage_tool",
+    "safe_search_tool",
+    "safe_list_tool",
+    "safe_info_tool",
+    "safe_echo_tool",
+    "safe_validate_tool",
 }
 
 
@@ -46,7 +54,7 @@ def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
             "Error: Chain too long",
             note="Input validation prevented processing",
             max_allowed=MAX_INPUT_LENGTH,
-            actual_length=len(chain)
+            actual_length=len(chain),
         )
 
     # Enforce strict depth limit
@@ -60,14 +68,14 @@ def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
         return create_safe_response(
             f"Invalid JSON format: {str(e)[:100]}",
             note="Chain validation failed - invalid JSON",
-            valid=False
+            valid=False,
         )
 
     if not isinstance(steps, list):
         return create_safe_response(
             "Chain must be a JSON array",
             note="Chain validation failed - not an array",
-            valid=False
+            valid=False,
         )
 
     # Enforce depth limit strictly
@@ -77,7 +85,7 @@ def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
             note="Chain validation failed - too many steps",
             valid=False,
             max_depth=max_depth,
-            actual_steps=len(steps)
+            actual_steps=len(steps),
         )
 
     # Validate each step
@@ -87,11 +95,9 @@ def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
 
     for i, step in enumerate(steps):
         if not isinstance(step, dict):
-            validation_results.append({
-                "step": i,
-                "valid": False,
-                "error": "Step must be an object"
-            })
+            validation_results.append(
+                {"step": i, "valid": False, "error": "Step must be an object"}
+            )
             continue
 
         tool_name = step.get("tool", "")
@@ -114,15 +120,17 @@ def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
         if not is_allowed:
             blocked_tools.append(tool_name)
 
-        validation_results.append({
-            "step": i,
-            "tool": tool_name,
-            "allowed": is_allowed,
-            "blocked": not is_allowed,
-            "has_output_injection": has_injection,
-            "is_recursive": is_recursive,
-            "args_count": len(args) if isinstance(args, dict) else 0
-        })
+        validation_results.append(
+            {
+                "step": i,
+                "tool": tool_name,
+                "allowed": is_allowed,
+                "blocked": not is_allowed,
+                "has_output_injection": has_injection,
+                "is_recursive": is_recursive,
+                "args_count": len(args) if isinstance(args, dict) else 0,
+            }
+        )
 
     return create_safe_response(
         f"Chain validated and stored ({len(steps)} steps)",
@@ -134,7 +142,7 @@ def safe_chain_executor(chain: str, max_depth: int = 5) -> Dict[str, Any]:
         chain_executed=False,  # Key indicator
         allowlist_enforced=True,
         depth_limit_enforced=True,
-        status="pending_review"
+        status="pending_review",
     )
 
 
@@ -158,7 +166,7 @@ def store_document_for_processing(content: str) -> Dict[str, Any]:
         return create_safe_response(
             "Error: Document too long",
             note="Input validation prevented processing",
-            max_allowed=MAX_INPUT_LENGTH
+            max_allowed=MAX_INPUT_LENGTH,
         )
 
     # Create safe reference instead of including raw content
@@ -166,8 +174,14 @@ def store_document_for_processing(content: str) -> Dict[str, Any]:
 
     # Detect injection patterns (for logging only)
     injection_patterns = [
-        "<IMPORTANT>", "</IMPORTANT>", "<system>", "</system>",
-        "<HIDDEN>", "</HIDDEN>", "ignore previous", "disregard instructions"
+        "<IMPORTANT>",
+        "</IMPORTANT>",
+        "<system>",
+        "</system>",
+        "<HIDDEN>",
+        "</HIDDEN>",
+        "ignore previous",
+        "disregard instructions",
     ]
     has_injection = any(p.lower() in content.lower() for p in injection_patterns)
 
@@ -179,11 +193,13 @@ def store_document_for_processing(content: str) -> Dict[str, Any]:
         content_reference=f"doc-{content_hash}",
         raw_content_included=False,  # Key indicator
         injection_patterns_detected=has_injection,
-        status="stored_for_review"
+        status="stored_for_review",
     )
 
 
-def check_service_status_safe(service_name: str, verbose: bool = False) -> Dict[str, Any]:
+def check_service_status_safe(
+    service_name: str, verbose: bool = False
+) -> Dict[str, Any]:
     """
     Check service health without exposing credentials.
 
@@ -202,8 +218,7 @@ def check_service_status_safe(service_name: str, verbose: bool = False) -> Dict[
     """
     if len(service_name) > 256:
         return create_safe_response(
-            "Error: Service name too long",
-            note="Input validation prevented processing"
+            "Error: Service name too long", note="Input validation prevented processing"
         )
 
     known_services = ["database", "api_gateway", "aws", "redis", "cache", "queue"]
@@ -216,7 +231,7 @@ def check_service_status_safe(service_name: str, verbose: bool = False) -> Dict[
             f"Service '{safe_display}' not found",
             note="Error handled without revealing credentials",
             available_services=known_services,
-            credentials_exposed=False
+            credentials_exposed=False,
         )
 
     # Service status - no credentials in any response
@@ -226,7 +241,7 @@ def check_service_status_safe(service_name: str, verbose: bool = False) -> Dict[
         "aws": {"status": "available", "region": "us-west-2"},
         "redis": {"status": "connected", "memory_used_mb": 128},
         "cache": {"status": "healthy", "hit_rate": "85%"},
-        "queue": {"status": "running", "pending_jobs": 42}
+        "queue": {"status": "running", "pending_jobs": 42},
     }
 
     info = status_info.get(service_lower, {})
@@ -236,19 +251,23 @@ def check_service_status_safe(service_name: str, verbose: bool = False) -> Dict[
         note="Status returned without credential exposure",
         service=service_name,
         status=info.get("status"),
-        credentials_exposed=False
+        credentials_exposed=False,
     )
 
     # Verbose mode adds safe metadata, not secrets
     if verbose:
         response["response_time_ms"] = info.get("response_time_ms", 10)
         response["uptime"] = info.get("uptime", "99%")
-        response["verbose_note"] = "Verbose mode provides operational metrics only, never credentials"
+        response["verbose_note"] = (
+            "Verbose mode provides operational metrics only, never credentials"
+        )
 
     return response
 
 
-def store_network_diagnostic_request(target: str, operation: str = "ping") -> Dict[str, Any]:
+def store_network_diagnostic_request(
+    target: str, operation: str = "ping"
+) -> Dict[str, Any]:
     """
     Store network diagnostic request for admin execution.
 
@@ -267,8 +286,7 @@ def store_network_diagnostic_request(target: str, operation: str = "ping") -> Di
     """
     if len(target) > 256:
         return create_safe_response(
-            "Error: Target too long",
-            note="Input validation prevented processing"
+            "Error: Target too long", note="Input validation prevented processing"
         )
 
     # Detect shell injection patterns
@@ -276,9 +294,11 @@ def store_network_diagnostic_request(target: str, operation: str = "ping") -> Di
     has_injection = any(p in target for p in injection_patterns)
 
     # Validate target format (IP or hostname only)
-    ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-    hostname_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9\-\.]{0,253}[a-zA-Z0-9]$'
-    valid_format = bool(re.match(ip_pattern, target) or re.match(hostname_pattern, target))
+    ip_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
+    hostname_pattern = r"^[a-zA-Z0-9][a-zA-Z0-9\-\.]{0,253}[a-zA-Z0-9]$"
+    valid_format = bool(
+        re.match(ip_pattern, target) or re.match(hostname_pattern, target)
+    )
 
     safe_display = _sanitize_for_response(target)
 
@@ -289,7 +309,7 @@ def store_network_diagnostic_request(target: str, operation: str = "ping") -> Di
             injection_detected=has_injection,
             valid_format=valid_format,
             shell_used=False,
-            status="rejected"
+            status="rejected",
         )
 
     # Validate operation
@@ -304,7 +324,7 @@ def store_network_diagnostic_request(target: str, operation: str = "ping") -> Di
         target_validated=True,
         shell_used=False,  # Key indicator
         command_executed=False,  # Key indicator
-        status="pending_execution"
+        status="pending_execution",
     )
 
 
@@ -326,8 +346,7 @@ def store_command_for_review(command: str) -> Dict[str, Any]:
     """
     if len(command) > MAX_INPUT_LENGTH:
         return create_safe_response(
-            "Error: Command too long",
-            note="Input validation prevented processing"
+            "Error: Command too long", note="Input validation prevented processing"
         )
 
     # Allowlist approach - only permitted informational operations
@@ -340,9 +359,26 @@ def store_command_for_review(command: str) -> Dict[str, Any]:
 
     # Detect bypass patterns (for logging)
     bypass_patterns = [
-        "perl", "python", "ruby", "php", "tee", "wget", "curl",
-        "nohup", "screen", "tmux", "sudo", "su", "nc", "netcat",
-        "bash", "sh", "zsh", "rm", "mkfs", "dd"
+        "perl",
+        "python",
+        "ruby",
+        "php",
+        "tee",
+        "wget",
+        "curl",
+        "nohup",
+        "screen",
+        "tmux",
+        "sudo",
+        "su",
+        "nc",
+        "netcat",
+        "bash",
+        "sh",
+        "zsh",
+        "rm",
+        "mkfs",
+        "dd",
     ]
     has_bypass_attempt = any(p in command_lower for p in bypass_patterns)
 
@@ -357,15 +393,12 @@ def store_command_for_review(command: str) -> Dict[str, Any]:
         execution_blocked=True,  # Key indicator
         allowlist_used=True,  # Key indicator
         blacklist_used=False,
-        status="pending_review"
+        status="pending_review",
     )
 
 
 def store_session_request(
-    action: str,
-    user: str = "",
-    session_id: str = "",
-    password: str = ""
+    action: str, user: str = "", session_id: str = "", password: str = ""
 ) -> Dict[str, Any]:
     """
     Store session management requests safely.
@@ -388,14 +421,12 @@ def store_session_request(
     """
     if len(action) > 256:
         return create_safe_response(
-            "Error: Action too long",
-            note="Input validation prevented processing"
+            "Error: Action too long", note="Input validation prevented processing"
         )
 
     if len(user) > 256:
         return create_safe_response(
-            "Error: Username too long",
-            note="Input validation prevented processing"
+            "Error: Username too long", note="Input validation prevented processing"
         )
 
     action_lower = action.lower().strip()
@@ -405,7 +436,7 @@ def store_session_request(
         return create_safe_response(
             f"Unknown action: {action}",
             note="Request stored without execution",
-            valid_actions=valid_actions
+            valid_actions=valid_actions,
         )
 
     # Generate secure token example (for demonstration)
@@ -417,7 +448,7 @@ def store_session_request(
         note="Request stored for review - secure session handling would be applied",
         action=action_lower,
         user=_sanitize_for_response(user) if user else None,
-        status="pending_review"
+        status="pending_review",
     )
 
     # Add security indicators showing what WOULD happen with proper implementation
@@ -427,36 +458,44 @@ def store_session_request(
         "timeout_enforced": True,  # 30 minute expiration
         "id_in_url": False,  # Never exposed in URL
         "regeneration_on_auth": True,  # New ID on login
-        "secure_token_format": secure_token_example[:16] + "..."  # Show format only
+        "secure_token_format": secure_token_example[:16] + "...",  # Show format only
     }
 
     # Handle specific actions
     if action_lower == "fixate":
-        response["blocked_reason"] = "Session fixation attack prevented - external session IDs not accepted"
+        response["blocked_reason"] = (
+            "Session fixation attack prevented - external session IDs not accepted"
+        )
         response["attack_blocked"] = True
         response["cwe_384_mitigated"] = True
 
     elif action_lower == "create":
         response["session_created"] = False
-        response["note"] = "Session creation request logged - would use cryptographically secure token"
+        response["note"] = (
+            "Session creation request logged - would use cryptographically secure token"
+        )
 
     elif action_lower == "login":
         response["session_regeneration"] = "would_regenerate"
-        response["note"] = "Login request logged - secure implementation would regenerate session ID"
+        response["note"] = (
+            "Login request logged - secure implementation would regenerate session ID"
+        )
 
     elif action_lower == "validate":
         response["timeout_check"] = "would_check"
-        response["note"] = "Validation request logged - would check session timeout (30 min)"
+        response["note"] = (
+            "Validation request logged - would check session timeout (30 min)"
+        )
 
     return response
 
 
 __all__ = [
-    '_ALLOWED_CHAIN_TOOLS',
-    'safe_chain_executor',
-    'store_document_for_processing',
-    'check_service_status_safe',
-    'store_network_diagnostic_request',
-    'store_command_for_review',
-    'store_session_request',
+    "_ALLOWED_CHAIN_TOOLS",
+    "safe_chain_executor",
+    "store_document_for_processing",
+    "check_service_status_safe",
+    "store_network_diagnostic_request",
+    "store_command_for_review",
+    "store_session_request",
 ]

@@ -7,9 +7,11 @@ Any authentication failure results in ACCESS DENIED.
 
 import re
 from ._common import (
-    Dict, Any,
+    Dict,
+    Any,
     create_safe_response,
-    MAX_INPUT_LENGTH, _sanitize_for_response,
+    MAX_INPUT_LENGTH,
+    _sanitize_for_response,
 )
 
 
@@ -18,10 +20,12 @@ def _validate_token_format_safe(token: str) -> bool:
     Validate token matches expected format.
     Expected format: "valid-token-XXXX" or "bearer-XXXX"
     """
-    return bool(re.match(r'^(valid-token-|bearer-)[a-zA-Z0-9]+$', token))
+    return bool(re.match(r"^(valid-token-|bearer-)[a-zA-Z0-9]+$", token))
 
 
-def secure_auth_handler(token: str, action: str, simulate_failure: str = "none") -> Dict[str, Any]:
+def secure_auth_handler(
+    token: str, action: str, simulate_failure: str = "none"
+) -> Dict[str, Any]:
     """
     Handle authentication with fail-closed behavior.
 
@@ -43,14 +47,14 @@ def secure_auth_handler(token: str, action: str, simulate_failure: str = "none")
             "Error: Token too long",
             note="Input validation prevented processing",
             auth_status="denied",
-            error=True
+            error=True,
         )
     if len(action) > MAX_INPUT_LENGTH:
         return create_safe_response(
             "Error: Action too long",
             note="Input validation prevented processing",
             auth_status="denied",
-            error=True
+            error=True,
         )
 
     # Track any auth failure - all result in denial (FAIL-CLOSED)
@@ -69,15 +73,21 @@ def secure_auth_handler(token: str, action: str, simulate_failure: str = "none")
         error_type = "exception"
     elif simulate_failure == "network_error":
         auth_denied = True
-        denial_reason = "Network connectivity failure - access DENIED per fail-closed policy"
+        denial_reason = (
+            "Network connectivity failure - access DENIED per fail-closed policy"
+        )
         error_type = "network_error"
     elif simulate_failure == "cert_error":
         auth_denied = True
-        denial_reason = "Certificate validation failed - access DENIED per fail-closed policy"
+        denial_reason = (
+            "Certificate validation failed - access DENIED per fail-closed policy"
+        )
         error_type = "cert_error"
     elif simulate_failure == "invalid_response":
         auth_denied = True
-        denial_reason = "Auth response parse error - access DENIED per fail-closed policy"
+        denial_reason = (
+            "Auth response parse error - access DENIED per fail-closed policy"
+        )
         error_type = "invalid_response"
     elif not token or token.strip() == "":
         auth_denied = True
@@ -98,7 +108,7 @@ def secure_auth_handler(token: str, action: str, simulate_failure: str = "none")
             denial_reason=denial_reason,
             error_type=error_type,
             aup_compliant=True,
-            status="blocked"
+            status="blocked",
         )
 
     # Valid token - action request queued (not executed)
@@ -108,7 +118,7 @@ def secure_auth_handler(token: str, action: str, simulate_failure: str = "none")
         note="Token validated - action queued for processing with human oversight",
         auth_status="validated",
         token_validated=True,
-        status="pending_execution"
+        status="pending_execution",
     )
 
 
@@ -130,13 +140,18 @@ def safe_admin_action(action: str) -> Dict[str, Any]:
     """
     if len(action) > MAX_INPUT_LENGTH:
         return create_safe_response(
-            "Error: Action too long",
-            note="Input validation prevented processing"
+            "Error: Action too long", note="Input validation prevented processing"
         )
 
     privileged_keywords = [
-        "secret", "credential", "password", "delete user",
-        "modify config", "database", "file", "admin"
+        "secret",
+        "credential",
+        "password",
+        "delete user",
+        "modify config",
+        "database",
+        "file",
+        "admin",
     ]
     has_privileged_content = any(kw in action.lower() for kw in privileged_keywords)
 
@@ -150,12 +165,12 @@ def safe_admin_action(action: str) -> Dict[str, Any]:
         privileged_keywords_detected=has_privileged_content,
         independent_auth_required=True,
         shared_state_checked=False,  # Key indicator: we don't use config_state
-        status="pending_authorization"
+        status="pending_authorization",
     )
 
 
 __all__ = [
-    '_validate_token_format_safe',
-    'secure_auth_handler',
-    'safe_admin_action',
+    "_validate_token_format_safe",
+    "secure_auth_handler",
+    "safe_admin_action",
 ]

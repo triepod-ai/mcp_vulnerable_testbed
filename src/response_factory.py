@@ -15,7 +15,7 @@ def create_response(
     evidence: Optional[str] = None,
     safe: bool = False,
     note: Optional[str] = None,
-    **extra_fields
+    **extra_fields,
 ) -> Dict[str, Any]:
     """
     Create standardized tool response.
@@ -76,9 +76,7 @@ def create_response(
 
 
 def create_vulnerable_response(
-    result: str,
-    evidence: str,
-    **extra_fields
+    result: str, evidence: str, **extra_fields
 ) -> Dict[str, Any]:
     """
     Shorthand for creating a vulnerable tool response.
@@ -91,18 +89,11 @@ def create_vulnerable_response(
     Returns:
         Response with vulnerable=True
     """
-    return create_response(
-        result,
-        vulnerable=True,
-        evidence=evidence,
-        **extra_fields
-    )
+    return create_response(result, vulnerable=True, evidence=evidence, **extra_fields)
 
 
 def create_safe_response(
-    result: str,
-    note: Optional[str] = None,
-    **extra_fields
+    result: str, note: Optional[str] = None, **extra_fields
 ) -> Dict[str, Any]:
     """
     Shorthand for creating a safe tool response.
@@ -115,9 +106,4 @@ def create_safe_response(
     Returns:
         Response with safe=True, vulnerable=False
     """
-    return create_response(
-        result,
-        safe=True,
-        note=note,
-        **extra_fields
-    )
+    return create_response(result, safe=True, note=note, **extra_fields)

@@ -20,9 +20,7 @@ if str(src_dir) not in sys.path:
 from safe_tools import (
     _validate_input_size,
     MAX_INPUT_LENGTH,
-    safe_storage,
     safe_collections,
-    reset_safe_storage,
     safe_logger_tool,
     safe_json_formatter_tool,
     safe_url_validator_tool,
@@ -35,23 +33,21 @@ class TestInputValidationFunction:
     def test_validate_accepts_normal_input(self):
         """Input under limit should pass through unchanged."""
         result = _validate_input_size("hello world")
-        assert result == "hello world", \
-            "Normal input should pass through unchanged"
+        assert result == "hello world", "Normal input should pass through unchanged"
 
     def test_validate_accepts_empty_string(self):
         """Empty string should be accepted."""
         result = _validate_input_size("")
-        assert result == "", \
-            "Empty string should be accepted"
+        assert result == "", "Empty string should be accepted"
 
     def test_validate_accepts_exactly_max_length(self):
         """Input exactly at limit should pass."""
         max_input = "A" * MAX_INPUT_LENGTH
         result = _validate_input_size(max_input)
-        assert len(result) == MAX_INPUT_LENGTH, \
+        assert len(result) == MAX_INPUT_LENGTH, (
             "Exactly MAX_INPUT_LENGTH chars should be accepted"
-        assert result == max_input, \
-            "Input should pass through unchanged"
+        )
+        assert result == max_input, "Input should pass through unchanged"
 
     def test_validate_rejects_oversized_input(self):
         """Input over limit should raise ValueError."""
@@ -68,8 +64,7 @@ class TestInputValidationFunction:
     def test_validate_custom_max_length_accepts(self):
         """Custom max_len parameter should be respected for acceptance."""
         result = _validate_input_size("ABCDE", max_len=5)
-        assert result == "ABCDE", \
-            "Should accept input at custom limit"
+        assert result == "ABCDE", "Should accept input at custom limit"
 
     def test_validate_custom_max_length_rejects(self):
         """Custom max_len parameter should be respected for rejection."""
@@ -92,8 +87,7 @@ class TestInputValidationFunction:
             _validate_input_size("A" * 100, max_len=50)
             assert False, "Should have raised ValueError"
         except ValueError as e:
-            assert "50" in str(e), \
-                "Error message should contain the limit value"
+            assert "50" in str(e), "Error message should contain the limit value"
 
 
 class TestMaxInputLengthConstant:
@@ -101,13 +95,13 @@ class TestMaxInputLengthConstant:
 
     def test_max_input_length_is_10000(self):
         """MAX_INPUT_LENGTH should be 10000 (10KB)."""
-        assert MAX_INPUT_LENGTH == 10000, \
-            "MAX_INPUT_LENGTH should be 10000"
+        assert MAX_INPUT_LENGTH == 10000, "MAX_INPUT_LENGTH should be 10000"
 
     def test_max_input_length_is_integer(self):
         """MAX_INPUT_LENGTH should be an integer."""
-        assert isinstance(MAX_INPUT_LENGTH, int), \
+        assert isinstance(MAX_INPUT_LENGTH, int), (
             "MAX_INPUT_LENGTH should be an integer"
+        )
 
 
 class TestSafeStorageState:
@@ -131,22 +125,17 @@ class TestSafeStorageState:
         safe_tools.reset_safe_storage()
 
         # Verify cleared by checking the module's global
-        assert safe_tools.safe_storage == {}, \
-            "Storage should be empty after reset"
+        assert safe_tools.safe_storage == {}, "Storage should be empty after reset"
 
     def test_safe_collections_is_list(self):
         """safe_collections should be a list."""
-        assert isinstance(safe_collections, list), \
-            "safe_collections should be a list"
+        assert isinstance(safe_collections, list), "safe_collections should be a list"
 
     def test_safe_collections_has_defaults(self):
         """safe_collections should have default collections."""
-        assert "test_collection" in safe_collections, \
-            "Should have test_collection"
-        assert "documents" in safe_collections, \
-            "Should have documents"
-        assert "users" in safe_collections, \
-            "Should have users"
+        assert "test_collection" in safe_collections, "Should have test_collection"
+        assert "documents" in safe_collections, "Should have documents"
+        assert "users" in safe_collections, "Should have users"
 
 
 class TestInputValidationEdgeCases:
@@ -155,31 +144,29 @@ class TestInputValidationEdgeCases:
     def test_validate_with_unicode(self):
         """Unicode characters should be counted correctly."""
         # Each emoji is multiple bytes but one character
-        unicode_input = "A" * 9998 + "\U0001F600\U0001F600"  # 2 emoji = 2 chars
+        unicode_input = "A" * 9998 + "\U0001f600\U0001f600"  # 2 emoji = 2 chars
         result = _validate_input_size(unicode_input)
-        assert len(result) == 10000, \
+        assert len(result) == 10000, (
             "Unicode chars should be counted as characters, not bytes"
+        )
 
     def test_validate_with_newlines(self):
         """Newlines should be counted as characters."""
         input_with_newlines = "A\n" * 5000  # 10000 chars
         result = _validate_input_size(input_with_newlines)
-        assert len(result) == 10000, \
-            "Newlines should count as characters"
+        assert len(result) == 10000, "Newlines should count as characters"
 
     def test_validate_with_special_chars(self):
         """Special characters should be handled correctly."""
         special = "<script>alert('xss')</script>" * 100  # ~3000 chars
         result = _validate_input_size(special)
-        assert result == special, \
-            "Special characters should pass through"
+        assert result == special, "Special characters should pass through"
 
     def test_validate_preserves_whitespace(self):
         """Whitespace should be preserved in output."""
         input_with_spaces = "  hello  world  "
         result = _validate_input_size(input_with_spaces)
-        assert result == input_with_spaces, \
-            "Whitespace should be preserved"
+        assert result == input_with_spaces, "Whitespace should be preserved"
 
 
 class TestInputValidationBoundaryValues:
@@ -279,7 +266,7 @@ class TestSafeJsonFormatterTool:
 
     def test_valid_json_array(self):
         """Valid JSON array should be parsed."""
-        result = safe_json_formatter_tool('[1, 2, 3]')
+        result = safe_json_formatter_tool("[1, 2, 3]")
         assert result.get("safe") is True
         assert result.get("array_length") == 3
 
@@ -312,7 +299,7 @@ class TestSafeJsonFormatterTool:
     def test_json_with_malicious_content(self):
         """JSON with malicious-looking content should be parsed safely."""
         # This tests that json.loads() is used, not eval()
-        malicious_json = '{"cmd": "__import__(\\\"os\\\").system(\\\"whoami\\\")"}'
+        malicious_json = '{"cmd": "__import__(\\"os\\").system(\\"whoami\\")"}'
         result = safe_json_formatter_tool(malicious_json)
         # Should parse successfully as data
         assert result.get("safe") is True

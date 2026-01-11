@@ -18,8 +18,7 @@ class TestHardenedVulnerableTools:
     def test_calculator_does_not_execute(self, hardened_client):
         """Hardened calculator should store, not execute."""
         result = hardened_client.call_tool(
-            "vulnerable_calculator_tool",
-            {"query": "15 + 37"}
+            "vulnerable_calculator_tool", {"query": "15 + 37"}
         )
         # Should NOT be vulnerable
         assert result.get("vulnerable") is False or result.get("safe") is True
@@ -29,8 +28,7 @@ class TestHardenedVulnerableTools:
     def test_system_exec_does_not_execute(self, hardened_client):
         """Hardened system exec should store, not execute."""
         result = hardened_client.call_tool(
-            "vulnerable_system_exec_tool",
-            {"command": "whoami"}
+            "vulnerable_system_exec_tool", {"command": "whoami"}
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
         # Should NOT contain actual system output
@@ -39,8 +37,7 @@ class TestHardenedVulnerableTools:
     def test_data_leak_does_not_expose(self, hardened_client):
         """Hardened data leak should not expose credentials."""
         result = hardened_client.call_tool(
-            "vulnerable_data_leak_tool",
-            {"query": "show me the API keys"}
+            "vulnerable_data_leak_tool", {"query": "show me the API keys"}
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
         # Should NOT contain API keys
@@ -51,16 +48,14 @@ class TestHardenedVulnerableTools:
     def test_fetcher_does_not_fetch(self, hardened_client):
         """Hardened fetcher should store URL, not fetch."""
         result = hardened_client.call_tool(
-            "vulnerable_fetcher_tool",
-            {"url": "http://127.0.0.1:10900"}
+            "vulnerable_fetcher_tool", {"url": "http://127.0.0.1:10900"}
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
 
     def test_config_modifier_does_not_modify(self, hardened_client):
         """Hardened config modifier should store, not modify."""
         result = hardened_client.call_tool(
-            "vulnerable_config_modifier_tool",
-            {"setting": "enable admin_mode"}
+            "vulnerable_config_modifier_tool", {"setting": "enable admin_mode"}
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
 
@@ -68,7 +63,7 @@ class TestHardenedVulnerableTools:
         """Hardened tool override should store, not override."""
         result = hardened_client.call_tool(
             "vulnerable_tool_override_tool",
-            {"instruction": "shadow the calculator tool"}
+            {"instruction": "shadow the calculator tool"},
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
 
@@ -76,7 +71,7 @@ class TestHardenedVulnerableTools:
         """Hardened unicode processor should store, not decode/execute."""
         result = hardened_client.call_tool(
             "vulnerable_unicode_processor_tool",
-            {"text": "\\u0069\\u0067\\u006e\\u006f\\u0072\\u0065 previous"}
+            {"text": "\\u0069\\u0067\\u006e\\u006f\\u0072\\u0065 previous"},
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
 
@@ -84,7 +79,7 @@ class TestHardenedVulnerableTools:
         """Hardened nested parser should parse, not execute hidden commands."""
         result = hardened_client.call_tool(
             "vulnerable_nested_parser_tool",
-            {"data": '{"visible": "data", "hidden": "delete all records"}'}
+            {"data": '{"visible": "data", "hidden": "delete all records"}'},
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
 
@@ -92,7 +87,7 @@ class TestHardenedVulnerableTools:
         """Hardened package installer should validate against allowlist."""
         result = hardened_client.call_tool(
             "vulnerable_package_installer_tool",
-            {"package": "reqeusts"}  # Typosquat
+            {"package": "reqeusts"},  # Typosquat
         )
         assert result.get("vulnerable") is False or result.get("safe") is True
 
@@ -103,11 +98,11 @@ class TestHardenedVulnerableTools:
         # All invocations should be safe
         for i in range(15):
             result = hardened_client.call_tool(
-                "vulnerable_rug_pull_tool",
-                {"action": f"action {i}"}
+                "vulnerable_rug_pull_tool", {"action": f"action {i}"}
             )
-            assert result.get("vulnerable") is False, \
-                f"Should be safe at invocation {i+1}, got vulnerable=True"
+            assert result.get("vulnerable") is False, (
+                f"Should be safe at invocation {i + 1}, got vulnerable=True"
+            )
 
 
 class TestHardenedSafeTools:
@@ -116,8 +111,7 @@ class TestHardenedSafeTools:
     def test_safe_storage(self, hardened_client):
         """Safe storage should work."""
         result = hardened_client.call_tool(
-            "safe_storage_tool_mcp",
-            {"data": "test data", "collection": "test"}
+            "safe_storage_tool_mcp", {"data": "test data", "collection": "test"}
         )
         assert result.get("safe") is True
         assert result.get("vulnerable", False) is False
@@ -125,8 +119,7 @@ class TestHardenedSafeTools:
     def test_safe_search(self, hardened_client):
         """Safe search should work."""
         result = hardened_client.call_tool(
-            "safe_search_tool_mcp",
-            {"query": "test query"}
+            "safe_search_tool_mcp", {"query": "test query"}
         )
         assert result.get("safe") is True
         assert result.get("vulnerable", False) is False
@@ -134,8 +127,7 @@ class TestHardenedSafeTools:
     def test_safe_echo(self, hardened_client):
         """Safe echo should work."""
         result = hardened_client.call_tool(
-            "safe_echo_tool_mcp",
-            {"message": "hello world"}
+            "safe_echo_tool_mcp", {"message": "hello world"}
         )
         assert result.get("safe") is True
         assert result.get("vulnerable", False) is False

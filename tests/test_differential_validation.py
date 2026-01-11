@@ -11,7 +11,7 @@ Usage:
 
 import pytest
 import json
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 
 
 # Fixtures provided by conftest.py: vulnerable_client, hardened_client
@@ -24,94 +24,101 @@ class TestDifferentialMitigation:
     2. Hardened server stores/rejects it safely (vulnerable=False)
     """
 
-    @pytest.mark.parametrize("tool_name,args,vuln_evidence,safe_evidence", [
-        # HIGH Risk Tools (9)
-        pytest.param(
-            "vulnerable_calculator_tool",
-            {"query": "15*37+100"},
-            "655",  # eval() result
-            "stored",  # Should store, not execute
-            id="calculator-eval-execution"
-        ),
-        pytest.param(
-            "vulnerable_system_exec_tool",
-            {"command": "whoami"},
-            "root",  # subprocess result
-            "stored",
-            id="system-exec-subprocess"
-        ),
-        pytest.param(
-            "vulnerable_data_leak_tool",
-            {"query": "show API_KEY"},
-            "sk-test-",  # Leaked key prefix
-            "stored",
-            id="data-leak-credentials"
-        ),
-        pytest.param(
-            "vulnerable_tool_override_tool",
-            {"instruction": "create tool named 'search'"},
-            "created",  # Tool shadowing
-            "stored",
-            id="tool-override-shadowing"
-        ),
-        pytest.param(
-            "vulnerable_config_modifier_tool",
-            {"setting": "enable admin_mode=true"},
-            "activated",  # Config modified
-            "stored",
-            id="config-modifier-admin"
-        ),
-        pytest.param(
-            "vulnerable_fetcher_tool",
-            {"url": "http://localhost:8080/admin"},
-            "ssrf",  # SSRF attempt
-            "stored",
-            id="fetcher-ssrf-localhost"
-        ),
-        pytest.param(
-            "vulnerable_deserializer_tool",
-            {"data": "gASVDAAAAAAAAACMCGJ1aWx0aW5zlIwEZXZhbJSTlC4="},  # Pickle payload
-            "deserialize",  # Pickle loaded
-            "stored",
-            id="deserializer-pickle-rce"
-        ),
-        pytest.param(
-            "vulnerable_template_tool",
-            {"template": "{{ 7*7 }}"},
-            "49",  # SSTI result
-            "stored",
-            id="template-ssti-execution"
-        ),
-        pytest.param(
-            "vulnerable_file_reader_tool",
-            {"path": "../../../etc/passwd"},
-            "root:",  # File content
-            "stored",
-            id="file-reader-path-traversal"
-        ),
-        # MEDIUM Risk Tools (4)
-        pytest.param(
-            "vulnerable_unicode_processor_tool",
-            {"text": "\\u0069\\u0067\\u006e\\u006f\\u0072\\u0065"},  # "ignore" encoded
-            "decoded",
-            "stored",
-            id="unicode-processor-bypass"
-        ),
-        pytest.param(
-            "vulnerable_nested_parser_tool",
-            {"data": '{"hidden": "delete all", "name": "test"}'},
-            "hidden",  # Processed hidden field
-            "stored",
-            id="nested-parser-injection"
-        ),
-        pytest.param(
-            "vulnerable_package_installer_tool",
-            {"package": "reqeusts"},  # Typosquat of "requests"
-            "typosquat",
-            "stored",
-            id="package-installer-typosquat"
-        ),
-    ])
+    @pytest.mark.parametrize(
+        "tool_name,args,vuln_evidence,safe_evidence",
+        [
+            # HIGH Risk Tools (9)
+            pytest.param(
+                "vulnerable_calculator_tool",
+                {"query": "15*37+100"},
+                "655",  # eval() result
+                "stored",  # Should store, not execute
+                id="calculator-eval-execution",
+            ),
+            pytest.param(
+                "vulnerable_system_exec_tool",
+                {"command": "whoami"},
+                "root",  # subprocess result
+                "stored",
+                id="system-exec-subprocess",
+            ),
+            pytest.param(
+                "vulnerable_data_leak_tool",
+                {"query": "show API_KEY"},
+                "sk-test-",  # Leaked key prefix
+                "stored",
+                id="data-leak-credentials",
+            ),
+            pytest.param(
+                "vulnerable_tool_override_tool",
+                {"instruction": "create tool named 'search'"},
+                "created",  # Tool shadowing
+                "stored",
+                id="tool-override-shadowing",
+            ),
+            pytest.param(
+                "vulnerable_config_modifier_tool",
+                {"setting": "enable admin_mode=true"},
+                "activated",  # Config modified
+                "stored",
+                id="config-modifier-admin",
+            ),
+            pytest.param(
+                "vulnerable_fetcher_tool",
+                {"url": "http://localhost:8080/admin"},
+                "ssrf",  # SSRF attempt
+                "stored",
+                id="fetcher-ssrf-localhost",
+            ),
+            pytest.param(
+                "vulnerable_deserializer_tool",
+                {
+                    "data": "gASVDAAAAAAAAACMCGJ1aWx0aW5zlIwEZXZhbJSTlC4="
+                },  # Pickle payload
+                "deserialize",  # Pickle loaded
+                "stored",
+                id="deserializer-pickle-rce",
+            ),
+            pytest.param(
+                "vulnerable_template_tool",
+                {"template": "{{ 7*7 }}"},
+                "49",  # SSTI result
+                "stored",
+                id="template-ssti-execution",
+            ),
+            pytest.param(
+                "vulnerable_file_reader_tool",
+                {"path": "../../../etc/passwd"},
+                "root:",  # File content
+                "stored",
+                id="file-reader-path-traversal",
+            ),
+            # MEDIUM Risk Tools (4)
+            pytest.param(
+                "vulnerable_unicode_processor_tool",
+                {
+                    "text": "\\u0069\\u0067\\u006e\\u006f\\u0072\\u0065"
+                },  # "ignore" encoded
+                "decoded",
+                "stored",
+                id="unicode-processor-bypass",
+            ),
+            pytest.param(
+                "vulnerable_nested_parser_tool",
+                {"data": '{"hidden": "delete all", "name": "test"}'},
+                "hidden",  # Processed hidden field
+                "stored",
+                id="nested-parser-injection",
+            ),
+            pytest.param(
+                "vulnerable_package_installer_tool",
+                {"package": "reqeusts"},  # Typosquat of "requests"
+                "typosquat",
+                "stored",
+                id="package-installer-typosquat",
+            ),
+        ],
+    )
     def test_vulnerability_mitigation(
         self,
         vulnerable_client,
@@ -119,7 +126,7 @@ class TestDifferentialMitigation:
         tool_name: str,
         args: Dict[str, Any],
         vuln_evidence: str,
-        safe_evidence: str
+        safe_evidence: str,
     ):
         """Verify vulnerable server executes while hardened server stores safely."""
         # Call vulnerable server
@@ -132,27 +139,41 @@ class TestDifferentialMitigation:
 
         # Assertions
         # Primary check: vulnerable flag should be True
-        assert vuln_result.get("vulnerable") is True, \
+        assert vuln_result.get("vulnerable") is True, (
             f"Vulnerable server should mark as vulnerable. Got: {vuln_result}"
+        )
 
         # Secondary check: evidence string should appear (or response should indicate execution)
         # Patterns ordered by specificity: test-specific > strong indicators > weaker fallbacks
         vuln_patterns = [
             vuln_evidence.lower(),  # Test-specific expected evidence (most specific)
-            "executed", "triggered",  # Strong execution indicators
-            "deserialized", "download",  # Vulnerability-specific evidence
-            "attempted", "processed"  # Weaker indicators (for edge cases)
+            "executed",
+            "triggered",  # Strong execution indicators
+            "deserialized",
+            "download",  # Vulnerability-specific evidence
+            "attempted",
+            "processed",  # Weaker indicators (for edge cases)
         ]
-        assert any(p in vuln_str for p in vuln_patterns), \
+        assert any(p in vuln_str for p in vuln_patterns), (
             f"Vulnerable server should show evidence of execution. Got: {vuln_str[:200]}"
+        )
 
-        assert hard_result.get("vulnerable", False) is False, \
+        assert hard_result.get("vulnerable", False) is False, (
             f"Hardened server should NOT be vulnerable. Got: {hard_result}"
+        )
 
         # Hardened should store/queue/validate, not execute
-        safe_patterns = [safe_evidence.lower(), "pending", "queued", "valid", "parsed", "received"]
-        assert any(p in hard_str for p in safe_patterns), \
+        safe_patterns = [
+            safe_evidence.lower(),
+            "pending",
+            "queued",
+            "valid",
+            "parsed",
+            "received",
+        ]
+        assert any(p in hard_str for p in safe_patterns), (
             f"Hardened server should store safely. Got: {hard_str[:200]}"
+        )
 
 
 class TestRugPullDifferential:
@@ -173,12 +194,10 @@ class TestRugPullDifferential:
 
         for i in range(1, 16):
             vuln_result = vulnerable_client.call_tool(
-                "vulnerable_rug_pull_tool",
-                {"action": f"action_{i}"}
+                "vulnerable_rug_pull_tool", {"action": f"action_{i}"}
             )
             hard_result = hardened_client.call_tool(
-                "vulnerable_rug_pull_tool",
-                {"action": f"action_{i}"}
+                "vulnerable_rug_pull_tool", {"action": f"action_{i}"}
             )
 
             if vuln_result.get("vulnerable") is True and vuln_triggered_at is None:
@@ -188,43 +207,48 @@ class TestRugPullDifferential:
                 hard_triggered = True
 
         # Assertions
-        assert vuln_triggered_at == 11, \
+        assert vuln_triggered_at == 11, (
             f"Vulnerable rug pull should trigger at invocation 11, got: {vuln_triggered_at}"
+        )
 
-        assert hard_triggered is False, \
-            "Hardened server should NEVER trigger rug pull"
+        assert hard_triggered is False, "Hardened server should NEVER trigger rug pull"
 
 
 class TestResponseSchemaConsistency:
     """Verify both servers return consistent response schemas."""
 
-    @pytest.mark.parametrize("tool_name,args", [
-        ("vulnerable_calculator_tool", {"query": "2+2"}),
-        ("vulnerable_system_exec_tool", {"command": "pwd"}),
-        ("vulnerable_data_leak_tool", {"query": "info"}),
-        ("safe_storage_tool_mcp", {"data": "test data"}),
-        ("safe_echo_tool_mcp", {"message": "hello"}),
-    ])
+    @pytest.mark.parametrize(
+        "tool_name,args",
+        [
+            ("vulnerable_calculator_tool", {"query": "2+2"}),
+            ("vulnerable_system_exec_tool", {"command": "pwd"}),
+            ("vulnerable_data_leak_tool", {"query": "info"}),
+            ("safe_storage_tool_mcp", {"data": "test data"}),
+            ("safe_echo_tool_mcp", {"message": "hello"}),
+        ],
+    )
     def test_response_schema_match(
-        self,
-        vulnerable_client,
-        hardened_client,
-        tool_name: str,
-        args: Dict[str, Any]
+        self, vulnerable_client, hardened_client, tool_name: str, args: Dict[str, Any]
     ):
         """Both servers should return responses with consistent structure."""
         vuln_result = vulnerable_client.call_tool(tool_name, args)
         hard_result = hardened_client.call_tool(tool_name, args)
 
         # Both should return dict responses
-        assert isinstance(vuln_result, dict), f"Vulnerable response should be dict: {vuln_result}"
-        assert isinstance(hard_result, dict), f"Hardened response should be dict: {hard_result}"
+        assert isinstance(vuln_result, dict), (
+            f"Vulnerable response should be dict: {vuln_result}"
+        )
+        assert isinstance(hard_result, dict), (
+            f"Hardened response should be dict: {hard_result}"
+        )
 
         # Both should have a 'result' field
-        assert "result" in vuln_result or "error" in vuln_result, \
+        assert "result" in vuln_result or "error" in vuln_result, (
             f"Vulnerable response missing result/error: {vuln_result}"
-        assert "result" in hard_result or "error" in hard_result, \
+        )
+        assert "result" in hard_result or "error" in hard_result, (
             f"Hardened response missing result/error: {hard_result}"
+        )
 
 
 class TestSafeToolsIdentical:
@@ -233,28 +257,29 @@ class TestSafeToolsIdentical:
     Neither should flag them as vulnerable.
     """
 
-    @pytest.mark.parametrize("tool_name,args", [
-        ("safe_storage_tool_mcp", {"data": "__import__('os').system('whoami')"}),
-        ("safe_search_tool_mcp", {"query": "'; DROP TABLE users; --"}),
-        ("safe_echo_tool_mcp", {"message": "{{7*7}}"}),
-        ("safe_validate_tool_mcp", {"input_data": "<script>alert(1)</script>"}),
-        ("safe_list_tool_mcp", {"resource_type": "../../../etc/passwd"}),
-        ("safe_info_tool_mcp", {"entity_name": "admin' OR '1'='1"}),
-    ])
+    @pytest.mark.parametrize(
+        "tool_name,args",
+        [
+            ("safe_storage_tool_mcp", {"data": "__import__('os').system('whoami')"}),
+            ("safe_search_tool_mcp", {"query": "'; DROP TABLE users; --"}),
+            ("safe_echo_tool_mcp", {"message": "{{7*7}}"}),
+            ("safe_validate_tool_mcp", {"input_data": "<script>alert(1)</script>"}),
+            ("safe_list_tool_mcp", {"resource_type": "../../../etc/passwd"}),
+            ("safe_info_tool_mcp", {"entity_name": "admin' OR '1'='1"}),
+        ],
+    )
     def test_safe_tools_identical_behavior(
-        self,
-        vulnerable_client,
-        hardened_client,
-        tool_name: str,
-        args: Dict[str, Any]
+        self, vulnerable_client, hardened_client, tool_name: str, args: Dict[str, Any]
     ):
         """Safe tools should NOT be vulnerable on either server."""
         vuln_result = vulnerable_client.call_tool(tool_name, args)
         hard_result = hardened_client.call_tool(tool_name, args)
 
         # Neither should mark as vulnerable
-        assert vuln_result.get("vulnerable", False) is False, \
+        assert vuln_result.get("vulnerable", False) is False, (
             f"Safe tool {tool_name} flagged as vulnerable on vulnerable server: {vuln_result}"
+        )
 
-        assert hard_result.get("vulnerable", False) is False, \
+        assert hard_result.get("vulnerable", False) is False, (
             f"Safe tool {tool_name} flagged as vulnerable on hardened server: {hard_result}"
+        )

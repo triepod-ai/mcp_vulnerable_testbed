@@ -23,42 +23,42 @@ class TestVulnerableSessionManagement:
     def test_predictable_session_id_pattern(self, vulnerable_client):
         """CWE-330: Session IDs follow predictable pattern."""
         result = vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         assert result.get("vulnerable") is True
         session_id = result.get("session_id", "")
 
         # Verify predictable pattern: session_{user}_{timestamp}_{counter}
-        pattern = r'^session_testuser_\d+_\d+$'
-        assert re.match(pattern, session_id), \
+        pattern = r"^session_testuser_\d+_\d+$"
+        assert re.match(pattern, session_id), (
             f"Session ID '{session_id}' should match predictable pattern"
+        )
         assert "CWE-330" in str(result.get("cwe_ids", []))
 
     def test_session_id_in_url(self, vulnerable_client):
         """CWE-200: Session ID exposed in URL parameters."""
         result = vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         assert result.get("vulnerable") is True
         session_url = result.get("session_url", "")
         session_id = result.get("session_id", "")
 
         # Session ID should be in URL (vulnerability)
-        assert f"session_id={session_id}" in session_url, \
+        assert f"session_id={session_id}" in session_url, (
             "Session ID should be exposed in URL"
+        )
         assert "CWE-200" in str(result.get("cwe_ids", []))
 
     def test_no_session_timeout(self, vulnerable_client):
         """CWE-613: Sessions have no expiration."""
         result = vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         assert result.get("vulnerable") is True
-        assert result.get("expires_at") is None, \
+        assert result.get("expires_at") is None, (
             "Session should have no expiration (vulnerability)"
+        )
         assert "CWE-613" in str(result.get("cwe_ids", []))
 
     def test_session_fixation_attack(self, clean_vulnerable_client):
@@ -67,11 +67,7 @@ class TestVulnerableSessionManagement:
         attacker_session = "attacker_chosen_session_12345"
         result = clean_vulnerable_client.call_tool(
             "vulnerable_session_tool",
-            {
-                "action": "fixate",
-                "session_id": attacker_session,
-                "user": "attacker"
-            }
+            {"action": "fixate", "session_id": attacker_session, "user": "attacker"},
         )
         assert result.get("vulnerable") is True
         assert result.get("attacker_controlled") is True
@@ -84,11 +80,7 @@ class TestVulnerableSessionManagement:
         # Step 3: Victim logs in with attacker's session
         login_result = clean_vulnerable_client.call_tool(
             "vulnerable_session_tool",
-            {
-                "action": "login",
-                "session_id": attacker_session,
-                "user": "victim"
-            }
+            {"action": "login", "session_id": attacker_session, "user": "victim"},
         )
         assert login_result.get("vulnerable") is True
         assert login_result.get("authenticated") is True
@@ -99,52 +91,47 @@ class TestVulnerableSessionManagement:
         """CWE-384: Session ID not regenerated after authentication."""
         # Create session
         create_result = clean_vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         original_session_id = create_result.get("session_id")
 
         # Login (should regenerate session ID, but doesn't)
         login_result = clean_vulnerable_client.call_tool(
             "vulnerable_session_tool",
-            {
-                "action": "login",
-                "session_id": original_session_id,
-                "user": "testuser"
-            }
+            {"action": "login", "session_id": original_session_id, "user": "testuser"},
         )
         assert login_result.get("vulnerable") is True
-        assert login_result.get("session_regenerated") is False, \
+        assert login_result.get("session_regenerated") is False, (
             "Session ID should NOT be regenerated (vulnerability)"
-        assert login_result.get("session_id") == original_session_id, \
+        )
+        assert login_result.get("session_id") == original_session_id, (
             "Session ID should remain same after login (vulnerability)"
+        )
         assert "CWE-384" in str(login_result.get("cwe_ids", []))
 
     def test_session_validation_no_timeout_check(self, clean_vulnerable_client):
         """CWE-613: Session validation doesn't check expiration."""
         # Create session
         create_result = clean_vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         session_id = create_result.get("session_id")
 
         # Validate session (should check timeout, but doesn't)
         validate_result = clean_vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "validate", "session_id": session_id}
+            "vulnerable_session_tool", {"action": "validate", "session_id": session_id}
         )
         assert validate_result.get("vulnerable") is True
-        assert validate_result.get("timeout_checked") is False, \
+        assert validate_result.get("timeout_checked") is False, (
             "Timeout should NOT be checked (vulnerability)"
+        )
 
     def test_predictable_session_sequence(self, clean_vulnerable_client):
         """CWE-330: Session IDs can be predicted from sequence."""
         sessions = []
         for i in range(3):
             result = clean_vulnerable_client.call_tool(
-                "vulnerable_session_tool",
-                {"action": "create", "user": "testuser"}
+                "vulnerable_session_tool", {"action": "create", "user": "testuser"}
             )
             sessions.append(result.get("session_id"))
 
@@ -162,8 +149,7 @@ class TestHardenedSessionManagement:
     def test_secure_token_indicators(self, hardened_client):
         """Hardened: Uses cryptographically secure tokens."""
         result = hardened_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         assert result.get("safe") is True
         assert result.get("vulnerable", False) is False
@@ -175,11 +161,7 @@ class TestHardenedSessionManagement:
         """Hardened: Session fixation attacks are blocked."""
         result = hardened_client.call_tool(
             "vulnerable_session_tool",
-            {
-                "action": "fixate",
-                "session_id": "attacker_session",
-                "user": "attacker"
-            }
+            {"action": "fixate", "session_id": "attacker_session", "user": "attacker"},
         )
         assert result.get("safe") is True
         assert result.get("attack_blocked") is True
@@ -188,8 +170,7 @@ class TestHardenedSessionManagement:
     def test_session_id_not_in_url(self, hardened_client):
         """Hardened: Session ID never exposed in URLs."""
         result = hardened_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         assert result.get("safe") is True
 
@@ -199,8 +180,7 @@ class TestHardenedSessionManagement:
     def test_timeout_enforced(self, hardened_client):
         """Hardened: Sessions have expiration."""
         result = hardened_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         assert result.get("safe") is True
 
@@ -210,8 +190,7 @@ class TestHardenedSessionManagement:
     def test_regeneration_on_auth(self, hardened_client):
         """Hardened: Session ID regenerated on authentication."""
         result = hardened_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "login", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "login", "user": "testuser"}
         )
         assert result.get("safe") is True
 
@@ -226,46 +205,43 @@ class TestSessionStateBoundaries:
         """Logout should remove session from store."""
         # Create session
         create_result = clean_vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "create", "user": "testuser"}
         )
         session_id = create_result.get("session_id")
 
         # Logout
         logout_result = clean_vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "logout", "session_id": session_id}
+            "vulnerable_session_tool", {"action": "logout", "session_id": session_id}
         )
         assert "ended" in logout_result.get("result", "").lower()
 
         # Validate should fail
         validate_result = clean_vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "validate", "session_id": session_id}
+            "vulnerable_session_tool", {"action": "validate", "session_id": session_id}
         )
-        assert validate_result.get("valid", True) is False or "not found" in validate_result.get("result", "").lower()
+        assert (
+            validate_result.get("valid", True) is False
+            or "not found" in validate_result.get("result", "").lower()
+        )
 
     def test_missing_required_params(self, vulnerable_client):
         """Missing parameters should return errors."""
         # Create without user
         result = vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "create"}
+            "vulnerable_session_tool", {"action": "create"}
         )
         assert "error" in result
 
         # Login without session_id
         result = vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "login", "user": "testuser"}
+            "vulnerable_session_tool", {"action": "login", "user": "testuser"}
         )
         assert "error" in result
 
     def test_invalid_action(self, vulnerable_client):
         """Invalid action should return error with valid options."""
         result = vulnerable_client.call_tool(
-            "vulnerable_session_tool",
-            {"action": "invalid_action"}
+            "vulnerable_session_tool", {"action": "invalid_action"}
         )
         assert "error" in result
         assert "valid_actions" in result

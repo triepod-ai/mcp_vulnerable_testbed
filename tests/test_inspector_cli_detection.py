@@ -74,9 +74,7 @@ class TestInspectorCLIChallenge12:
 
     @pytest.fixture(scope="class")
     def session_tool_assessment(
-        self,
-        inspector_cli_available,
-        inspector_config_file
+        self, inspector_cli_available, inspector_config_file
     ) -> Optional[InspectorResult]:
         """Run Inspector CLI against vulnerable_session_tool (class-scoped)."""
         if not inspector_cli_available:
@@ -87,7 +85,7 @@ class TestInspectorCLIChallenge12:
             config_path=inspector_config_file,
             tool_name="vulnerable_session_tool",
             modules=["security"],
-            timeout=180
+            timeout=180,
         )
 
     def test_inspector_cli_invocation_succeeds(self, session_tool_assessment):
@@ -100,96 +98,96 @@ class TestInspectorCLIChallenge12:
     def test_inspector_returns_findings_structure(self, session_tool_assessment):
         """Inspector should return properly structured findings."""
         # Even if no vulnerabilities detected, structure should be valid
-        assert hasattr(session_tool_assessment, 'findings')
-        assert hasattr(session_tool_assessment, 'overall_status')
-        assert hasattr(session_tool_assessment, 'raw_output')
+        assert hasattr(session_tool_assessment, "findings")
+        assert hasattr(session_tool_assessment, "overall_status")
+        assert hasattr(session_tool_assessment, "raw_output")
 
-    def test_challenge_12_session_vulnerabilities_detected(self, session_tool_assessment):
+    def test_challenge_12_session_vulnerabilities_detected(
+        self, session_tool_assessment
+    ):
         """Main test: vulnerable_session_tool should be flagged with vulnerabilities."""
         findings = extract_findings_for_tool(
-            session_tool_assessment,
-            "vulnerable_session_tool"
+            session_tool_assessment, "vulnerable_session_tool"
         )
         vulnerable_findings = get_vulnerable_findings(findings)
 
-        assert len(vulnerable_findings) > 0, \
+        assert len(vulnerable_findings) > 0, (
             "Inspector should detect vulnerabilities in session tool"
+        )
 
     def test_session_tool_high_risk(self, session_tool_assessment):
         """Session vulnerabilities should be rated HIGH risk."""
         findings = extract_findings_for_tool(
-            session_tool_assessment,
-            "vulnerable_session_tool"
+            session_tool_assessment, "vulnerable_session_tool"
         )
         risk_level = get_highest_risk_level(findings)
 
-        assert risk_level == "HIGH", \
-            f"Expected HIGH risk level, got {risk_level}"
+        assert risk_level == "HIGH", f"Expected HIGH risk level, got {risk_level}"
 
     def test_session_fixation_cwe384_in_output(self, session_tool_assessment):
         """CWE-384 (Session Fixation) should be in findings."""
         findings = extract_findings_for_tool(
-            session_tool_assessment,
-            "vulnerable_session_tool"
+            session_tool_assessment, "vulnerable_session_tool"
         )
 
         # Check for CWE-384 or related session fixation indicators
         has_cwe = has_cwe_detection(findings, "CWE-384")
         has_fixation = any(
             "fixation" in str(f.raw).lower() or "fixate" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_fixation, \
-            "Session fixation (CWE-384) should be detected"
+        assert has_cwe or has_fixation, "Session fixation (CWE-384) should be detected"
 
     def test_predictable_tokens_cwe330_in_output(self, session_tool_assessment):
         """CWE-330 (Predictable Tokens) should be in findings."""
         findings = extract_findings_for_tool(
-            session_tool_assessment,
-            "vulnerable_session_tool"
+            session_tool_assessment, "vulnerable_session_tool"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-330")
         has_predictable = any(
             "predictable" in str(f.raw).lower() or "random" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_predictable, \
+        assert has_cwe or has_predictable, (
             "Predictable tokens (CWE-330) should be detected"
+        )
 
     def test_no_timeout_cwe613_in_output(self, session_tool_assessment):
         """CWE-613 (No Session Timeout) should be in findings."""
         findings = extract_findings_for_tool(
-            session_tool_assessment,
-            "vulnerable_session_tool"
+            session_tool_assessment, "vulnerable_session_tool"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-613")
         has_timeout = any(
             "timeout" in str(f.raw).lower() or "expir" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_timeout, \
-            "No session timeout (CWE-613) should be detected"
+        assert has_cwe or has_timeout, "No session timeout (CWE-613) should be detected"
 
     def test_id_exposure_cwe200_in_output(self, session_tool_assessment):
         """CWE-200 (Session ID in URL) should be in findings."""
         findings = extract_findings_for_tool(
-            session_tool_assessment,
-            "vulnerable_session_tool"
+            session_tool_assessment, "vulnerable_session_tool"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-200")
         has_exposure = any(
             "url" in str(f.raw).lower() or "expos" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_exposure, \
+        assert has_cwe or has_exposure, (
             "Session ID exposure (CWE-200) should be detected"
+        )
 
 
 # ============================================================================
@@ -213,9 +211,7 @@ class TestInspectorCLIChallenge13Crypto:
 
     @pytest.fixture(scope="class")
     def crypto_tool_assessment(
-        self,
-        inspector_cli_available,
-        inspector_config_file
+        self, inspector_cli_available, inspector_config_file
     ) -> Optional[InspectorResult]:
         """Run Inspector CLI against vulnerable_crypto_tool_endpoint (class-scoped)."""
         if not inspector_cli_available:
@@ -226,7 +222,7 @@ class TestInspectorCLIChallenge13Crypto:
             config_path=inspector_config_file,
             tool_name="vulnerable_crypto_tool_endpoint",
             modules=["security"],
-            timeout=180
+            timeout=180,
         )
 
     def test_inspector_cli_invocation_succeeds(self, crypto_tool_assessment):
@@ -237,95 +233,89 @@ class TestInspectorCLIChallenge13Crypto:
 
     def test_inspector_returns_findings_structure(self, crypto_tool_assessment):
         """Inspector should return properly structured findings."""
-        assert hasattr(crypto_tool_assessment, 'findings')
-        assert hasattr(crypto_tool_assessment, 'overall_status')
-        assert hasattr(crypto_tool_assessment, 'raw_output')
+        assert hasattr(crypto_tool_assessment, "findings")
+        assert hasattr(crypto_tool_assessment, "overall_status")
+        assert hasattr(crypto_tool_assessment, "raw_output")
 
     def test_owasp_a02_crypto_tool_detected(self, crypto_tool_assessment):
         """Main test: vulnerable_crypto_tool_endpoint should be flagged."""
         findings = extract_findings_for_tool(
-            crypto_tool_assessment,
-            "vulnerable_crypto_tool_endpoint"
+            crypto_tool_assessment, "vulnerable_crypto_tool_endpoint"
         )
         vulnerable_findings = get_vulnerable_findings(findings)
 
-        assert len(vulnerable_findings) > 0, \
+        assert len(vulnerable_findings) > 0, (
             "Inspector should detect crypto vulnerabilities"
+        )
 
     def test_crypto_tool_high_risk(self, crypto_tool_assessment):
         """Crypto vulnerabilities should be rated HIGH risk."""
         findings = extract_findings_for_tool(
-            crypto_tool_assessment,
-            "vulnerable_crypto_tool_endpoint"
+            crypto_tool_assessment, "vulnerable_crypto_tool_endpoint"
         )
         risk_level = get_highest_risk_level(findings)
 
-        assert risk_level == "HIGH", \
-            f"Expected HIGH risk level, got {risk_level}"
+        assert risk_level == "HIGH", f"Expected HIGH risk level, got {risk_level}"
 
     def test_weak_hash_cwe328_in_output(self, crypto_tool_assessment):
         """CWE-328 (MD5 hashing) should be in findings."""
         findings = extract_findings_for_tool(
-            crypto_tool_assessment,
-            "vulnerable_crypto_tool_endpoint"
+            crypto_tool_assessment, "vulnerable_crypto_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-328")
         has_md5 = any(
             "md5" in str(f.raw).lower() or "weak hash" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_md5, \
-            "Weak hash MD5 (CWE-328) should be detected"
+        assert has_cwe or has_md5, "Weak hash MD5 (CWE-328) should be detected"
 
     def test_static_salt_cwe916_in_output(self, crypto_tool_assessment):
         """CWE-916 (Static Salt) should be in findings."""
         findings = extract_findings_for_tool(
-            crypto_tool_assessment,
-            "vulnerable_crypto_tool_endpoint"
+            crypto_tool_assessment, "vulnerable_crypto_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-916")
         has_salt = any(
             "salt" in str(f.raw).lower() or "static" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_salt, \
-            "Static salt (CWE-916) should be detected"
+        assert has_cwe or has_salt, "Static salt (CWE-916) should be detected"
 
     def test_predictable_rng_cwe330_in_output(self, crypto_tool_assessment):
         """CWE-330 (Predictable RNG) should be in findings."""
         findings = extract_findings_for_tool(
-            crypto_tool_assessment,
-            "vulnerable_crypto_tool_endpoint"
+            crypto_tool_assessment, "vulnerable_crypto_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-330")
         has_rng = any(
             "random" in str(f.raw).lower() or "predict" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_rng, \
-            "Predictable RNG (CWE-330) should be detected"
+        assert has_cwe or has_rng, "Predictable RNG (CWE-330) should be detected"
 
     def test_timing_attack_cwe208_in_output(self, crypto_tool_assessment):
         """CWE-208 (Timing Attack) should be in findings."""
         findings = extract_findings_for_tool(
-            crypto_tool_assessment,
-            "vulnerable_crypto_tool_endpoint"
+            crypto_tool_assessment, "vulnerable_crypto_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-208")
         has_timing = any(
             "timing" in str(f.raw).lower() or "constant" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_timing, \
-            "Timing attack (CWE-208) should be detected"
+        assert has_cwe or has_timing, "Timing attack (CWE-208) should be detected"
 
 
 # ============================================================================
@@ -349,9 +339,7 @@ class TestInspectorCLIChallenge13Encryption:
 
     @pytest.fixture(scope="class")
     def encryption_tool_assessment(
-        self,
-        inspector_cli_available,
-        inspector_config_file
+        self, inspector_cli_available, inspector_config_file
     ) -> Optional[InspectorResult]:
         """Run Inspector CLI against vulnerable_encryption_tool_endpoint (class-scoped)."""
         if not inspector_cli_available:
@@ -362,7 +350,7 @@ class TestInspectorCLIChallenge13Encryption:
             config_path=inspector_config_file,
             tool_name="vulnerable_encryption_tool_endpoint",
             modules=["security"],
-            timeout=180
+            timeout=180,
         )
 
     def test_inspector_cli_invocation_succeeds(self, encryption_tool_assessment):
@@ -373,95 +361,89 @@ class TestInspectorCLIChallenge13Encryption:
 
     def test_inspector_returns_findings_structure(self, encryption_tool_assessment):
         """Inspector should return properly structured findings."""
-        assert hasattr(encryption_tool_assessment, 'findings')
-        assert hasattr(encryption_tool_assessment, 'overall_status')
-        assert hasattr(encryption_tool_assessment, 'raw_output')
+        assert hasattr(encryption_tool_assessment, "findings")
+        assert hasattr(encryption_tool_assessment, "overall_status")
+        assert hasattr(encryption_tool_assessment, "raw_output")
 
     def test_owasp_a02_encryption_tool_detected(self, encryption_tool_assessment):
         """Main test: vulnerable_encryption_tool_endpoint should be flagged."""
         findings = extract_findings_for_tool(
-            encryption_tool_assessment,
-            "vulnerable_encryption_tool_endpoint"
+            encryption_tool_assessment, "vulnerable_encryption_tool_endpoint"
         )
         vulnerable_findings = get_vulnerable_findings(findings)
 
-        assert len(vulnerable_findings) > 0, \
+        assert len(vulnerable_findings) > 0, (
             "Inspector should detect encryption vulnerabilities"
+        )
 
     def test_encryption_tool_high_risk(self, encryption_tool_assessment):
         """Encryption vulnerabilities should be rated HIGH risk."""
         findings = extract_findings_for_tool(
-            encryption_tool_assessment,
-            "vulnerable_encryption_tool_endpoint"
+            encryption_tool_assessment, "vulnerable_encryption_tool_endpoint"
         )
         risk_level = get_highest_risk_level(findings)
 
-        assert risk_level == "HIGH", \
-            f"Expected HIGH risk level, got {risk_level}"
+        assert risk_level == "HIGH", f"Expected HIGH risk level, got {risk_level}"
 
     def test_ecb_mode_cwe327_in_output(self, encryption_tool_assessment):
         """CWE-327 (ECB Mode) should be in findings."""
         findings = extract_findings_for_tool(
-            encryption_tool_assessment,
-            "vulnerable_encryption_tool_endpoint"
+            encryption_tool_assessment, "vulnerable_encryption_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-327")
         has_ecb = any(
             "ecb" in str(f.raw).lower() or "block" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_ecb, \
-            "ECB mode (CWE-327) should be detected"
+        assert has_cwe or has_ecb, "ECB mode (CWE-327) should be detected"
 
     def test_hardcoded_key_cwe321_in_output(self, encryption_tool_assessment):
         """CWE-321 (Hardcoded Key) should be in findings."""
         findings = extract_findings_for_tool(
-            encryption_tool_assessment,
-            "vulnerable_encryption_tool_endpoint"
+            encryption_tool_assessment, "vulnerable_encryption_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-321")
         has_hardcoded = any(
             "hardcoded" in str(f.raw).lower() or "embedded" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_hardcoded, \
-            "Hardcoded key (CWE-321) should be detected"
+        assert has_cwe or has_hardcoded, "Hardcoded key (CWE-321) should be detected"
 
     def test_weak_kdf_cwe916_in_output(self, encryption_tool_assessment):
         """CWE-916 (Weak Key Derivation) should be in findings."""
         findings = extract_findings_for_tool(
-            encryption_tool_assessment,
-            "vulnerable_encryption_tool_endpoint"
+            encryption_tool_assessment, "vulnerable_encryption_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-916")
         has_kdf = any(
             "deriv" in str(f.raw).lower() or "pbkdf" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_kdf, \
-            "Weak KDF (CWE-916) should be detected"
+        assert has_cwe or has_kdf, "Weak KDF (CWE-916) should be detected"
 
     def test_weak_hmac_cwe326_in_output(self, encryption_tool_assessment):
         """CWE-326 (Weak HMAC Key) should be in findings."""
         findings = extract_findings_for_tool(
-            encryption_tool_assessment,
-            "vulnerable_encryption_tool_endpoint"
+            encryption_tool_assessment, "vulnerable_encryption_tool_endpoint"
         )
 
         has_cwe = has_cwe_detection(findings, "CWE-326")
         has_hmac = any(
             "hmac" in str(f.raw).lower() or "key length" in str(f.raw).lower()
-            for f in findings if f.vulnerable
+            for f in findings
+            if f.vulnerable
         )
 
-        assert has_cwe or has_hmac, \
-            "Weak HMAC key (CWE-326) should be detected"
+        assert has_cwe or has_hmac, "Weak HMAC key (CWE-326) should be detected"
 
 
 # ============================================================================
@@ -477,9 +459,7 @@ class TestInspectorCLIHardenedNotFlagged:
     """
 
     def test_hardened_session_zero_vulnerabilities(
-        self,
-        inspector_cli_available,
-        hardened_inspector_config
+        self, inspector_cli_available, hardened_inspector_config
     ):
         """Hardened session tool should NOT be flagged as vulnerable."""
         if not inspector_cli_available:
@@ -490,19 +470,18 @@ class TestInspectorCLIHardenedNotFlagged:
             config_path=hardened_inspector_config,
             tool_name="vulnerable_session_tool",
             modules=["security"],
-            timeout=180
+            timeout=180,
         )
 
         findings = extract_findings_for_tool(result, "vulnerable_session_tool")
         vulnerable_findings = get_vulnerable_findings(findings)
 
-        assert len(vulnerable_findings) == 0, \
+        assert len(vulnerable_findings) == 0, (
             f"Hardened session tool should NOT be flagged, found: {[f.test_name for f in vulnerable_findings]}"
+        )
 
     def test_hardened_crypto_zero_vulnerabilities(
-        self,
-        inspector_cli_available,
-        hardened_inspector_config
+        self, inspector_cli_available, hardened_inspector_config
     ):
         """Hardened crypto tool should NOT be flagged as vulnerable."""
         if not inspector_cli_available:
@@ -513,19 +492,18 @@ class TestInspectorCLIHardenedNotFlagged:
             config_path=hardened_inspector_config,
             tool_name="vulnerable_crypto_tool_endpoint",
             modules=["security"],
-            timeout=180
+            timeout=180,
         )
 
         findings = extract_findings_for_tool(result, "vulnerable_crypto_tool_endpoint")
         vulnerable_findings = get_vulnerable_findings(findings)
 
-        assert len(vulnerable_findings) == 0, \
+        assert len(vulnerable_findings) == 0, (
             f"Hardened crypto tool should NOT be flagged, found: {[f.test_name for f in vulnerable_findings]}"
+        )
 
     def test_hardened_encryption_zero_vulnerabilities(
-        self,
-        inspector_cli_available,
-        hardened_inspector_config
+        self, inspector_cli_available, hardened_inspector_config
     ):
         """Hardened encryption tool should NOT be flagged as vulnerable."""
         if not inspector_cli_available:
@@ -536,11 +514,14 @@ class TestInspectorCLIHardenedNotFlagged:
             config_path=hardened_inspector_config,
             tool_name="vulnerable_encryption_tool_endpoint",
             modules=["security"],
-            timeout=180
+            timeout=180,
         )
 
-        findings = extract_findings_for_tool(result, "vulnerable_encryption_tool_endpoint")
+        findings = extract_findings_for_tool(
+            result, "vulnerable_encryption_tool_endpoint"
+        )
         vulnerable_findings = get_vulnerable_findings(findings)
 
-        assert len(vulnerable_findings) == 0, \
+        assert len(vulnerable_findings) == 0, (
             f"Hardened encryption tool should NOT be flagged, found: {[f.test_name for f in vulnerable_findings]}"
+        )

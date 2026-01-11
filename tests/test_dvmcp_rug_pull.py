@@ -26,8 +26,7 @@ class TestDVMCPRugPullComparison:
         # Calls 1-3: Safe (weather data)
         for i in range(1, 4):
             result = dvmcp_challenge4_client.call_tool(
-                "get_weather",
-                {"location": "New York"}
+                "get_weather", {"location": "New York"}
             )
             assert "rate limit" not in result.lower(), (
                 f"Call {i} should be safe but got rate limit: {result}"
@@ -38,8 +37,7 @@ class TestDVMCPRugPullComparison:
 
         # Call 4: Triggered (error message)
         result = dvmcp_challenge4_client.call_tool(
-            "get_weather",
-            {"location": "New York"}
+            "get_weather", {"location": "New York"}
         )
         assert "rate limit" in result.lower() or "exceeded" in result.lower(), (
             f"Call 4 should trigger rate limit but got: {result}"
@@ -55,8 +53,7 @@ class TestDVMCPRugPullComparison:
         # Calls 1-10: Safe
         for i in range(1, 11):
             result = clean_vulnerable_client.call_tool(
-                "vulnerable_rug_pull_tool",
-                {"action": f"test_action_{i}"}
+                "vulnerable_rug_pull_tool", {"action": f"test_action_{i}"}
             )
             assert result.get("vulnerable") is False, (
                 f"Call {i} should be safe but got: {result}"
@@ -64,8 +61,7 @@ class TestDVMCPRugPullComparison:
 
         # Call 11: Triggered
         result = clean_vulnerable_client.call_tool(
-            "vulnerable_rug_pull_tool",
-            {"action": "whoami"}
+            "vulnerable_rug_pull_tool", {"action": "whoami"}
         )
         assert result.get("vulnerable") is True, (
             f"Call 11 should trigger vulnerability but got: {result}"
@@ -75,16 +71,12 @@ class TestDVMCPRugPullComparison:
         """DVMCP stays in triggered state after threshold."""
         # First, reach the threshold (3 safe calls)
         for i in range(3):
-            dvmcp_challenge4_client.call_tool(
-                "get_weather",
-                {"location": "London"}
-            )
+            dvmcp_challenge4_client.call_tool("get_weather", {"location": "London"})
 
         # Calls 4-6 should all be triggered
         for i in range(4, 7):
             result = dvmcp_challenge4_client.call_tool(
-                "get_weather",
-                {"location": "Paris"}
+                "get_weather", {"location": "Paris"}
             )
             assert "rate limit" in result.lower() or "exceeded" in result.lower(), (
                 f"Call {i} should stay triggered but got: {result}"
@@ -104,14 +96,12 @@ class TestRugPullMechanismComparison:
         # Trigger the rug pull
         for i in range(10):
             clean_vulnerable_client.call_tool(
-                "vulnerable_rug_pull_tool",
-                {"action": "warmup"}
+                "vulnerable_rug_pull_tool", {"action": "warmup"}
             )
 
         # Call 11: Execute actual command
         result = clean_vulnerable_client.call_tool(
-            "vulnerable_rug_pull_tool",
-            {"action": "pwd"}
+            "vulnerable_rug_pull_tool", {"action": "pwd"}
         )
 
         # Verify it executed (returns actual path like /app)
@@ -132,16 +122,10 @@ class TestRugPullMechanismComparison:
         """
         # Trigger the rug pull (3 safe calls)
         for i in range(3):
-            dvmcp_challenge4_client.call_tool(
-                "get_weather",
-                {"location": "Tokyo"}
-            )
+            dvmcp_challenge4_client.call_tool("get_weather", {"location": "Tokyo"})
 
         # Call 4: Different message but no code execution
-        result = dvmcp_challenge4_client.call_tool(
-            "get_weather",
-            {"location": "Tokyo"}
-        )
+        result = dvmcp_challenge4_client.call_tool("get_weather", {"location": "Tokyo"})
 
         # The change is only in response content
         assert "rate limit" in result.lower() or "exceeded" in result.lower()
@@ -161,21 +145,18 @@ class TestThresholdBoundaries:
         # Make exactly 9 calls
         for i in range(9):
             clean_vulnerable_client.call_tool(
-                "vulnerable_rug_pull_tool",
-                {"action": f"call_{i+1}"}
+                "vulnerable_rug_pull_tool", {"action": f"call_{i + 1}"}
             )
 
         # Call 10: Still safe
         result_10 = clean_vulnerable_client.call_tool(
-            "vulnerable_rug_pull_tool",
-            {"action": "call_10"}
+            "vulnerable_rug_pull_tool", {"action": "call_10"}
         )
         assert result_10.get("vulnerable") is False, "Call 10 must be safe"
 
         # Call 11: Triggers
         result_11 = clean_vulnerable_client.call_tool(
-            "vulnerable_rug_pull_tool",
-            {"action": "call_11"}
+            "vulnerable_rug_pull_tool", {"action": "call_11"}
         )
         assert result_11.get("vulnerable") is True, "Call 11 must trigger"
 
@@ -184,21 +165,18 @@ class TestThresholdBoundaries:
         # Make exactly 2 calls
         for i in range(2):
             dvmcp_challenge4_client.call_tool(
-                "get_weather",
-                {"location": f"City{i+1}"}
+                "get_weather", {"location": f"City{i + 1}"}
             )
 
         # Call 3: Still safe
         result_3 = dvmcp_challenge4_client.call_tool(
-            "get_weather",
-            {"location": "City3"}
+            "get_weather", {"location": "City3"}
         )
         assert "rate limit" not in result_3.lower(), "Call 3 must be safe"
 
         # Call 4: Triggers
         result_4 = dvmcp_challenge4_client.call_tool(
-            "get_weather",
-            {"location": "City4"}
+            "get_weather", {"location": "City4"}
         )
         assert "rate limit" in result_4.lower() or "exceeded" in result_4.lower(), (
             "Call 4 must trigger"

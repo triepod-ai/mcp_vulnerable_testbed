@@ -75,7 +75,9 @@ class DVMCPClient:
             True if valid UUID hex format, False otherwise
         """
         # UUID pattern: 32 hex chars, optionally with dashes (8-4-4-4-12)
-        uuid_pattern = r'^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$'
+        uuid_pattern = (
+            r"^[a-f0-9]{8}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{4}-?[a-f0-9]{12}$"
+        )
         return bool(re.match(uuid_pattern, session_id, re.IGNORECASE))
 
     def _parse_mcp_result(self, data: Dict[str, Any]) -> Optional[str]:
@@ -119,7 +121,7 @@ class DVMCPClient:
                 else:
                     warnings.warn(
                         f"Invalid session_id format rejected: {sid[:20]}...",
-                        UserWarning
+                        UserWarning,
                     )
         elif event_type == "message":
             try:
@@ -152,7 +154,7 @@ class DVMCPClient:
                 f"{self.base_url}/sse",
                 headers={"Accept": "text/event-stream"},
                 stream=True,
-                timeout=60
+                timeout=60,
             )
             # Signal that thread has started successfully (Critical Issue 1)
             self._thread_started.set()
@@ -225,11 +227,11 @@ class DVMCPClient:
                     "params": {
                         "protocolVersion": "2024-11-05",
                         "capabilities": {},
-                        "clientInfo": {"name": "pytest-dvmcp", "version": "1.0"}
+                        "clientInfo": {"name": "pytest-dvmcp", "version": "1.0"},
                     },
-                    "id": self._next_id()
+                    "id": self._next_id(),
                 },
-                timeout=10
+                timeout=10,
             )
 
             if not response.ok:
@@ -244,11 +246,8 @@ class DVMCPClient:
                     requests.post(
                         f"{self.base_url}/messages/?session_id={self.session_id}",
                         headers={"Content-Type": "application/json"},
-                        json={
-                            "jsonrpc": "2.0",
-                            "method": "notifications/initialized"
-                        },
-                        timeout=5
+                        json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+                        timeout=5,
                     )
                     return True
             except queue.Empty:
@@ -285,12 +284,9 @@ class DVMCPClient:
                     "jsonrpc": "2.0",
                     "id": msg_id,
                     "method": "tools/call",
-                    "params": {
-                        "name": tool_name,
-                        "arguments": arguments
-                    }
+                    "params": {"name": tool_name, "arguments": arguments},
                 },
-                timeout=30
+                timeout=30,
             )
 
             if not response.ok:
@@ -344,7 +340,7 @@ class DVMCPClient:
             if self._sse_thread.is_alive():
                 warnings.warn(
                     "SSE thread did not terminate - daemon will be abandoned",
-                    ResourceWarning
+                    ResourceWarning,
                 )
         # Clear queue to release any blocked producers
         while not self._response_queue.empty():

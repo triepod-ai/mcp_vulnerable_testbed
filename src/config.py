@@ -38,7 +38,7 @@ FAKE_ENV = {
     "DATABASE_URL": "postgresql://user:password@localhost:5432/testdb",
     "SECRET_TOKEN": "test-secret-token-do-not-use",
     "AWS_ACCESS_KEY": "AKIAIOSFODNN7EXAMPLE",
-    "AWS_SECRET_KEY": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    "AWS_SECRET_KEY": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 }
 
 # Invocation counter for rug pull testing
@@ -48,24 +48,23 @@ invocation_counts = {}
 shadowed_tools = {}
 
 # Configuration state for config drift testing
-config_state = {
-    "debug": False,
-    "verbose": False,
-    "admin_mode": False
-}
+config_state = {"debug": False, "verbose": False, "admin_mode": False}
 
 # Session storage for session management testing (Challenge #12)
 session_store = {}  # session_id -> {user, created_at, authenticated, expires_at, fixed}
 session_counter = {"count": 0}  # Predictable counter for CWE-330
 session_counter_lock = threading.Lock()  # Thread-safety for concurrent session creation
 
+
 def is_vulnerable_to_high_risk() -> bool:
     """Check if HIGH risk vulnerabilities are enabled (only in 'high' mode)"""
     return VULNERABILITY_MODE == "high"
 
+
 def is_vulnerable_to_medium_risk() -> bool:
     """Check if MEDIUM risk vulnerabilities are enabled (high or medium modes)"""
     return VULNERABILITY_MODE in ["high", "medium"]
+
 
 def increment_invocation(tool_name: str) -> int:
     """Increment and return invocation count for rug pull testing"""
@@ -74,16 +73,13 @@ def increment_invocation(tool_name: str) -> int:
     invocation_counts[tool_name] += 1
     return invocation_counts[tool_name]
 
+
 def reset_state():
     """Reset all stateful tracking (useful for testing)"""
     invocation_counts.clear()
     shadowed_tools.clear()
     config_state.clear()
-    config_state.update({
-        "debug": False,
-        "verbose": False,
-        "admin_mode": False
-    })
+    config_state.update({"debug": False, "verbose": False, "admin_mode": False})
     session_store.clear()
     with session_counter_lock:
         session_counter["count"] = 0
@@ -92,6 +88,7 @@ def reset_state():
 # ============================================================================
 # AUTHENTICATION HELPERS (Challenge #5: Mixed Auth Patterns)
 # ============================================================================
+
 
 def _validate_token_format(token: str) -> bool:
     """Validate token format - tokens must start with 'valid_' prefix"""
@@ -129,13 +126,17 @@ def check_auth_fail_open(token: str, simulate_failure: str = "none") -> dict:
         auth_error = "AuthServiceException: Unexpected error in auth verification"
         auth_error_type = "exception"
     elif simulate_failure == "network_error":
-        auth_error = "NetworkError: Unable to reach authentication service (connection refused)"
+        auth_error = (
+            "NetworkError: Unable to reach authentication service (connection refused)"
+        )
         auth_error_type = "network_error"
     elif simulate_failure == "cert_error":
         auth_error = "SSLCertificateError: Certificate validation failed"
         auth_error_type = "cert_error"
     elif simulate_failure == "invalid_response":
-        auth_error = "AuthParseError: Unable to parse auth service response (malformed JSON)"
+        auth_error = (
+            "AuthParseError: Unable to parse auth service response (malformed JSON)"
+        )
         auth_error_type = "invalid_response"
     elif not token or token.strip() == "":
         auth_error = "MissingToken: No authentication token provided"
@@ -152,7 +153,7 @@ def check_auth_fail_open(token: str, simulate_failure: str = "none") -> dict:
             "auth_error_type": auth_error_type,
             "auth_type": "fail-open",
             "vulnerable": True,
-            "evidence": f"Fail-open auth: {auth_error} - access granted despite authentication failure"
+            "evidence": f"Fail-open auth: {auth_error} - access granted despite authentication failure",
         }
 
     # Valid token - proper authentication
@@ -161,7 +162,7 @@ def check_auth_fail_open(token: str, simulate_failure: str = "none") -> dict:
         "auth_error": None,
         "auth_error_type": None,
         "auth_type": "authenticated",
-        "vulnerable": False
+        "vulnerable": False,
     }
 
 
@@ -184,16 +185,22 @@ def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
 
     # Simulate different failure modes - ALL result in denial
     if simulate_failure == "timeout":
-        denial_reason = "AuthServiceTimeout: Connection to auth server timed out - access denied"
+        denial_reason = (
+            "AuthServiceTimeout: Connection to auth server timed out - access denied"
+        )
         error_type = "timeout"
     elif simulate_failure == "exception":
-        denial_reason = "AuthServiceException: Unexpected error - access denied for safety"
+        denial_reason = (
+            "AuthServiceException: Unexpected error - access denied for safety"
+        )
         error_type = "exception"
     elif simulate_failure == "network_error":
         denial_reason = "NetworkError: Cannot reach auth service - access denied"
         error_type = "network_error"
     elif simulate_failure == "cert_error":
-        denial_reason = "SSLCertificateError: Certificate validation failed - access denied"
+        denial_reason = (
+            "SSLCertificateError: Certificate validation failed - access denied"
+        )
         error_type = "cert_error"
     elif simulate_failure == "invalid_response":
         denial_reason = "AuthParseError: Malformed auth response - access denied"
@@ -213,7 +220,7 @@ def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
             "error_type": error_type,
             "auth_type": "fail-closed",
             "vulnerable": False,
-            "note": "Fail-closed auth: Any authentication failure results in denial"
+            "note": "Fail-closed auth: Any authentication failure results in denial",
         }
 
     # Valid token - proper authentication
@@ -222,7 +229,7 @@ def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:
         "denial_reason": None,
         "error_type": None,
         "auth_type": "authenticated",
-        "vulnerable": False
+        "vulnerable": False,
     }
 
 

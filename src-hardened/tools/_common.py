@@ -17,12 +17,12 @@ from response_factory import create_safe_response
 
 # Input validation constants - DoS protection
 MAX_INPUT_LENGTH = 10000  # 10KB - general inputs
-MAX_QUERY_LENGTH = 1000   # 1KB - search queries
+MAX_QUERY_LENGTH = 1000  # 1KB - search queries
 MAX_RESOURCE_TYPE_LENGTH = 256  # 256B - resource type identifiers
-MAX_ENTITY_NAME_LENGTH = 512    # 512B - entity names
+MAX_ENTITY_NAME_LENGTH = 512  # 512B - entity names
 MAX_BUSINESS_INPUT_LENGTH = 1000  # 1KB - business validation limit
 
-SAFE_PATTERN = re.compile(r'^[a-zA-Z0-9\s\.\,\?\!\+\-\*\/\(\)]+$')
+SAFE_PATTERN = re.compile(r"^[a-zA-Z0-9\s\.\,\?\!\+\-\*\/\(\)]+$")
 
 
 def _sanitize_for_response(value: str, max_len: int = 20) -> str:
@@ -35,24 +35,58 @@ def _sanitize_for_response(value: str, max_len: int = 20) -> str:
     # Check for dangerous patterns that might trigger false positives
     dangerous_patterns = [
         # Command injection patterns
-        r'whoami', r'passwd', r'etc/', r'system', r'exec', r'eval',
-        r'import', r'subprocess', r'cat\s', r'\|', r'\.\./', r'file://',
-        r'cmd', r'powershell', r'bash', r'sh\s', r'/bin/',
+        r"whoami",
+        r"passwd",
+        r"etc/",
+        r"system",
+        r"exec",
+        r"eval",
+        r"import",
+        r"subprocess",
+        r"cat\s",
+        r"\|",
+        r"\.\./",
+        r"file://",
+        r"cmd",
+        r"powershell",
+        r"bash",
+        r"sh\s",
+        r"/bin/",
         # Privilege/access patterns
-        r'admin', r'root', r'sudo', r'privilege',
+        r"admin",
+        r"root",
+        r"sudo",
+        r"privilege",
         # Destructive patterns
-        r'delete', r'drop', r'remove', r'truncate',
+        r"delete",
+        r"drop",
+        r"remove",
+        r"truncate",
         # Injection patterns
-        r'ignore', r'previous', r'instruction',
+        r"ignore",
+        r"previous",
+        r"instruction",
         # Tool manipulation patterns
-        r'override', r'shadow', r'redefin', r'intercept', r'modify',
-        r'create\s+tool', r'tool\s+', r'behavior',
+        r"override",
+        r"shadow",
+        r"redefin",
+        r"intercept",
+        r"modify",
+        r"create\s+tool",
+        r"tool\s+",
+        r"behavior",
         # Execution patterns
-        r'execute', r'run\s', r'invoke', r'call\s',
+        r"execute",
+        r"run\s",
+        r"invoke",
+        r"call\s",
         # Calculator patterns that might trigger
-        r'\d+\s*[\+\-\*\/]\s*\d+', r'calculate',
+        r"\d+\s*[\+\-\*\/]\s*\d+",
+        r"calculate",
         # SQL patterns
-        r"'\s*or\s*'", r'union\s+select', r'--',
+        r"'\s*or\s*'",
+        r"union\s+select",
+        r"--",
     ]
 
     value_lower = value.lower()
@@ -70,14 +104,25 @@ def _sanitize_for_response(value: str, max_len: int = 20) -> str:
 
 __all__ = [
     # Standard library
-    'json', 're', 'hashlib', 'datetime', 'urlparse', 'Dict', 'Any',
+    "json",
+    "re",
+    "hashlib",
+    "datetime",
+    "urlparse",
+    "Dict",
+    "Any",
     # Config imports
-    'increment_invocation', 'check_auth_fail_closed',
+    "increment_invocation",
+    "check_auth_fail_closed",
     # Response factory
-    'create_safe_response',
+    "create_safe_response",
     # Constants
-    'MAX_INPUT_LENGTH', 'MAX_QUERY_LENGTH', 'MAX_RESOURCE_TYPE_LENGTH',
-    'MAX_ENTITY_NAME_LENGTH', 'MAX_BUSINESS_INPUT_LENGTH', 'SAFE_PATTERN',
+    "MAX_INPUT_LENGTH",
+    "MAX_QUERY_LENGTH",
+    "MAX_RESOURCE_TYPE_LENGTH",
+    "MAX_ENTITY_NAME_LENGTH",
+    "MAX_BUSINESS_INPUT_LENGTH",
+    "SAFE_PATTERN",
     # Helpers
-    '_sanitize_for_response',
+    "_sanitize_for_response",
 ]
