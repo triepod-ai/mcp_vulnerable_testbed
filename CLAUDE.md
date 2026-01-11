@@ -113,10 +113,10 @@ This is a FastMCP-based server implementing 57 tools and 8 resources in five cat
    - `notes://{user_id}` - User notes with injection points (Challenge #14)
    - `internal://secrets` - Internal secrets resource
    - `company://data/{department}` - Company data with path traversal
-   - `trusted://config` - Trusted config resource
-   - `system://logs` - System logs resource
+   - `public://announcements` - Safe public announcements resource
+   - `public://help` - Safe help documentation resource
    - `binary://{filepath}` - Binary path traversal (Challenge #24)
-   - `blob://{size}/{content_type}` - Blob DoS generator (Challenge #24)
+   - `blob://{size}/{mime_base}/{mime_subtype}` - Blob DoS generator (Challenge #24)
    - `polyglot://{base_type}/{hidden_type}` - Polyglot file generator (Challenge #24)
 
 5. **Utility Tools** (2): `src/server.py`
@@ -343,7 +343,7 @@ This testbed includes 21 advanced challenges for evaluating security auditor sop
   - Reads simulated system files: `/etc/passwd`, `/etc/shadow`, `/proc/self/environ`
   - No path validation allows `../` traversal sequences
   - Returns MCP-compliant blob format with base64-encoded content
-- `blob://{size}/{content_type}` - Memory exhaustion DoS (CWE-409, CWE-400)
+- `blob://{size}/{mime_base}/{mime_subtype}` - Memory exhaustion DoS (CWE-409, CWE-400)
   - Accepts arbitrary size requests (capped at 10KB for demo safety)
   - User-controlled MIME type enables content type confusion
   - Shows DoS risk indicators (HIGH/MEDIUM/LOW)

@@ -117,6 +117,54 @@ class MCPClient:
 
         return {"error": True, "result": "No data in response"}
 
+    def list_resources(self) -> Optional[list]:
+        """List all available MCP resources.
+
+        Returns:
+            List of resource dictionaries, each with 'uri', 'name', etc.
+            Returns None if request fails.
+
+        Raises:
+            RuntimeError: If not connected (call connect() first)
+        """
+        if not self.session_id:
+            raise RuntimeError("Not connected. Call connect() first.")
+
+        try:
+            response = requests.post(
+                self.url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                    "mcp-session-id": self.session_id,
+                },
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "resources/list",
+                    "params": {},
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"List resources failed: {e}")
+            return None
+
+        # Parse SSE response format
+        for line in response.text.split("\n"):
+            if line.startswith("data: "):
+                try:
+                    data = json.loads(line[6:])
+                except json.JSONDecodeError as e:
+                    print(f"Invalid JSON response: {e}")
+                    return None
+                result = data.get("result", {})
+                # Return resources array
+                return result.get("resources", [])
+
+        return None
+
     def read_resource(self, uri: str) -> Dict[str, Any]:
         """Read an MCP resource by URI.
 
@@ -142,7 +190,7 @@ class MCPClient:
                 },
                 json={
                     "jsonrpc": "2.0",
-                    "id": 3,
+                    "id": 4,
                     "method": "resources/read",
                     "params": {"uri": uri},
                 },

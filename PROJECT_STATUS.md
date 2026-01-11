@@ -531,3 +531,36 @@ Entries are loaded automatically by the SessionStart hook to provide context fro
 - Metadata regression tests ensure tool/challenge counts stay synchronized across files
 
 ---
+
+## 2026-01-11: Challenge #24 - Binary Resource Attacks Implementation
+
+**Summary:** Implemented Challenge #24 Binary Resource Attacks with 3 vulnerable MCP resources, 30+ tests, and comprehensive documentation.
+
+**Session Focus:** Challenge #24 implementation - Binary resource vulnerabilities inspired by MCP Conformance Suite
+
+**Changes Made:**
+- `src/server.py` - Added 3 binary resource implementations (binary://, blob://, polyglot://)
+- `tests/test_binary_resource_attacks.py` - NEW: 30+ tests for binary resource vulnerabilities
+- `CLAUDE.md` - Added Challenge #24 documentation, updated resource counts
+- `README.md` - Updated challenge and resource documentation
+
+**Key Decisions:**
+- Binary resources return MCP-compliant blob format with base64-encoded content
+- Path traversal simulated with SENSITIVE_FILES fixture (no actual file access)
+- Blob size capped at 10KB for demo safety while showing DoS indicators
+- Polyglot files demonstrate multi-format injection risks
+
+**Commits:**
+- [commit hash] feat: add Challenge #24 - Binary Resource Attacks
+
+**Next Steps:**
+- Consider implementing remaining conformance-inspired challenges (#21-23)
+- Monitor Inspector detection of binary resource vulnerabilities
+
+**Notes:**
+- Challenge count now 21 (up from 20)
+- Resource count now 8 (added 3 binary resources to existing 5)
+- Tests cover path traversal (CWE-22), DoS (CWE-400), polyglot attacks (CWE-436)
+- Source: MCP Conformance Suite resources.ts
+
+---
