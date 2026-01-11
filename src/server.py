@@ -87,6 +87,7 @@ from config import (
     SERVER_NAME,
     SERVER_VERSION,
     VULNERABILITY_MODE,
+    FAKE_ENV,
     reset_state as reset_config_state
 )
 

@@ -123,6 +123,59 @@ class MCPClient:
 
         return {"error": True, "result": "No data in response"}
 
+    def read_resource(self, uri: str) -> Dict[str, Any]:
+        """Read an MCP resource by URI.
+
+        Args:
+            uri: The resource URI (e.g., 'notes://user1', 'internal://secrets')
+
+        Returns:
+            The resource contents as a dictionary
+
+        Raises:
+            RuntimeError: If not connected (call connect() first)
+        """
+        if not self.session_id:
+            raise RuntimeError("Not connected. Call connect() first.")
+
+        try:
+            response = requests.post(
+                self.url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                    "mcp-session-id": self.session_id
+                },
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "resources/read",
+                    "params": {"uri": uri}
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            return {"error": True, "result": f"Request failed: {e}"}
+
+        # Parse SSE response format (same as call_tool)
+        for line in response.text.split("\n"):
+            if line.startswith("data: "):
+                try:
+                    data = json.loads(line[6:])
+                except json.JSONDecodeError as e:
+                    return {"error": True, "result": f"Invalid JSON response: {e}"}
+                # Check for JSON-RPC error
+                if "error" in data:
+                    return {"error": True, "result": data["error"].get("message", str(data["error"]))}
+                result = data.get("result", {})
+                # Return contents array or full result
+                if "contents" in result:
+                    return result
+                return result
+
+        return {"error": True, "result": "No data in response"}
+
     def reset_state(self) -> bool:
         """Reset testbed state for clean tests.
 
