@@ -57,3 +57,5 @@ inspector-assessment-*.json
 
 # Local MCP config with credentials
 .mcp-test-config.json
+.claude/
+*.bak
