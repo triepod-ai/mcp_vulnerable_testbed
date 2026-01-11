@@ -314,6 +314,26 @@ This testbed includes 19 advanced challenges for evaluating security auditor sop
 - Tests if auditors detect SSE-specific session management weaknesses
 - **Test Coverage**: `tests/test_sse_session_desync.py` (28 tests)
 
+**Challenge #20: Content Type Confusion Attack**
+- `vulnerable_content_processor_tool` processes content with multiple MIME/encoding vulnerabilities
+- **CWE-436 (Interpretation Conflict)**: Accepts any mimeType without verifying content matches
+  - Polyglot attacks: PNG magic + JavaScript payload accepted as valid image
+  - No validation between declared type and actual content
+- **CWE-20/CWE-400 (Improper Input Validation/DoS)**: Blind base64 decode without size limits
+  - Decodes base64 without validation, enabling resource exhaustion
+  - No size validation before decode operations
+- **CWE-611 (SSRF via Embedded URIs)**: Processes file:// URIs found in content
+  - Exposes sensitive files via SENSITIVE_FILES fixture
+  - No URI scheme filtering or validation
+- **CWE-434 (Unrestricted Upload)**: Magic byte validation only checks first 4-8 bytes
+  - PNG/JPEG/GIF magic + malicious payload passes validation
+  - Rest of content after magic bytes ignored
+- **MCP Specificity**: MEDIUM - Content types are MCP-specific, but vulnerabilities are general
+- **Hardened Version**: MIME allowlist (text-based only), base64 blocked, URI filtering, size limits
+- **Source**: [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `tools.ts`
+- Tests if auditors detect content type validation failures
+- **Test Coverage**: `tests/test_content_type_confusion.py` (28+ tests)
+
 ### Key Files
 
 **Vulnerable Server** (`src/`) - Monolithic structure:

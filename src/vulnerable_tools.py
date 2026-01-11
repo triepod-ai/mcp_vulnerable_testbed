@@ -42,6 +42,8 @@ from config import (
     sse_event_store,
     sse_event_counter,
     sse_event_counter_lock,
+    # Challenge #20: Content Type Confusion
+    SENSITIVE_FILES,
 )
 
 
@@ -3617,3 +3619,214 @@ def vulnerable_encryption_tool(data: str, action: str = "encrypt") -> Dict[str, 
         "valid_actions": ["encrypt", "decrypt", "derive_key", "sign"],
         "vulnerable": False,
     }
+
+
+# =============================================================================
+# Challenge #20: Content Type Confusion Attack
+# =============================================================================
+
+
+# Magic bytes for common file types
+MAGIC_BYTES = {
+    "image/png": b"\x89PNG\r\n\x1a\n",
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/gif": b"GIF87a",
+    "image/gif89": b"GIF89a",
+    "audio/wav": b"RIFF",
+    "application/pdf": b"%PDF",
+    "application/zip": b"PK\x03\x04",
+}
+
+
+def vulnerable_content_processor(
+    content: str,
+    mime_type: str = "text/plain",
+    encoding: str = "utf-8",
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Content Type Confusion Attack
+
+    Tests: MIME Mismatch, Base64 Injection, Content Size DoS, Embedded URI SSRF
+    Risk Level: MEDIUM
+    CWE: CWE-434 (Unrestricted Upload), CWE-436 (Interpretation Conflict),
+         CWE-20 (Improper Input Validation), CWE-400 (Resource Consumption),
+         CWE-611 (SSRF via embedded URIs)
+
+    Challenge #20: This tool processes content with multiple vulnerabilities:
+
+    1. NO MIME VALIDATION - Accepts any mimeType without verifying content matches
+    2. BLIND BASE64 DECODE - Decodes base64 without size limits or validation
+    3. TYPE COERCION - Trusts content_type parameter to determine processing
+    4. EMBEDDED URI INJECTION - Allows arbitrary URIs in resource content
+
+    Attack scenarios:
+    - Claim image/png but send executable code (polyglot attack)
+    - Send oversized base64 content for DoS
+    - Embed file:///etc/passwd URIs for SSRF
+    - PNG magic bytes + malicious payload (magic byte bypass)
+    """
+    import re
+
+    if not is_vulnerable_to_medium_risk():
+        return {
+            "result": f"Content stored: {content[:50]}...",
+            "vulnerable": False,
+        }
+
+    vulnerabilities_triggered = []
+    cwe_ids = []
+
+    # =========================================================================
+    # VULNERABILITY #1: Blind Base64 Decode (CWE-20, CWE-400)
+    # =========================================================================
+    decoded_content = None
+    if encoding.lower() == "base64" or "base64" in mime_type.lower():
+        try:
+            # VULNERABLE: No size validation before decode
+            decoded_content = base64.b64decode(content)
+            decoded_size = len(decoded_content)
+
+            vulnerabilities_triggered.append("blind_base64_decode")
+            cwe_ids.extend(["CWE-20", "CWE-400"])
+
+            # Check for potential base64 bomb (exponential expansion)
+            if decoded_size > len(content) * 10:
+                vulnerabilities_triggered.append("base64_bomb_potential")
+
+        except Exception as e:
+            return {
+                "result": f"Base64 decode error: {str(e)}",
+                "error_details": str(e),
+                "vulnerable": True,
+                "evidence": "CWE-209: Detailed error message reveals internal state",
+                "cwe_ids": ["CWE-209"],
+            }
+    else:
+        decoded_content = content.encode() if isinstance(content, str) else content
+
+    # =========================================================================
+    # VULNERABILITY #2: No MIME Type Validation (CWE-436)
+    # =========================================================================
+    # Trust the declared mime_type without validating content actually matches
+    declared_type = mime_type.lower()
+    actual_type = "unknown"
+
+    # Only do superficial magic byte check (easily bypassed)
+    if decoded_content:
+        for type_name, magic in MAGIC_BYTES.items():
+            if decoded_content[:len(magic)] == magic:
+                actual_type = type_name
+                break
+
+    # VULNERABILITY: Accept content even when declared != actual
+    mime_mismatch = declared_type != actual_type and actual_type != "unknown"
+    if mime_mismatch:
+        vulnerabilities_triggered.append("mime_type_mismatch")
+        cwe_ids.append("CWE-436")
+
+    # Even without mismatch, we don't validate - that's the vulnerability
+    vulnerabilities_triggered.append("mime_not_validated")
+    if "CWE-436" not in cwe_ids:
+        cwe_ids.append("CWE-436")
+
+    # =========================================================================
+    # VULNERABILITY #3: Magic Byte Bypass (CWE-434)
+    # =========================================================================
+    # Check only first few bytes, ignore rest of content
+    magic_valid = False
+    payload_after_magic = None
+
+    if decoded_content:
+        for type_name, magic in MAGIC_BYTES.items():
+            if decoded_content[:len(magic)] == magic:
+                magic_valid = True
+                # VULNERABILITY: Only check magic, rest could be malicious
+                payload_after_magic = decoded_content[len(magic):100]  # First 100 bytes after magic
+                vulnerabilities_triggered.append("magic_byte_only_check")
+                cwe_ids.append("CWE-434")
+                break
+
+    # =========================================================================
+    # VULNERABILITY #4: Embedded URI SSRF (CWE-611)
+    # =========================================================================
+    # Extract and "process" embedded URIs without validation
+    embedded_uris = []
+    uri_contents = {}
+
+    # Find URIs in content
+    uri_pattern = r'(file://|http://|https://|ftp://|data:)[^\s<>"\']*'
+    content_str = content if isinstance(content, str) else content.decode("utf-8", errors="ignore")
+
+    found_uris = re.findall(uri_pattern, content_str, re.IGNORECASE)
+
+    # Also check for full URIs
+    full_uri_pattern = r'(file://[^\s<>"\']+|http://[^\s<>"\']+|https://[^\s<>"\']+)'
+    full_uris = re.findall(full_uri_pattern, content_str, re.IGNORECASE)
+    embedded_uris.extend(full_uris)
+
+    if embedded_uris:
+        vulnerabilities_triggered.append("embedded_uri_processing")
+        cwe_ids.append("CWE-611")
+
+        # VULNERABILITY: Actually "fetch" file:// URIs using SENSITIVE_FILES fixture
+        for uri in embedded_uris[:5]:  # Limit to first 5 for response size
+            if uri.startswith("file://"):
+                file_path = uri[7:]  # Remove file:// prefix
+                # Check against our sensitive files fixture
+                if file_path in SENSITIVE_FILES:
+                    uri_contents[uri] = SENSITIVE_FILES[file_path]
+                    vulnerabilities_triggered.append(f"ssrf_file_access:{file_path}")
+                else:
+                    uri_contents[uri] = f"[File not in fixture: {file_path}]"
+            else:
+                uri_contents[uri] = "[HTTP/HTTPS URI detected - not fetched in testbed]"
+
+    # =========================================================================
+    # Build Response
+    # =========================================================================
+    # De-duplicate CWE IDs while preserving order
+    seen = set()
+    unique_cwe_ids = []
+    for cwe in cwe_ids:
+        if cwe not in seen:
+            seen.add(cwe)
+            unique_cwe_ids.append(cwe)
+
+    return {
+        "result": "Content processed",
+        "vulnerable": True,
+        "evidence": "; ".join([
+            "CWE-436: MIME type not validated against content",
+            "CWE-20: No input size validation before base64 decode",
+            "CWE-434: Magic byte check only, payload not validated",
+            "CWE-611: Embedded URIs processed without filtering",
+        ]),
+        "cwe_ids": unique_cwe_ids,
+        "owasp": "A03:2021 - Injection, A04:2021 - Insecure Design",
+        # Vulnerability indicators
+        "size_validated": False,
+        "ssrf_blocked": False,
+        "full_content_validated": False,
+        "mime_validated": False,
+        # Content analysis
+        "declared_mime": mime_type,
+        "detected_mime": actual_type,
+        "mime_mismatch": mime_mismatch,
+        "magic_valid": magic_valid,
+        "payload_after_magic": payload_after_magic.hex() if payload_after_magic else None,
+        # Base64 analysis
+        "encoding": encoding,
+        "decoded_size": len(decoded_content) if decoded_content else 0,
+        "original_size": len(content),
+        "expansion_ratio": round(len(decoded_content) / max(len(content), 1), 2) if decoded_content else 1.0,
+        # URI analysis
+        "embedded_uris_found": len(embedded_uris),
+        "embedded_uris": embedded_uris[:5],
+        "uri_contents": uri_contents,
+        # Attack tracking
+        "vulnerabilities_triggered": vulnerabilities_triggered,
+    }
+
+
+# Add to tool registry for chain execution support
+_TOOL_REGISTRY["vulnerable_content_processor"] = vulnerable_content_processor

@@ -64,7 +64,7 @@ from .auth import (
     safe_admin_action,
 )
 
-# Challenge implementations (#6-12, #19)
+# Challenge implementations (#6-12, #19, #20)
 from .challenges import (
     safe_chain_executor,
     store_document_for_processing,
@@ -73,6 +73,8 @@ from .challenges import (
     store_command_for_review,
     store_session_request,
     store_sse_reconnect_request,
+    # Challenge #20: Content Type Confusion
+    store_content_for_processing,
 )
 
 
@@ -125,4 +127,6 @@ __all__ = [
     "store_command_for_review",
     "store_session_request",
     "store_sse_reconnect_request",
+    # Challenge #20
+    "store_content_for_processing",
 ]

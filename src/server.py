@@ -72,6 +72,8 @@ from vulnerable_tools import (
     # Cryptographic failures (OWASP A02:2021)
     vulnerable_crypto_tool,
     vulnerable_encryption_tool,
+    # Content Type Confusion (Challenge #20)
+    vulnerable_content_processor,
 )
 from safe_tools import (
     safe_storage_tool,
@@ -2104,6 +2106,52 @@ async def safe_url_validator_tool_mcp(
 
 
 # ============================================================================
+# Challenge #20: Content Type Confusion Attack
+# ============================================================================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Content Validator",
+        readOnlyHint=True,  # LIE: Actually processes and decodes content
+        destructiveHint=False,  # LIE: Can cause DoS via base64 bomb
+    ),
+)
+async def vulnerable_content_processor_tool(
+    content: Annotated[str, Field(description="Content to process")],
+    mime_type: Annotated[
+        str, Field(description="MIME type of content (e.g., image/png, text/plain)")
+    ] = "text/plain",
+    encoding: Annotated[
+        str, Field(description="Content encoding (utf-8, base64)")
+    ] = "utf-8",
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Content Type Confusion Attack
+
+    Tests: MIME Mismatch (CWE-436), Base64 Bomb (CWE-400), Embedded URI SSRF (CWE-611)
+    Risk Level: MEDIUM
+
+    Challenge #20: This tool processes content with multiple vulnerabilities:
+    1. NO MIME VALIDATION - Accepts any mimeType without verifying content matches
+    2. BLIND BASE64 DECODE - Decodes base64 without size limits or validation
+    3. TYPE COERCION - Trusts mime_type parameter to determine processing
+    4. EMBEDDED URI INJECTION - Processes file:// URIs found in content
+
+    Attack scenarios:
+    - Polyglot attack: PNG magic + JavaScript payload declared as image/png
+    - Base64 bomb: Large encoded content without size limits (DoS)
+    - SSRF: Content containing file:///etc/passwd exposes sensitive files
+    - Magic byte bypass: PNG header + malicious payload passes validation
+    """
+    result = vulnerable_content_processor(content, mime_type, encoding)
+    logger.info(f"vulnerable_content_processor called with mime_type: {mime_type}, encoding: {encoding}")
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
 # Server Metadata Tool
 # ============================================================================
 
@@ -2155,6 +2203,7 @@ async def get_testbed_info() -> Dict[str, Any]:
                 "Challenge #17: Persistence Mechanisms (NEW - DVMCP)",
                 "Challenge #18: JWT Token Leakage (NEW - DVMCP)",
                 "Challenge #19: SSE Session Desync Attack (NEW - MCP Conformance)",
+                "Challenge #20: Content Type Confusion Attack (NEW)",
             ],
         },
         "test_patterns": [
@@ -2210,6 +2259,11 @@ async def get_testbed_info() -> Dict[str, Any]:
             "SSE Event Replay Attack (CWE-287)",
             "Cross-Session SSE Event Access (CWE-384)",
             "No SSE Event Expiration (CWE-613)",
+            # Content Type Confusion patterns (Challenge #20)
+            "MIME Type Mismatch (CWE-436)",
+            "Blind Base64 Decode (CWE-20, CWE-400)",
+            "Embedded URI SSRF (CWE-611)",
+            "Magic Byte Bypass (CWE-434)",
         ],
         "purpose": "Testing MCP Inspector security assessment tool",
         "dvmcp_coverage": "Patterns adapted from DVMCP Challenges 1-7, 9-10",

@@ -32,15 +32,15 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 55,
-      "vulnerable_tools": 38,
+      "total_tools": 56,
+      "vulnerable_tools": 39,
       "safe_tools": 15,
       "utility_tools": 2,
       "mcp_resources": 5,
-      "expected_detections": 38,
+      "expected_detections": 39,
       "expected_safe_classifications": 17,
       "target_accuracy": "100% recall, 0% false positives",
-      "patterns_covered": 32
+      "patterns_covered": 33
     },
     "tools": [
       {
@@ -432,6 +432,21 @@
         "note": "OWASP A02:2021 - Cryptographic Failures. Pattern 30. ECB mode reveals patterns in encrypted data, hardcoded keys accessible to anyone with source access."
       },
       {
+        "tool_name": "vulnerable_content_processor_tool",
+        "category": "MEDIUM_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "MIME Type Mismatch (CWE-436)",
+          "Blind Base64 Decode (CWE-20, CWE-400)",
+          "Embedded URI SSRF (CWE-611)",
+          "Magic Byte Bypass (CWE-434)"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool accepts any MIME type without validation, decodes base64 without size limits, processes embedded file:// URIs exposing sensitive files, and only validates magic bytes (first 4-8 bytes) ignoring payload after header.",
+        "risk_level": "MEDIUM",
+        "note": "Challenge #20: Content Type Confusion. OWASP A03:2021 Injection, A04:2021 Insecure Design. Pattern 33. Polyglot attacks, base64 bombs, and SSRF via embedded URIs."
+      },
+      {
         "tool_name": "safe_storage_tool_mcp",
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
@@ -734,10 +749,10 @@
       }
     },
     "success_metrics": {
-      "recall": "100% - All 38 vulnerable tools detected",
+      "recall": "100% - All 39 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 17 safe/utility tools and resources classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected, indirect injection detected, secret leakage detected, network injection detected, blacklist bypass detected, session vulnerabilities detected, cryptographic weaknesses detected, resource-based injection detected, description poisoning detected, tool shadowing detected, persistence detected, token leakage detected",
-      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22), Indirect Prompt Injection via Tool Output (Pattern 23), Secret Leakage via Error Messages (Pattern 24), Network Diagnostic Command Injection (Pattern 25), Blacklist Bypass (Pattern 26), Session Management (Patterns 27-28), Cryptographic Failures (Patterns 29-30), Resource-Based Injection (Pattern 31), Tool Description Poisoning (Pattern 32)"
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected, indirect injection detected, secret leakage detected, network injection detected, blacklist bypass detected, session vulnerabilities detected, cryptographic weaknesses detected, resource-based injection detected, description poisoning detected, tool shadowing detected, persistence detected, token leakage detected, content type confusion detected",
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22), Indirect Prompt Injection via Tool Output (Pattern 23), Secret Leakage via Error Messages (Pattern 24), Network Diagnostic Command Injection (Pattern 25), Blacklist Bypass (Pattern 26), Session Management (Patterns 27-28), Cryptographic Failures (Patterns 29-30), Resource-Based Injection (Pattern 31), Tool Description Poisoning (Pattern 32), Content Type Confusion (Pattern 33)"
     }
   }
 }

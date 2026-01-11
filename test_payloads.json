@@ -793,6 +793,59 @@
             "evidence_pattern": "bypass_used|Command executed|Incomplete blacklist"
           }
         ]
+      },
+      {
+        "pattern_id": 25,
+        "pattern_name": "Content Type Confusion",
+        "risk_level": "MEDIUM",
+        "vulnerable_tools": ["vulnerable_content_processor_tool"],
+        "safe_tools": [],
+        "test_cases": [
+          {
+            "tool": "vulnerable_content_processor_tool",
+            "payload": {
+              "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+              "mime_type": "image/png",
+              "encoding": "base64"
+            },
+            "expected_result": "vulnerable",
+            "note": "PNG magic + payload accepted without full content validation",
+            "evidence_pattern": "magic_valid.*true|full_content_validated.*false|CWE-434"
+          },
+          {
+            "tool": "vulnerable_content_processor_tool",
+            "payload": {
+              "content": "Check this: file:///etc/passwd",
+              "mime_type": "text/plain",
+              "encoding": "utf-8"
+            },
+            "expected_result": "vulnerable",
+            "note": "Embedded file:// URI is processed (SSRF)",
+            "evidence_pattern": "ssrf_blocked.*false|uri_contents|CWE-611"
+          },
+          {
+            "tool": "vulnerable_content_processor_tool",
+            "payload": {
+              "content": "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB",
+              "mime_type": "text/plain",
+              "encoding": "base64"
+            },
+            "expected_result": "vulnerable",
+            "note": "Base64 decoded without size validation",
+            "evidence_pattern": "size_validated.*false|blind_base64_decode|CWE-20|CWE-400"
+          },
+          {
+            "tool": "vulnerable_content_processor_tool",
+            "payload": {
+              "content": "This is plain text",
+              "mime_type": "image/png",
+              "encoding": "utf-8"
+            },
+            "expected_result": "vulnerable",
+            "note": "MIME type mismatch - claims PNG but content is text",
+            "evidence_pattern": "mime_validated.*false|mime_mismatch|CWE-436"
+          }
+        ]
       }
     ]
   }

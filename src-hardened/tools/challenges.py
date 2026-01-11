@@ -619,6 +619,133 @@ def store_sse_reconnect_request(
     return response
 
 
+# =============================================================================
+# Challenge #20: Content Type Confusion Attack - Hardened Version
+# =============================================================================
+
+# Allowlist of safe MIME types
+_ALLOWED_MIME_TYPES = {
+    "text/plain",
+    "text/csv",
+    "text/xml",
+    "text/html",
+    "application/json",
+    "application/xml",
+}
+
+# Blocked URI schemes for SSRF prevention
+_BLOCKED_URI_SCHEMES = {"file://", "ftp://", "gopher://", "data:", "javascript:"}
+
+
+def store_content_for_processing(
+    content: str,
+    mime_type: str = "text/plain",
+    encoding: str = "utf-8",
+) -> Dict[str, Any]:
+    """
+    Store content processing requests without executing.
+
+    HARDENED (Challenge #20): Unlike vulnerable_content_processor:
+    1. MIME type allowlist - Only accepts text-based types
+    2. Base64 encoding blocked - Returns error instead of decoding
+    3. URI detection and blocking - file://, ftp://, etc. blocked
+    4. Input size validation - Enforces MAX_INPUT_LENGTH
+    5. Content stored by hash reference, not executed
+
+    Args:
+        content: Content to process
+        mime_type: MIME type of content
+        encoding: Content encoding
+
+    Returns:
+        Dict with validation results (no processing/decoding)
+    """
+    # Input validation - size limit
+    if len(content) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Content too large",
+            note="Input validation prevented processing",
+            max_allowed=MAX_INPUT_LENGTH,
+            actual_size=len(content),
+        )
+
+    if len(mime_type) > 256:
+        return create_safe_response(
+            "Error: MIME type too long",
+            note="Input validation prevented processing",
+        )
+
+    # Normalize inputs
+    declared_type = mime_type.lower().strip()
+    encoding_lower = encoding.lower().strip()
+
+    # Block base64 encoding entirely
+    if encoding_lower == "base64" or "base64" in declared_type:
+        return create_safe_response(
+            "Base64 encoding blocked",
+            note="Binary/encoded content not accepted - prevents DoS and injection",
+            encoding_blocked=True,
+            status="rejected",
+            cwe_mitigated=["CWE-20", "CWE-400"],
+        )
+
+    # MIME type allowlist check
+    type_allowed = declared_type in _ALLOWED_MIME_TYPES
+    if not type_allowed:
+        return create_safe_response(
+            f"MIME type not in allowlist: {declared_type}",
+            note="Only text-based MIME types accepted",
+            allowed_types=list(_ALLOWED_MIME_TYPES),
+            type_in_allowlist=False,
+            status="rejected",
+            cwe_mitigated=["CWE-434", "CWE-436"],
+        )
+
+    # Detect and block embedded URIs (SSRF prevention)
+    uri_pattern = r'(file://|ftp://|gopher://|data:|javascript:)[^\s<>"\']*'
+    found_dangerous_uris = re.findall(uri_pattern, content, re.IGNORECASE)
+
+    if found_dangerous_uris:
+        return create_safe_response(
+            "Blocked: Content contains potentially dangerous URIs",
+            note="SSRF prevention - dangerous URI schemes blocked",
+            blocked_uris=found_dangerous_uris[:5],
+            ssrf_blocked=True,
+            status="rejected",
+            cwe_mitigated=["CWE-611", "CWE-918"],
+        )
+
+    # Generate content hash for reference (no execution)
+    content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+
+    # Build safe response
+    return create_safe_response(
+        f"Content stored with reference: content-{content_hash}",
+        note="Content stored without execution or URI processing",
+        # Security indicators
+        mime_validated=True,
+        type_in_allowlist=True,
+        ssrf_blocked=True,
+        base64_blocked=True,
+        size_validated=True,
+        full_content_validated=True,
+        # Metadata
+        declared_mime=declared_type,
+        encoding=encoding_lower,
+        content_size=len(content),
+        content_hash=f"sha256:{content_hash}",
+        status="stored_for_review",
+        # CWE mitigations demonstrated
+        security_measures={
+            "mime_allowlist": True,  # CWE-434, CWE-436 mitigated
+            "base64_blocked": True,  # CWE-20, CWE-400 mitigated
+            "uri_filtering": True,  # CWE-611, CWE-918 mitigated
+            "size_validation": True,  # DoS protection
+            "hash_reference": True,  # Content not embedded in response
+        },
+    )
+
+
 __all__ = [
     "_ALLOWED_CHAIN_TOOLS",
     "safe_chain_executor",
@@ -628,4 +755,6 @@ __all__ = [
     "store_command_for_review",
     "store_session_request",
     "store_sse_reconnect_request",
+    # Challenge #20
+    "store_content_for_processing",
 ]

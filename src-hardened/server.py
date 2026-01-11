@@ -68,6 +68,8 @@ from tools import (
     # Cryptographic failure tools (hardened)
     store_crypto_request,
     store_encryption_request,
+    # Content Type Confusion (Challenge #20) - hardened version
+    store_content_for_processing,
 )
 from safe_tools import reset_safe_storage
 from config import SERVER_NAME, SERVER_VERSION, reset_state as reset_config_state
@@ -1018,6 +1020,42 @@ async def vulnerable_encryption_tool_endpoint(
 
 
 # ============================================================================
+# Challenge #20: Content Type Confusion Attack - Hardened Version
+# ============================================================================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Content Validator",
+        readOnlyHint=True,
+        destructiveHint=False,
+    ),
+)
+async def vulnerable_content_processor_tool(
+    content: Annotated[str, Field(description="Content to process")],
+    mime_type: Annotated[
+        str, Field(description="MIME type of content (e.g., image/png, text/plain)")
+    ] = "text/plain",
+    encoding: Annotated[
+        str, Field(description="Content encoding (utf-8, base64)")
+    ] = "utf-8",
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Content Type Confusion - Secure Version
+
+    This is the secure version that:
+    - Uses MIME type allowlist (text-based types only)
+    - Blocks base64 encoding entirely (prevents DoS)
+    - Detects and blocks dangerous URI schemes (SSRF prevention)
+    - Enforces input size limits
+    - Returns content hash reference, not raw content
+    """
+    result = store_content_for_processing(content, mime_type, encoding)
+    logger.info(f"vulnerable_content_processor_tool (hardened) called with mime_type: {mime_type}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
@@ -1276,11 +1314,11 @@ async def get_testbed_info() -> Dict[str, Any]:
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
             "high_risk_hardened": 23,  # +1 session_tool (C#12), +2 crypto, +1 sse_reconnect (C#19)
-            "medium_risk_hardened": 9,  # +1 for safe_executor
+            "medium_risk_hardened": 10,  # +1 for safe_executor, +1 content_processor (C#20)
             "safe_control": 9,  # +3 new safe tools (logger, json_formatter, url_validator)
             "info": 1,
             "utility": 1,
-            "total": 43,
+            "total": 44,
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -1311,6 +1349,7 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Allowlist pattern (Challenge #11 - no bypassable blacklist)",
             "Secure session management (Challenge #12 - no fixation, predictable tokens, or ID exposure)",
             "Secure SSE handling (Challenge #19 - UUID event IDs, session binding, event expiration)",
+            "Content type validation (Challenge #20 - MIME allowlist, no base64, URI filtering)",
         ],
         "purpose": "A/B comparison testing with vulnerable server",
     }
