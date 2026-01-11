@@ -492,3 +492,42 @@ Entries are loaded automatically by the SessionStart hook to provide context fro
 - CWEs implemented: CWE-384 (Session Fixation via Last-Event-ID), CWE-613 (No Timeout), CWE-330 (Predictable Event IDs), CWE-345 (No Event Signature Verification)
 
 ---
+
+## 2026-01-11: Challenge #20 - Content Type Confusion Attack Implementation
+
+**Summary:** Implemented Challenge #20 Content Type Confusion Attack with 4 vulnerability vectors, comprehensive tests, and fixed metadata count inconsistencies found during code review.
+
+**Session Focus:** Challenge #20 implementation and code review fixes
+
+**Changes Made:**
+- `src/vulnerable_tools.py` - Added vulnerable_content_processor function (~190 lines) with 4 attack vectors
+- `src/server.py` - Added tool wrapper, fixed metadata counts (56->57 tools, 19->20 challenges)
+- `src-hardened/tools/challenges.py` - Added store_content_for_processing function
+- `src-hardened/tools/__init__.py` - Added export
+- `src-hardened/server.py` - Added hardened tool wrapper
+- `tests/test_content_type_confusion.py` - NEW: 23 tests for content type confusion vulnerabilities
+- `tests/test_testbed_info.py` - NEW: 15 regression tests for metadata consistency
+- `expected_results.json` - Fixed counts (39->40 vulnerable tools)
+- `README.md` - Updated tool counts and documentation
+- `CLAUDE.md` - Updated Challenge #20 documentation and counts
+- `test_payloads.json` - Added pattern 25 for content type confusion
+
+**Key Decisions:**
+- Classified content_processor as MEDIUM risk (not HIGH) since it processes data rather than executing commands
+- Added regression tests for metadata consistency to prevent future count drift
+- Used existing SENSITIVE_FILES fixture for SSRF simulation instead of actual file access
+
+**Commits:**
+- 4450ac2 feat: add Challenge #20 - Content Type Confusion Attack
+- 36d5ae1 fix: address code review findings for Challenge #20
+
+**Next Steps:**
+- Implement remaining challenges: #21 (Progress Token Abuse), #22 (Excessive Permissions), #23 (Multi-Parameter Template), #24 (Binary Resource Attacks)
+- Consider adding more comprehensive base64 bomb resource limit tests
+
+**Notes:**
+- All 818 tests passing after fixes
+- GitHub Issue #14 closed with implementation, updated with follow-up fix comment
+- Metadata regression tests ensure tool/challenge counts stay synchronized across files
+
+---

@@ -266,6 +266,295 @@ For tool documentation, use the tools/list endpoint.
 
 
 # ============================================================================
+# CHALLENGE #24: BINARY RESOURCE ATTACKS (Conformance-Inspired)
+# ============================================================================
+
+
+@mcp.resource("binary://{filepath}")
+def vulnerable_binary_resource(filepath: str) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Binary File Resource with Path Traversal
+
+    Tests: Binary Path Traversal, File Type Bypass, Blob Injection
+    Risk Level: HIGH
+    CWE: CWE-22, CWE-434, CWE-409
+
+    Challenge #24: This resource reads binary files with vulnerabilities:
+
+    1. PATH TRAVERSAL - No validation on filepath parameter
+    2. NO SIZE LIMIT - Can read arbitrarily large files
+    3. NO TYPE VALIDATION - Returns any file as binary
+    4. MIME TYPE SPOOFING - User can influence returned MIME type
+
+    Attack scenarios:
+    - binary://../../../../etc/shadow (read system files)
+    - binary://../../../../proc/self/environ (read process env)
+    - binary://huge_file.bin (memory exhaustion)
+
+    MCP Specificity: MEDIUM - Binary resources with blob field are MCP protocol
+    feature, but path traversal is general security concern.
+
+    Source: MCP Conformance Suite - resources.ts
+    """
+    import base64
+    import os
+
+    logger.warning(
+        f"⚠️  VULNERABILITY TRIGGERED: Binary resource path traversal - {filepath}"
+    )
+
+    result = {
+        "uri": f"binary://{filepath}",
+        "vulnerable": True,
+        "filepath_requested": filepath,
+        "cwe_ids": ["CWE-22", "CWE-434", "CWE-409"],
+    }
+
+    # Vulnerable: No path validation
+    # Detect path traversal
+    if ".." in filepath:
+        result["path_traversal_detected"] = True
+        result["normalized_path"] = os.path.normpath(filepath)
+
+    # Simulate binary file access
+    # Includes both normal files and sensitive system files
+    SIMULATED_FILES = {
+        # Normal files
+        "image.png": {
+            "content": b"\x89PNG\r\n\x1a\n" + b"\x00" * 100,  # PNG header
+            "mime": "image/png",
+        },
+        "document.pdf": {
+            "content": b"%PDF-1.4\n" + b"\x00" * 100,  # PDF header
+            "mime": "application/pdf",
+        },
+        "archive.zip": {
+            "content": b"PK\x03\x04" + b"\x00" * 100,  # ZIP header
+            "mime": "application/zip",
+        },
+        # Sensitive files (simulating path traversal access)
+        "passwd": {
+            "content": b"root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n",
+            "mime": "text/plain",
+        },
+        "shadow": {
+            "content": b"root:$6$rounds=656000$hash:18000:0:99999:7:::\ndaemon:*:18000:0:99999:7:::\n",
+            "mime": "text/plain",
+        },
+        "environ": {
+            "content": b"PATH=/usr/bin\x00SECRET_KEY=exposed_secret_value\x00API_TOKEN=tok_12345abcdef\x00DB_PASSWORD=s3cr3t!\x00",
+            "mime": "application/octet-stream",
+        },
+        # Path variations for matching flexibility
+        "../etc/passwd": {
+            "content": b"root:x:0:0:root:/root:/bin/bash\n",
+            "mime": "text/plain",
+        },
+        "..passwd": {
+            "content": b"root:x:0:0:root:/root:/bin/bash\n",
+            "mime": "text/plain",
+        },
+    }
+
+    # Check if file exists in simulation
+    normalized = filepath.replace("\\", "/")
+    file_found = False
+    for pattern, data in SIMULATED_FILES.items():
+        if pattern in normalized or normalized.endswith(pattern.split("/")[-1]):
+            file_found = True
+            result["file_found"] = True
+            result["simulated_content_b64"] = base64.b64encode(data["content"]).decode()
+            result["mime_type"] = data["mime"]
+            result["content_size"] = len(data["content"])
+
+            # Return MCP resource format with blob
+            result["contents"] = [
+                {
+                    "uri": f"binary://{filepath}",
+                    "mimeType": data["mime"],
+                    "blob": base64.b64encode(data["content"]).decode(),
+                }
+            ]
+            break
+
+    if not file_found:
+        result["file_found"] = False
+        result["error"] = f"File not found: {filepath}"
+
+    return result
+
+
+@mcp.resource("blob://{size}/{mime_base}/{mime_subtype}")
+def vulnerable_blob_generator_resource(size: str, mime_base: str, mime_subtype: str) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Dynamic Blob Generator
+
+    Tests: Memory Exhaustion, Content Type Confusion, Blob Bombing
+    Risk Level: HIGH
+    CWE: CWE-409, CWE-400
+
+    Challenge #24: Generates binary blobs of arbitrary size - enables DoS attacks.
+
+    Attack scenarios:
+    - blob://1000000000/application/zip (1GB blob)
+    - blob://100/application/x-executable (fake executable)
+
+    MCP Specificity: MEDIUM - Blob generation is MCP-specific, but DoS is general.
+
+    Source: MCP Conformance Suite - resources.ts
+    """
+    import base64
+
+    content_type = f"{mime_base}/{mime_subtype}"
+
+    logger.warning(
+        f"⚠️  VULNERABILITY TRIGGERED: Blob generator - size={size}, type={content_type}"
+    )
+
+    # Vulnerable: No size limit validation
+    try:
+        requested_size = int(size)
+    except ValueError:
+        requested_size = 1024
+
+    # Cap for demo safety (real vulnerable server wouldn't)
+    actual_size = min(requested_size, 10 * 1024)  # 10KB max for demo
+
+    # Generate blob
+    blob_data = b"\x00" * actual_size
+
+    result = {
+        "uri": f"blob://{size}/{mime_base}/{mime_subtype}",
+        "vulnerable": True,
+        "requested_size": requested_size,
+        "actual_size": actual_size,
+        "content_type_accepted": content_type,
+        "size_limit_applied": requested_size > actual_size,
+        "cwe_ids": ["CWE-409", "CWE-400"],
+        "contents": [
+            {
+                "uri": f"blob://{size}/{mime_base}/{mime_subtype}",
+                "mimeType": content_type,  # Vulnerable: User-controlled MIME
+                "blob": base64.b64encode(blob_data).decode(),
+            }
+        ],
+    }
+
+    if requested_size > 1024 * 1024:  # > 1MB
+        result["dos_risk"] = "HIGH - Large blob requested"
+    elif requested_size > 10 * 1024:  # > 10KB
+        result["dos_risk"] = "MEDIUM - Moderate blob size"
+    else:
+        result["dos_risk"] = "LOW"
+
+    return result
+
+
+@mcp.resource("polyglot://{base_type}/{hidden_type}")
+def vulnerable_polyglot_resource(base_type: str, hidden_type: str) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: Polyglot File Generator
+
+    Tests: File Type Confusion, Polyglot Attacks, Format Exploitation
+    Risk Level: HIGH
+    CWE: CWE-434, CWE-436
+
+    Challenge #24: Generates files that are valid in multiple formats (polyglots).
+
+    Attack scenarios:
+    - polyglot://image/javascript (GIF-JS polyglot)
+    - polyglot://pdf/javascript (PDF-JS polyglot)
+
+    MCP Specificity: MEDIUM - Content type confusion affects MCP binary handling.
+
+    Source: MCP Conformance Suite - resources.ts
+    """
+    import base64
+
+    logger.warning(
+        f"⚠️  VULNERABILITY TRIGGERED: Polyglot generator - {base_type}/{hidden_type}"
+    )
+
+    # Known polyglot patterns
+    POLYGLOTS = {
+        ("image", "javascript"): {
+            # GIF89a header + JS comment trick
+            "content": b"GIF89a/*\x00\x00\x00\x00*/=1;alert('xss')//",
+            "description": "Valid GIF that executes as JavaScript",
+        },
+        ("gif", "javascript"): {
+            # GIF89a header + JS comment trick
+            "content": b"GIF89a/*\x00\x00\x00\x00*/=1;alert('xss')//",
+            "description": "Valid GIF that executes as JavaScript",
+        },
+        ("image", "html"): {
+            # PNG + HTML
+            "content": b"\x89PNG\r\n\x1a\n<!--<script>alert(1)</script>-->",
+            "description": "PNG with embedded HTML/JS",
+        },
+        ("png", "html"): {
+            # PNG + HTML
+            "content": b"\x89PNG\r\n\x1a\n<!--<script>alert(1)</script>-->",
+            "description": "PNG with embedded HTML/JS",
+        },
+        ("pdf", "javascript"): {
+            # PDF header + JS
+            "content": b"%PDF-1.4\n1 0 obj\n<</Type/Catalog/Pages 2 0 R/OpenAction<</S/JavaScript/JS(alert('xss'))>>>>\nendobj",
+            "description": "PDF with JavaScript payload",
+        },
+        ("zip", "html"): {
+            # ZIP that's also HTML
+            "content": b"PK\x03\x04<html><script>alert(1)</script></html>",
+            "description": "ZIP file with HTML content",
+        },
+        ("jpeg", "php"): {
+            # JPEG + PHP
+            "content": b"\xff\xd8\xff\xe0<?php system($_GET['cmd']); ?>",
+            "description": "JPEG with embedded PHP payload",
+        },
+    }
+
+    key = (base_type.lower(), hidden_type.lower())
+    polyglot_data = POLYGLOTS.get(
+        key,
+        {
+            "content": b"Unknown polyglot combination: " + f"{base_type}/{hidden_type}".encode(),
+            "description": "Custom polyglot attempt - no known pattern",
+        },
+    )
+
+    # Determine MIME type based on base_type
+    mime_mapping = {
+        "image": "image/gif",
+        "gif": "image/gif",
+        "png": "image/png",
+        "jpeg": "image/jpeg",
+        "pdf": "application/pdf",
+        "zip": "application/zip",
+    }
+    mime_type = mime_mapping.get(base_type.lower(), f"application/{base_type}")
+
+    result = {
+        "uri": f"polyglot://{base_type}/{hidden_type}",
+        "vulnerable": True,
+        "base_type": base_type,
+        "hidden_type": hidden_type,
+        "polyglot_description": polyglot_data["description"],
+        "polyglot_known": key in POLYGLOTS,
+        "cwe_ids": ["CWE-434", "CWE-436"],
+        "contents": [
+            {
+                "uri": f"polyglot://{base_type}/{hidden_type}",
+                "mimeType": mime_type,
+                "blob": base64.b64encode(polyglot_data["content"]).decode(),
+            }
+        ],
+    }
+
+    return result
+
+
+# ============================================================================
 # CHALLENGE #15: TOOL DESCRIPTION POISONING (DVMCP-Inspired)
 # ============================================================================
 

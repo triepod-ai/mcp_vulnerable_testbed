@@ -27,7 +27,7 @@ The vulnerable server's monolithic structure is deliberate - it simulates the ki
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 57 (40 vulnerable + 15 safe + 2 utility) + 5 resources
+- **Tools**: 57 (40 vulnerable + 15 safe + 2 utility) + 8 resources
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
 - **Vulnerable Tools**: 30 HIGH risk + 10 MEDIUM risk = 40 total (includes AUP violations, session, crypto, resource-based, persistence, SSE, content type confusion)
@@ -84,13 +84,13 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 57 + 5 resources | 40 (30 HIGH + 10 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 57 + 5 resources | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 57 + 8 resources | 40 (30 HIGH + 10 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 57 + 8 resources | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture
 
-This is a FastMCP-based server implementing 57 tools and 5 resources in five categories:
+This is a FastMCP-based server implementing 57 tools and 8 resources in five categories:
 
 ### Tool Categories
 
@@ -109,12 +109,15 @@ This is a FastMCP-based server implementing 57 tools and 5 resources in five cat
    - Test false positive rates with enhanced set (+6 new safe tools)
    - Include input size validation (deliberate distinction from vulnerable tools)
 
-4. **MCP Resources** (5): `src/server.py`
+4. **MCP Resources** (8): `src/server.py`
    - `notes://{user_id}` - User notes with injection points (Challenge #14)
    - `internal://secrets` - Internal secrets resource
    - `company://data/{department}` - Company data with path traversal
    - `trusted://config` - Trusted config resource
    - `system://logs` - System logs resource
+   - `binary://{filepath}` - Binary path traversal (Challenge #24)
+   - `blob://{size}/{content_type}` - Blob DoS generator (Challenge #24)
+   - `polyglot://{base_type}/{hidden_type}` - Polyglot file generator (Challenge #24)
 
 5. **Utility Tools** (2): `src/server.py`
    - `get_testbed_info` - Server metadata and tool counts
@@ -122,7 +125,7 @@ This is a FastMCP-based server implementing 57 tools and 5 resources in five cat
 
 ### Security Testing Challenges
 
-This testbed includes 20 advanced challenges for evaluating security auditor sophistication:
+This testbed includes 21 advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -334,6 +337,24 @@ This testbed includes 20 advanced challenges for evaluating security auditor sop
 - Tests if auditors detect content type validation failures
 - **Test Coverage**: `tests/test_content_type_confusion.py` (28+ tests)
 
+**Challenge #24: Binary Resource Attacks (Conformance-Inspired)**
+- Three vulnerable MCP resources testing binary blob handling vulnerabilities
+- `binary://{filepath}` - Path traversal to read system files (CWE-22, CWE-434)
+  - Reads simulated system files: `/etc/passwd`, `/etc/shadow`, `/proc/self/environ`
+  - No path validation allows `../` traversal sequences
+  - Returns MCP-compliant blob format with base64-encoded content
+- `blob://{size}/{content_type}` - Memory exhaustion DoS (CWE-409, CWE-400)
+  - Accepts arbitrary size requests (capped at 10KB for demo safety)
+  - User-controlled MIME type enables content type confusion
+  - Shows DoS risk indicators (HIGH/MEDIUM/LOW)
+- `polyglot://{base_type}/{hidden_type}` - Dual-format file injection (CWE-434, CWE-436)
+  - Generates files valid in multiple formats (GIF-JS, PNG-HTML, PDF-JS, ZIP-HTML, JPEG-PHP)
+  - Enables XSS and code execution when rendered in certain contexts
+- **MCP Specificity**: MEDIUM - Binary resources with `blob` field are MCP protocol feature
+- **Source**: [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `resources.ts`
+- Tests if auditors detect binary resource vulnerabilities (extends Challenge #14 to binary)
+- **Test Coverage**: `tests/test_binary_resource_attacks.py` (30+ tests)
+
 ### Key Files
 
 **Vulnerable Server** (`src/`) - Monolithic structure:
@@ -525,7 +546,7 @@ For hardened server, use port 10901:
 ```
 
 **Features:**
-- ✅ Tests all 40 vulnerable tools (30 HIGH, 10 MEDIUM) + 20 challenges
+- ✅ Tests all 40 vulnerable tools (30 HIGH, 10 MEDIUM) + 21 challenges
 - ✅ Comprehensive pytest coverage: 848+ tests across 28 test files
 - ✅ Challenge #15-20 test files (213 tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35), SSE session desync (28), content type confusion (28)
 - ✅ Type safety validation (test_type_safety.py): 6 tests for config data structures and function return types
