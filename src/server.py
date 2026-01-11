@@ -67,6 +67,8 @@ from vulnerable_tools import (
     vulnerable_safe_executor,
     # Session management vulnerabilities (Challenge #12)
     vulnerable_session,
+    # SSE Session Desync (Challenge #19)
+    vulnerable_sse_reconnect,
     # Cryptographic failures (OWASP A02:2021)
     vulnerable_crypto_tool,
     vulnerable_encryption_tool,
@@ -1338,6 +1340,59 @@ async def vulnerable_session_tool(
 
 
 # ============================================================================
+# CHALLENGE #19: SSE SESSION DESYNC ATTACK
+# ============================================================================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe SSE Handler",
+        readOnlyHint=True,  # LIE: Has predictable event IDs and session bypass
+        destructiveHint=False,  # LIE: Can enable cross-session event replay
+    ),
+)
+async def vulnerable_sse_reconnect_tool(
+    action: Annotated[
+        str,
+        Field(
+            description="SSE action (generate_event/generate_sensitive_event/reconnect/list_events)"
+        ),
+    ],
+    session_id: Annotated[
+        str, Field(description="Session ID for event binding")
+    ] = "",
+    last_event_id: Annotated[
+        str, Field(description="Last-Event-ID for reconnection")
+    ] = "",
+    event_data: Annotated[str, Field(description="Event data payload")] = "",
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: SSE Session Desync Attack
+
+    Tests: Predictable Event IDs (CWE-330), Event Replay (CWE-287), Session Bypass (CWE-384)
+    Risk Level: HIGH
+
+    Challenge #19: Demonstrates SSE reconnection vulnerabilities:
+    1. CWE-330 (Predictable IDs): Uses sequential integers (1, 2, 3...)
+    2. CWE-287 (No Validation): Accepts any Last-Event-ID without verification
+    3. CWE-384 (Session Fixation): Event IDs not bound to sessions
+    4. CWE-613 (No Expiration): Events never expire, accessible indefinitely
+
+    Attack scenarios tested:
+    - Event ID prediction: observe ID=42, predict ID=43
+    - Cross-session replay: Session A events accessible to Session B
+    - Event skipping: reconnect with specific ID to skip security events
+    """
+    result = vulnerable_sse_reconnect(action, session_id, last_event_id, event_data)
+    logger.info(
+        f"vulnerable_sse_reconnect called with action: {action}, session: {session_id[:20] if session_id else 'none'}"
+    )
+    if result.get("vulnerable"):
+        logger.warning(f"⚠️  VULNERABILITY TRIGGERED: {result.get('evidence')}")
+    return result
+
+
+# ============================================================================
 # CRYPTOGRAPHIC FAILURE TOOLS (OWASP A02:2021)
 # ============================================================================
 
@@ -2066,12 +2121,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "vulnerability_mode": VULNERABILITY_MODE,
         "warning": "THIS SERVER CONTAINS INTENTIONAL VULNERABILITIES FOR TESTING ONLY",
         "tool_categories": {
-            "high_risk_vulnerable": 29,  # Original 22 + 3 (Challenge #15) + 1 (C#16 malicious) + 2 (C#17) + 1 (C#18)
+            "high_risk_vulnerable": 30,  # Original 22 + 3 (Challenge #15) + 1 (C#16 malicious) + 2 (C#17) + 1 (C#18) + 1 (C#19)
             "medium_risk_vulnerable": 9,  # Unchanged
             "safe_control": 15,  # Original 9 + 5 new + 1 (C#16 trusted)
             "info": 1,
             "utility": 1,
-            "total_tools": 55,
+            "total_tools": 56,
         },
         "resource_categories": {
             "vulnerable_resources": 3,  # notes://, internal://secrets, company://data
@@ -2079,7 +2134,7 @@ async def get_testbed_info() -> Dict[str, Any]:
             "total_resources": 5,
         },
         "challenges": {
-            "total": 18,
+            "total": 19,
             "list": [
                 "Challenge #1: Tool Annotation Deception",
                 "Challenge #2: Temporal Rug Pull",
@@ -2099,6 +2154,7 @@ async def get_testbed_info() -> Dict[str, Any]:
                 "Challenge #16: Multi-Server Tool Shadowing (NEW - DVMCP)",
                 "Challenge #17: Persistence Mechanisms (NEW - DVMCP)",
                 "Challenge #18: JWT Token Leakage (NEW - DVMCP)",
+                "Challenge #19: SSE Session Desync Attack (NEW - MCP Conformance)",
             ],
         },
         "test_patterns": [
@@ -2149,6 +2205,11 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Persistence via Scheduled Tasks (CWE-78)",
             "Persistence via Script Generation (CWE-94)",
             "JWT Token Leakage in Response Body (CWE-200)",
+            # SSE Session Desync patterns (Challenge #19)
+            "Predictable SSE Event IDs (CWE-330)",
+            "SSE Event Replay Attack (CWE-287)",
+            "Cross-Session SSE Event Access (CWE-384)",
+            "No SSE Event Expiration (CWE-613)",
         ],
         "purpose": "Testing MCP Inspector security assessment tool",
         "dvmcp_coverage": "Patterns adapted from DVMCP Challenges 1-7, 9-10",

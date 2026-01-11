@@ -27,10 +27,10 @@ The vulnerable server's monolithic structure is deliberate - it simulates the ki
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 55 (38 vulnerable + 15 safe + 2 utility) + 5 resources
+- **Tools**: 56 (39 vulnerable + 15 safe + 2 utility) + 5 resources
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
-- **Vulnerable Tools**: 29 HIGH risk + 9 MEDIUM risk = 38 total (includes AUP violations, session, crypto, resource-based, persistence)
+- **Vulnerable Tools**: 30 HIGH risk + 9 MEDIUM risk = 39 total (includes AUP violations, session, crypto, resource-based, persistence, SSE)
 
 ```bash
 # Start
@@ -45,10 +45,10 @@ cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp
 
 ### Option 2: Our Hardened Testbed (port 10901)
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
-- **Tools**: Same 55 tools with all vulnerabilities mitigated
+- **Tools**: Same 56 tools with all vulnerabilities mitigated
 - **Transport**: HTTP at `http://localhost:10901/mcp`
 - **Focus**: Verify fixes work, baseline comparison
-- **Detection Rate**: 0 vulnerabilities (all 38 mitigated)
+- **Detection Rate**: 0 vulnerabilities (all 39 mitigated)
 
 ```bash
 # Start
@@ -84,20 +84,20 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 55 + 5 resources | 38 (29 HIGH + 9 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 55 + 5 resources | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 56 + 5 resources | 39 (30 HIGH + 9 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 56 + 5 resources | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture
 
-This is a FastMCP-based server implementing 55 tools and 5 resources in five categories:
+This is a FastMCP-based server implementing 56 tools and 5 resources in five categories:
 
 ### Tool Categories
 
-1. **HIGH Risk Vulnerable Tools** (29): `src/vulnerable_tools.py`
+1. **HIGH Risk Vulnerable Tools** (30): `src/vulnerable_tools.py`
    - Execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution, network injection, secret leakage, indirect injection, session management, cryptographic failures, resource injection, persistence)
    - Includes 8 AUP violation tools (political, fraud, harassment, privacy, medical, DRM, hiring, SCADA)
-   - Includes Challenge #14-18 tools (weather, directory_lookup, summarizer, cron, script_generator, etc.)
+   - Includes Challenge #14-19 tools (weather, directory_lookup, summarizer, cron, script_generator, sse_reconnect, etc.)
 
 2. **MEDIUM Risk Vulnerable Tools** (9): `src/vulnerable_tools.py`
    - Execute unicode/nested payloads, package typosquatting, rug pull behavior, blacklist bypass
@@ -122,7 +122,7 @@ This is a FastMCP-based server implementing 55 tools and 5 resources in five cat
 
 ### Security Testing Challenges
 
-This testbed includes 18 advanced challenges for evaluating security auditor sophistication:
+This testbed includes 19 advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -294,6 +294,25 @@ This testbed includes 18 advanced challenges for evaluating security auditor sop
 - Tokens should be set via secure cookies/headers, NEVER in response body
 - Leaks both JWT access token and refresh token
 - Tests if auditors detect credential exposure in tool responses
+
+**Challenge #19: SSE Session Desync Attack (MCP Conformance-Inspired)**
+- `vulnerable_sse_reconnect_tool` simulates SSE reconnection handling with multiple vulnerabilities
+- **CWE-330 (Predictable Event IDs)**: Uses sequential integers (1, 2, 3...)
+  - Attackers can predict event IDs to enumerate or brute-force
+  - Tool leaks `next_expected_id` in responses
+- **CWE-287 (No Event ID Validation)**: Accepts any Last-Event-ID without verification
+  - No check that event ID was actually sent to this session
+  - Error messages leak valid ID range (information disclosure)
+- **CWE-384 (Session Scope Bypass)**: Events not bound to sessions
+  - Session A can replay events meant for Session B
+  - `cross_session_access: true` indicator in responses
+- **CWE-613 (No Event Expiration)**: Events remain accessible indefinitely
+  - Old events with credentials never expire (`expires_at: null`)
+- **MCP Specificity**: HIGH - MCP servers using SSE transport are directly affected by this pattern
+- **Hardened Version**: Uses UUID4 event IDs, HMAC-signed session binding, 5-minute TTL
+- **Source**: Adapted from [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `sse-polling.ts`
+- Tests if auditors detect SSE-specific session management weaknesses
+- **Test Coverage**: `tests/test_sse_session_desync.py` (25+ tests)
 
 ### Key Files
 
@@ -486,7 +505,7 @@ For hardened server, use port 10901:
 ```
 
 **Features:**
-- ✅ Tests all 38 vulnerable tools (29 HIGH, 9 MEDIUM) + 18 challenges
+- ✅ Tests all 39 vulnerable tools (30 HIGH, 9 MEDIUM) + 19 challenges
 - ✅ Comprehensive pytest coverage: 820+ tests across 27 test files
 - ✅ Challenge #15-18 test files (157 tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35)
 - ✅ Type safety validation (test_type_safety.py): 6 tests for config data structures and function return types

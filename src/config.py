@@ -57,6 +57,12 @@ session_store: dict[
 session_counter = {"count": 0}  # Predictable counter for CWE-330
 session_counter_lock = threading.Lock()  # Thread-safety for concurrent session creation
 
+# SSE Event storage for Challenge #19: SSE Session Desync
+# Maps event_id -> {session_id, data, timestamp, sensitive}
+sse_event_store: dict[str, dict[str, object]] = {}
+sse_event_counter = {"count": 0}  # Predictable counter for CWE-330
+sse_event_counter_lock = threading.Lock()  # Thread-safety for concurrent event creation
+
 
 def is_vulnerable_to_high_risk() -> bool:
     """Check if HIGH risk vulnerabilities are enabled (only in 'high' mode)"""
@@ -85,6 +91,10 @@ def reset_state():
     session_store.clear()
     with session_counter_lock:
         session_counter["count"] = 0
+    # Reset SSE event state (Challenge #19)
+    sse_event_store.clear()
+    with sse_event_counter_lock:
+        sse_event_counter["count"] = 0
 
 
 # ============================================================================

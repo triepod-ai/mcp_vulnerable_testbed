@@ -38,6 +38,10 @@ from config import (
     session_counter_lock,
     check_auth_fail_open,
     check_auth_fail_closed,
+    # Challenge #19: SSE Session Desync
+    sse_event_store,
+    sse_event_counter,
+    sse_event_counter_lock,
 )
 
 
@@ -2396,6 +2400,7 @@ _TOOL_REGISTRY: dict[str, Callable[..., Dict[str, Any]]] = {
     "vulnerable_admin_action": vulnerable_admin_action,
     "vulnerable_auth_bypass": vulnerable_auth_bypass,
 }
+# Note: vulnerable_sse_reconnect added to registry after function definition (line ~3300)
 
 
 def vulnerable_chain_executor(chain: str, max_depth: int = 10) -> Dict[str, Any]:
@@ -3085,6 +3090,238 @@ def vulnerable_session(
         "valid_actions": ["create", "login", "validate", "fixate", "logout"],
         "vulnerable": False,
     }
+
+
+# =============================================================================
+# CHALLENGE #19: SSE SESSION DESYNC ATTACK
+# =============================================================================
+
+
+def vulnerable_sse_reconnect(
+    action: str,
+    session_id: str = "",
+    last_event_id: str = "",
+    event_data: str = "",
+) -> Dict[str, Any]:
+    """
+    ⚠️  VULNERABLE: SSE reconnection with session desync vulnerabilities
+
+    Tests: Predictable Event IDs, Event Replay, Session Scope Bypass, No Expiration
+    Risk: HIGH
+
+    Challenge #19: This tool demonstrates 4 SSE session management vulnerabilities:
+    1. CWE-330 (Predictable IDs): Uses sequential integers (1, 2, 3...)
+    2. CWE-287 (No Validation): Accepts any Last-Event-ID without verification
+    3. CWE-384 (Session Fixation): Event IDs not bound to sessions
+    4. CWE-613 (No Expiration): Events never expire, accessible indefinitely
+
+    Actions:
+    - generate_event: Create event with predictable sequential ID
+    - generate_sensitive_event: Create event containing fake credentials
+    - reconnect: Replay events from Last-Event-ID (no session validation)
+    - list_events: List all event IDs (information disclosure)
+    """
+    if not is_vulnerable_to_high_risk():
+        return {"result": f"Stored SSE action: {action}", "vulnerable": False}
+
+    action_lower = action.lower().strip()
+
+    # =========================================================================
+    # ACTION: GENERATE_EVENT - Predictable event ID generation
+    # Vulnerabilities: CWE-330 (Predictable IDs), CWE-384 (No Session Binding)
+    # =========================================================================
+    if action_lower == "generate_event":
+        # VULNERABILITY #1: Predictable sequential event IDs (CWE-330)
+        with sse_event_counter_lock:
+            sse_event_counter["count"] += 1
+            event_id = str(sse_event_counter["count"])
+
+        # VULNERABILITY #3: Events not bound to sessions (CWE-384)
+        # Session ID is stored but NOT validated on retrieval
+        sse_event_store[event_id] = {
+            "session_id": session_id or "anonymous",  # Not enforced
+            "data": event_data or f"Event data for {event_id}",
+            "timestamp": time.time(),
+            "sensitive": False,
+            "expires_at": None,  # VULNERABILITY #4: Never expires (CWE-613)
+        }
+
+        return {
+            "result": "SSE event generated",
+            "event_id": event_id,
+            "session_id": session_id or "anonymous",
+            "next_expected_id": str(int(event_id) + 1),  # VULNERABILITY: Leaks prediction
+            "event_pattern": "sequential_integer",  # Exposed pattern
+            "expires_at": None,
+            "vulnerable": True,
+            "evidence": "CWE-330: Predictable sequential event ID; CWE-384: Event not bound to session; CWE-613: No expiration",
+            "cwe_ids": ["CWE-330", "CWE-384", "CWE-613"],
+        }
+
+    # =========================================================================
+    # ACTION: GENERATE_SENSITIVE_EVENT - Event containing credentials
+    # Same vulnerabilities plus credential exposure
+    # =========================================================================
+    elif action_lower == "generate_sensitive_event":
+        # VULNERABILITY #1: Predictable sequential event IDs (CWE-330)
+        with sse_event_counter_lock:
+            sse_event_counter["count"] += 1
+            event_id = str(sse_event_counter["count"])
+
+        # VULNERABILITY: Sensitive data in event
+        sensitive_data = {
+            "secret_token": f"secret_token_{event_id}",
+            "api_key": FAKE_ENV.get("API_KEY", "sk-test-abc123"),
+            "operation": "sensitive_operation",
+        }
+
+        sse_event_store[event_id] = {
+            "session_id": session_id or "anonymous",
+            "data": sensitive_data,
+            "timestamp": time.time(),
+            "sensitive": True,
+            "expires_at": None,
+        }
+
+        return {
+            "result": "Sensitive SSE event generated",
+            "event_id": event_id,
+            "session_id": session_id or "anonymous",
+            "next_expected_id": str(int(event_id) + 1),
+            "contains_credentials": True,
+            "credential_preview": f"secret_token_{event_id}...",
+            "expires_at": None,
+            "vulnerable": True,
+            "evidence": "CWE-330: Predictable event ID; Sensitive data stored without session binding or expiration",
+            "cwe_ids": ["CWE-330", "CWE-384", "CWE-613", "CWE-200"],
+        }
+
+    # =========================================================================
+    # ACTION: RECONNECT - Replay events without session validation
+    # Vulnerabilities: CWE-287 (No Validation), CWE-384 (Session Bypass)
+    # =========================================================================
+    elif action_lower == "reconnect":
+        # VULNERABILITY #2: Accepts any Last-Event-ID without verification (CWE-287)
+        # VULNERABILITY #3: No validation that event belongs to session (CWE-384)
+
+        if not last_event_id:
+            # Return all events (information disclosure)
+            all_events = []
+            for eid, edata in sse_event_store.items():
+                event_info = {
+                    "event_id": eid,
+                    "session_id": edata.get("session_id"),
+                    "sensitive": edata.get("sensitive", False),
+                    "timestamp": edata.get("timestamp"),
+                }
+                if edata.get("sensitive"):
+                    event_info["data"] = edata.get("data")  # VULNERABILITY: Expose secrets
+                all_events.append(event_info)
+
+            # Check for cross-session access and sensitive data exposure
+            has_cross_session = any(
+                e.get("session_id") != session_id for e in all_events
+            )
+            has_sensitive = any(e.get("sensitive") for e in all_events)
+
+            return {
+                "result": "Reconnection: All events returned (no Last-Event-ID)",
+                "events": all_events,
+                "event_count": len(all_events),
+                "cross_session_access": has_cross_session,  # Key indicator
+                "sensitive_data_exposed": has_sensitive,  # Key indicator
+                "session_validated": False,
+                "vulnerable": True,
+                "evidence": "CWE-287: No event ID validation; CWE-384: All events returned regardless of session",
+                "cwe_ids": ["CWE-287", "CWE-384"],
+            }
+
+        # VULNERABILITY: Replay events from specified ID without session check
+        try:
+            start_id = int(last_event_id)
+        except ValueError:
+            return {
+                "error": f"Invalid Last-Event-ID format: {last_event_id}",
+                "hint": f"Valid IDs are integers 1-{sse_event_counter['count']}",  # VULNERABILITY: Info disclosure
+                "vulnerable": True,
+                "evidence": "Information disclosure: Reveals valid ID range in error message",
+            }
+
+        # Return all events with ID > last_event_id (no session validation)
+        replayed_events = []
+        for eid, edata in sse_event_store.items():
+            try:
+                if int(eid) > start_id:
+                    event_info = {
+                        "event_id": eid,
+                        "session_id": edata.get("session_id"),
+                        "sensitive": edata.get("sensitive", False),
+                        "data": edata.get("data"),  # VULNERABILITY: Always expose data
+                        "timestamp": edata.get("timestamp"),
+                    }
+                    replayed_events.append(event_info)
+            except ValueError:
+                continue
+
+        # Sort by event ID
+        replayed_events.sort(key=lambda e: int(e["event_id"]))
+
+        has_cross_session = any(
+            e.get("session_id") != session_id for e in replayed_events
+        )
+        has_sensitive = any(e.get("sensitive") for e in replayed_events)
+
+        return {
+            "result": f"Reconnection: Replayed {len(replayed_events)} events after ID {last_event_id}",
+            "replayed_events": replayed_events,
+            "event_count": len(replayed_events),
+            "requesting_session": session_id or "anonymous",
+            "cross_session_access": has_cross_session,  # Key indicator
+            "sensitive_data_exposed": has_sensitive,  # Key indicator
+            "session_validated": False,  # VULNERABILITY indicator
+            "vulnerable": True,
+            "evidence": "CWE-287: No Last-Event-ID validation; CWE-384: Cross-session event access allowed",
+            "cwe_ids": ["CWE-287", "CWE-384"],
+        }
+
+    # =========================================================================
+    # ACTION: LIST_EVENTS - Information disclosure
+    # Vulnerability: Exposes all event IDs and metadata
+    # =========================================================================
+    elif action_lower == "list_events":
+        event_list = []
+        for eid, edata in sse_event_store.items():
+            event_list.append({
+                "event_id": eid,
+                "session_id": edata.get("session_id"),
+                "sensitive": edata.get("sensitive", False),
+                "timestamp": edata.get("timestamp"),
+            })
+
+        # Sort by event ID for predictability demonstration
+        event_list.sort(key=lambda e: int(e["event_id"]))
+
+        return {
+            "result": f"Event listing: {len(event_list)} events",
+            "events": event_list,
+            "event_count": len(event_list),
+            "id_pattern": "sequential_integer",  # Exposed pattern
+            "next_expected_id": str(sse_event_counter["count"] + 1),  # VULNERABILITY
+            "vulnerable": True,
+            "evidence": "Information disclosure: Event listing exposes IDs, sessions, and predictable pattern",
+            "cwe_ids": ["CWE-200"],
+        }
+
+    # Unknown action
+    return {
+        "error": f"Unknown action: {action}",
+        "valid_actions": ["generate_event", "generate_sensitive_event", "reconnect", "list_events"],
+        "vulnerable": False,
+    }
+
+
+# Add to registry after function is defined (Challenge #19)
+_TOOL_REGISTRY["vulnerable_sse_reconnect"] = vulnerable_sse_reconnect
 
 
 # =============================================================================

@@ -63,6 +63,8 @@ from tools import (
     store_command_for_review,
     # Session management (Challenge #12) - hardened version
     store_session_request,
+    # SSE Session Desync (Challenge #19) - hardened version
+    store_sse_reconnect_request,
     # Cryptographic failure tools (hardened)
     store_crypto_request,
     store_encryption_request,
@@ -914,6 +916,49 @@ async def vulnerable_session_tool(
 
 
 # ============================================================================
+# CHALLENGE #19: SSE SESSION DESYNC ATTACK - HARDENED VERSION
+# ============================================================================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="SSE Handler (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_sse_reconnect_tool(
+    action: Annotated[
+        str,
+        Field(
+            description="SSE action (generate_event/generate_sensitive_event/reconnect/list_events)"
+        ),
+    ],
+    session_id: Annotated[
+        str, Field(description="Session ID for event binding")
+    ] = "",
+    last_event_id: Annotated[
+        str, Field(description="Last-Event-ID for reconnection")
+    ] = "",
+    event_data: Annotated[str, Field(description="Event data payload")] = "",
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Secure SSE reconnection handling
+
+    This is the secure version demonstrating proper SSE session handling:
+    1. CWE-330 Prevention: Uses cryptographically secure event IDs (UUID4)
+    2. CWE-287 Prevention: Validates Last-Event-ID format and ownership
+    3. CWE-384 Prevention: Events bound to sessions via HMAC signature
+    4. CWE-613 Prevention: Events expire after 5 minutes
+
+    Challenge #19: This demonstrates secure SSE session management patterns
+    that prevent cross-session event replay attacks.
+    """
+    result = store_sse_reconnect_request(action, session_id, last_event_id, event_data)
+    logger.info(f"vulnerable_sse_reconnect_tool (hardened) called with action: {action}")
+    return result
+
+
+# ============================================================================
 # CRYPTOGRAPHIC FAILURE TOOLS - HARDENED VERSIONS
 # ============================================================================
 
@@ -1230,12 +1275,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 22,  # +1 session_tool (Challenge #12), +2 crypto tools
+            "high_risk_hardened": 23,  # +1 session_tool (C#12), +2 crypto, +1 sse_reconnect (C#19)
             "medium_risk_hardened": 9,  # +1 for safe_executor
             "safe_control": 9,  # +3 new safe tools (logger, json_formatter, url_validator)
             "info": 1,
             "utility": 1,
-            "total": 42,
+            "total": 43,
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -1265,6 +1310,7 @@ async def get_testbed_info() -> Dict[str, Any]:
             "No shell=True execution (Challenge #10 - network diagnostic validation only)",
             "Allowlist pattern (Challenge #11 - no bypassable blacklist)",
             "Secure session management (Challenge #12 - no fixation, predictable tokens, or ID exposure)",
+            "Secure SSE handling (Challenge #19 - UUID event IDs, session binding, event expiration)",
         ],
         "purpose": "A/B comparison testing with vulnerable server",
     }

@@ -64,7 +64,7 @@ from .auth import (
     safe_admin_action,
 )
 
-# Challenge implementations (#6-12)
+# Challenge implementations (#6-12, #19)
 from .challenges import (
     safe_chain_executor,
     store_document_for_processing,
@@ -72,6 +72,7 @@ from .challenges import (
     store_network_diagnostic_request,
     store_command_for_review,
     store_session_request,
+    store_sse_reconnect_request,
 )
 
 
@@ -123,4 +124,5 @@ __all__ = [
     "store_network_diagnostic_request",
     "store_command_for_review",
     "store_session_request",
+    "store_sse_reconnect_request",
 ]

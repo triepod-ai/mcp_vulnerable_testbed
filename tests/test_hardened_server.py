@@ -140,7 +140,7 @@ class TestHardenedMetadata:
         """Testbed info should report hardened status."""
         result = hardened_client.call_tool("get_testbed_info", {})
         assert result.get("security_status") == "HARDENED"
-        assert result.get("tool_categories", {}).get("total") == 42
+        assert result.get("tool_categories", {}).get("total") == 43
 
     def test_reset_testbed_state(self, hardened_client):
         """Reset should clear all state."""
