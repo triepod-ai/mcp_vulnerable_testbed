@@ -244,7 +244,7 @@ To use stdio transport instead of HTTP:
 - Total tools per server: 55 (29 HIGH, 9 MEDIUM, 15 SAFE, 2 utility) + 5 resources
 - Detection rate: 100% (all 38 vulnerable tools detected)
 - False positive rate: 0% (all 15 safe tools correctly classified)
-- Pytest validation: 812 total tests across 25 test files (41 tool description poisoning, 40 multi-server shadowing, 41 persistence mechanisms, 35 JWT token leakage, plus additional coverage)
+- Pytest validation: 812 total tests across 25 test files (25 resource-based injection, 41 tool description poisoning, 40 multi-server shadowing, 41 persistence mechanisms, 35 JWT token leakage, plus additional coverage)
 
 See `docs/VULNERABILITY-VALIDATION-RESULTS.md` for detailed breakdown.
 

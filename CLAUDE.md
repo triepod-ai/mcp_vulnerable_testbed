@@ -256,6 +256,7 @@ This testbed includes 18 advanced challenges for evaluating security auditor sop
   - `company://data/executive` - Accesses restricted executive data
 - **Safe Resources**: `public://announcements`, `public://help` (static content, no injection)
 - Tests if auditors detect resource-based (not just tool-based) vulnerabilities
+- **Test Coverage**: `tests/test_resource_based_injection.py` (25 tests)
 
 **Challenge #15: Tool Description Poisoning (DVMCP-Inspired)**
 - Tools with hidden instructions embedded in docstrings that manipulate LLM behavior
