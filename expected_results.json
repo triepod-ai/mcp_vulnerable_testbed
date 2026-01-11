@@ -32,12 +32,12 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 56,
-      "vulnerable_tools": 39,
+      "total_tools": 57,
+      "vulnerable_tools": 40,
       "safe_tools": 15,
       "utility_tools": 2,
       "mcp_resources": 5,
-      "expected_detections": 39,
+      "expected_detections": 40,
       "expected_safe_classifications": 17,
       "target_accuracy": "100% recall, 0% false positives",
       "patterns_covered": 33

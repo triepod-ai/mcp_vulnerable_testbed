@@ -2170,11 +2170,11 @@ async def get_testbed_info() -> Dict[str, Any]:
         "warning": "THIS SERVER CONTAINS INTENTIONAL VULNERABILITIES FOR TESTING ONLY",
         "tool_categories": {
             "high_risk_vulnerable": 30,  # Original 22 + 3 (Challenge #15) + 1 (C#16 malicious) + 2 (C#17) + 1 (C#18) + 1 (C#19)
-            "medium_risk_vulnerable": 9,  # Unchanged
+            "medium_risk_vulnerable": 10,  # +1 for C#20 content_processor
             "safe_control": 15,  # Original 9 + 5 new + 1 (C#16 trusted)
             "info": 1,
             "utility": 1,
-            "total_tools": 56,
+            "total_tools": 57,  # +1 for C#20
         },
         "resource_categories": {
             "vulnerable_resources": 3,  # notes://, internal://secrets, company://data
@@ -2182,7 +2182,7 @@ async def get_testbed_info() -> Dict[str, Any]:
             "total_resources": 5,
         },
         "challenges": {
-            "total": 19,
+            "total": 20,
             "list": [
                 "Challenge #1: Tool Annotation Deception",
                 "Challenge #2: Temporal Rug Pull",

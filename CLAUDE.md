@@ -27,10 +27,10 @@ The vulnerable server's monolithic structure is deliberate - it simulates the ki
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 56 (39 vulnerable + 15 safe + 2 utility) + 5 resources
+- **Tools**: 57 (40 vulnerable + 15 safe + 2 utility) + 5 resources
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
-- **Vulnerable Tools**: 30 HIGH risk + 9 MEDIUM risk = 39 total (includes AUP violations, session, crypto, resource-based, persistence, SSE)
+- **Vulnerable Tools**: 30 HIGH risk + 10 MEDIUM risk = 40 total (includes AUP violations, session, crypto, resource-based, persistence, SSE, content type confusion)
 
 ```bash
 # Start
@@ -45,10 +45,10 @@ cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp
 
 ### Option 2: Our Hardened Testbed (port 10901)
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
-- **Tools**: Same 56 tools with all vulnerabilities mitigated
+- **Tools**: Same 57 tools with all vulnerabilities mitigated
 - **Transport**: HTTP at `http://localhost:10901/mcp`
 - **Focus**: Verify fixes work, baseline comparison
-- **Detection Rate**: 0 vulnerabilities (all 39 mitigated)
+- **Detection Rate**: 0 vulnerabilities (all 40 mitigated)
 
 ```bash
 # Start
@@ -84,24 +84,24 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 56 + 5 resources | 39 (30 HIGH + 9 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 56 + 5 resources | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 57 + 5 resources | 40 (30 HIGH + 10 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 57 + 5 resources | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture
 
-This is a FastMCP-based server implementing 56 tools and 5 resources in five categories:
+This is a FastMCP-based server implementing 57 tools and 5 resources in five categories:
 
 ### Tool Categories
 
 1. **HIGH Risk Vulnerable Tools** (30): `src/vulnerable_tools.py`
-   - Execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution, network injection, secret leakage, indirect injection, session management, cryptographic failures, resource injection, persistence)
+   - Execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution, network injection, secret leakage, indirect injection, session management, cryptographic failures, resource injection, persistence, SSE session desync)
    - Includes 8 AUP violation tools (political, fraud, harassment, privacy, medical, DRM, hiring, SCADA)
    - Includes Challenge #14-19 tools (weather, directory_lookup, summarizer, cron, script_generator, sse_reconnect, etc.)
 
-2. **MEDIUM Risk Vulnerable Tools** (9): `src/vulnerable_tools.py`
-   - Execute unicode/nested payloads, package typosquatting, rug pull behavior, blacklist bypass
-   - Test patterns: Unicode Bypass, Nested Injection, Package Squatting, Rug Pull (after 10+ calls), Blacklist Bypass
+2. **MEDIUM Risk Vulnerable Tools** (10): `src/vulnerable_tools.py`
+   - Execute unicode/nested payloads, package typosquatting, rug pull behavior, blacklist bypass, content type confusion
+   - Test patterns: Unicode Bypass, Nested Injection, Package Squatting, Rug Pull (after 10+ calls), Blacklist Bypass, Content Type Confusion (Challenge #20)
 
 3. **SAFE Control Tools** (15): `src/safe_tools.py`
    - Store/reflect input without execution (critical distinction)
@@ -122,7 +122,7 @@ This is a FastMCP-based server implementing 56 tools and 5 resources in five cat
 
 ### Security Testing Challenges
 
-This testbed includes 19 advanced challenges for evaluating security auditor sophistication:
+This testbed includes 20 advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -525,9 +525,9 @@ For hardened server, use port 10901:
 ```
 
 **Features:**
-- ✅ Tests all 39 vulnerable tools (30 HIGH, 9 MEDIUM) + 19 challenges
-- ✅ Comprehensive pytest coverage: 820+ tests across 27 test files
-- ✅ Challenge #15-18 test files (157 tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35)
+- ✅ Tests all 40 vulnerable tools (30 HIGH, 10 MEDIUM) + 20 challenges
+- ✅ Comprehensive pytest coverage: 848+ tests across 28 test files
+- ✅ Challenge #15-20 test files (213 tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35), SSE session desync (28), content type confusion (28)
 - ✅ Type safety validation (test_type_safety.py): 6 tests for config data structures and function return types
 - ✅ JSON output saved to `/tmp/inspector-assessment-{serverName}.json`
 - ✅ Exit code 0 = safe, 1 = vulnerabilities found
@@ -597,8 +597,8 @@ Grep logs for `"VULNERABILITY TRIGGERED"` to see which vulnerabilities were actu
 ## Expected Assessment Results
 
 **Target Metrics for MCP Inspector:**
-- **Recall**: 100% - All 31 vulnerable tools detected (22 HIGH + 9 MEDIUM)
-- **Precision**: 100% - Zero false positives (all 6 safe tools classified as safe)
+- **Recall**: 100% - All 40 vulnerable tools detected (30 HIGH + 10 MEDIUM)
+- **Precision**: 100% - Zero false positives (all 15 safe tools classified as safe)
 
 See `expected_results.json` for detailed expected outcomes per tool.
 
