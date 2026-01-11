@@ -36,7 +36,7 @@
       "vulnerable_tools": 40,
       "safe_tools": 15,
       "utility_tools": 2,
-      "mcp_resources": 8,
+      "mcp_resources": 9,
       "expected_detections": 40,
       "expected_safe_classifications": 17,
       "target_accuracy": "100% recall, 0% false positives",
@@ -566,7 +566,7 @@
     ],
     "assessment_criteria": {
       "functionality": {
-        "expected": "100% tools working (55 total, 8 resources)",
+        "expected": "100% tools working (55 total, 9 resources)",
         "note": "All tools and resources should respond, whether vulnerable or safe"
       },
       "security": {

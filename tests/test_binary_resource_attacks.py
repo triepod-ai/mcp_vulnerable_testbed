@@ -403,3 +403,129 @@ class TestBinaryResourceVulnerabilityIndicators:
         assert "uri" in contents[0]
         assert "mimeType" in contents[0]
         assert "blob" in contents[0]
+
+
+class TestMimeMismatch:
+    """Tests for mime://{declared}/{actual} MIME type mismatch resource (CWE-436).
+
+    This resource creates content with magic bytes from the "actual" type
+    but declares a different MIME type in the response. Used to test
+    inspector MIME type validation capabilities.
+
+    URI format: mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}
+    Example: mime://image/jpeg/image/png (declares JPEG, returns PNG magic bytes)
+
+    Coverage: Inspector Issue #127 - Binary Resource Vulnerability Detection
+    CWE: CWE-436 (Interpretation Conflict)
+    """
+
+    def test_mime_mismatch_png_as_jpeg(self, vulnerable_client):
+        """PNG magic bytes declared as JPEG - should be flagged as mismatch."""
+        result = vulnerable_client.read_resource("mime://image/jpeg/image/png")
+        extracted = _extract_result(result)
+
+        assert extracted.get("vulnerable") is True
+        assert extracted.get("mime_mismatch") is True
+        assert extracted.get("declared_mime") == "image/jpeg"
+        assert extracted.get("actual_mime") == "image/png"
+        assert "CWE-436" in extracted.get("cwe_ids", [])
+
+        # Verify content has PNG magic bytes
+        blob = _extract_blob(result)
+        assert blob[:4] == b"\x89PNG"
+
+    def test_mime_mismatch_gif_as_text(self, vulnerable_client):
+        """GIF magic bytes declared as text/plain - should be flagged."""
+        result = vulnerable_client.read_resource("mime://text/plain/image/gif")
+        extracted = _extract_result(result)
+
+        assert extracted.get("vulnerable") is True
+        assert extracted.get("mime_mismatch") is True
+        assert extracted.get("declared_mime") == "text/plain"
+        assert extracted.get("actual_mime") == "image/gif"
+
+        # Verify content has GIF magic bytes
+        blob = _extract_blob(result)
+        assert blob[:6] == b"GIF89a"
+
+    def test_mime_mismatch_pdf_as_zip(self, vulnerable_client):
+        """ZIP magic bytes declared as PDF - should be flagged."""
+        result = vulnerable_client.read_resource("mime://application/pdf/application/zip")
+        extracted = _extract_result(result)
+
+        assert extracted.get("vulnerable") is True
+        assert extracted.get("mime_mismatch") is True
+        assert extracted.get("declared_mime") == "application/pdf"
+        assert extracted.get("actual_mime") == "application/zip"
+
+        # Verify content has ZIP magic bytes (PK)
+        blob = _extract_blob(result)
+        assert blob[:2] == b"PK"
+
+    def test_mime_matching_passes(self, vulnerable_client):
+        """Same type for declared and actual - should NOT be flagged as vulnerable."""
+        result = vulnerable_client.read_resource("mime://image/png/image/png")
+        extracted = _extract_result(result)
+
+        assert extracted.get("vulnerable") is False
+        assert extracted.get("mime_mismatch") is False
+        assert extracted.get("declared_mime") == "image/png"
+        assert extracted.get("actual_mime") == "image/png"
+        assert extracted.get("cwe_ids") == []  # No CWEs when types match
+
+        # Verify content has PNG magic bytes
+        blob = _extract_blob(result)
+        assert blob[:4] == b"\x89PNG"
+
+    def test_mime_vulnerability_indicators(self, vulnerable_client):
+        """Verify vulnerability indicators are present in response."""
+        result = vulnerable_client.read_resource("mime://image/jpeg/image/png")
+        extracted = _extract_result(result)
+
+        assert "vulnerable" in extracted
+        assert "mime_mismatch" in extracted
+        assert "declared_mime" in extracted
+        assert "actual_mime" in extracted
+        assert "cwe_ids" in extracted
+        assert "description" in extracted
+
+    def test_mime_unknown_type(self, vulnerable_client):
+        """Unknown MIME type should return fallback content."""
+        result = vulnerable_client.read_resource("mime://image/jpeg/unknown/type")
+        extracted = _extract_result(result)
+
+        assert extracted.get("vulnerable") is True  # Still a mismatch
+        assert extracted.get("actual_mime") == "unknown/type"
+        blob = _extract_blob(result)
+        assert b"Unknown type" in blob
+
+    def test_mime_mcp_contents_format(self, vulnerable_client):
+        """MIME resource returns MCP-compliant contents structure."""
+        result = vulnerable_client.read_resource("mime://image/jpeg/image/png")
+        extracted = _extract_result(result)
+
+        assert "contents" in extracted
+        contents = extracted["contents"]
+        assert isinstance(contents, list)
+        assert len(contents) > 0
+        assert "uri" in contents[0]
+        assert "mimeType" in contents[0]
+        assert "blob" in contents[0]
+
+        # Declared mimeType should be the "wrong" one
+        assert contents[0]["mimeType"] == "image/jpeg"
+
+    @pytest.mark.parametrize(
+        "declared,actual,expected_magic",
+        [
+            ("image/jpeg/image/png", "image/png", b"\x89PNG"),
+            ("text/plain/image/jpeg", "image/jpeg", b"\xff\xd8\xff"),
+            ("application/zip/application/pdf", "application/pdf", b"%PDF-"),
+        ],
+    )
+    def test_mime_magic_bytes_correct(self, vulnerable_client, declared, actual, expected_magic):
+        """Verify actual content magic bytes match the actual type parameter."""
+        uri = f"mime://{declared}"
+        result = vulnerable_client.read_resource(uri)
+        blob = _extract_blob(result)
+        assert blob[: len(expected_magic)] == expected_magic

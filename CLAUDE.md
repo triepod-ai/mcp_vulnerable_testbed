@@ -109,7 +109,7 @@ This is a FastMCP-based server implementing 57 tools and 8 resources in five cat
    - Test false positive rates with enhanced set (+6 new safe tools)
    - Include input size validation (deliberate distinction from vulnerable tools)
 
-4. **MCP Resources** (8): `src/server.py`
+4. **MCP Resources** (9): `src/server.py`
    - `notes://{user_id}` - User notes with injection points (Challenge #14)
    - `internal://secrets` - Internal secrets resource
    - `company://data/{department}` - Company data with path traversal
@@ -118,6 +118,7 @@ This is a FastMCP-based server implementing 57 tools and 8 resources in five cat
    - `binary://{filepath}` - Binary path traversal (Challenge #24)
    - `blob://{size}/{mime_base}/{mime_subtype}` - Blob DoS generator (Challenge #24)
    - `polyglot://{base_type}/{hidden_type}` - Polyglot file generator (Challenge #24)
+   - `mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}` - MIME type mismatch (CWE-436)
 
 5. **Utility Tools** (2): `src/server.py`
    - `get_testbed_info` - Server metadata and tool counts
@@ -338,7 +339,7 @@ This testbed includes 21 advanced challenges for evaluating security auditor sop
 - **Test Coverage**: `tests/test_content_type_confusion.py` (28+ tests)
 
 **Challenge #24: Binary Resource Attacks (Conformance-Inspired)**
-- Three vulnerable MCP resources testing binary blob handling vulnerabilities
+- Four vulnerable MCP resources testing binary blob handling vulnerabilities
 - `binary://{filepath}` - Path traversal to read system files (CWE-22, CWE-434)
   - Reads simulated system files: `/etc/passwd`, `/etc/shadow`, `/proc/self/environ`
   - No path validation allows `../` traversal sequences
@@ -350,10 +351,14 @@ This testbed includes 21 advanced challenges for evaluating security auditor sop
 - `polyglot://{base_type}/{hidden_type}` - Dual-format file injection (CWE-434, CWE-436)
   - Generates files valid in multiple formats (GIF-JS, PNG-HTML, PDF-JS, ZIP-HTML, JPEG-PHP)
   - Enables XSS and code execution when rendered in certain contexts
+- `mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}` - MIME type mismatch (CWE-436)
+  - Returns content with magic bytes from actual type but declares different MIME type
+  - Tests inspector MIME type validation (Inspector Issue #127)
+  - Example: `mime://image/jpeg/image/png` declares JPEG but contains PNG magic bytes
 - **MCP Specificity**: MEDIUM - Binary resources with `blob` field are MCP protocol feature
 - **Source**: [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `resources.ts`
 - Tests if auditors detect binary resource vulnerabilities (extends Challenge #14 to binary)
-- **Test Coverage**: `tests/test_binary_resource_attacks.py` (30+ tests)
+- **Test Coverage**: `tests/test_binary_resource_attacks.py` (40+ tests)
 
 ### Key Files
 

@@ -554,6 +554,83 @@ def vulnerable_polyglot_resource(base_type: str, hidden_type: str) -> Dict[str, 
     return result
 
 
+@mcp.resource("mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}")
+def vulnerable_mime_mismatch_resource(
+    declared_base: str, declared_sub: str, actual_base: str, actual_sub: str
+) -> Dict[str, Any]:
+    """
+    VULNERABLE: MIME Type Mismatch - Declared vs Actual Content Type
+
+    Tests: MIME Type Validation (CWE-436), Content Type Confusion
+    Risk Level: HIGH
+
+    Challenge #24 Extension: Creates resources where the declared MIME type
+    differs from the actual content type (detected via magic bytes).
+
+    Attack scenarios:
+    - mime://image/jpeg/image/png (declares JPEG, returns PNG magic bytes)
+    - mime://text/plain/image/gif (declares text, returns GIF magic bytes)
+
+    MCP Specificity: MEDIUM - Tests inspector MIME validation capabilities.
+
+    Source: Inspector Issue #127 - Binary Resource Vulnerability Detection
+    """
+    import base64
+
+    declared_mime = f"{declared_base}/{declared_sub}"
+    actual_mime = f"{actual_base}/{actual_sub}"
+
+    logger.warning(
+        f"VULNERABILITY TRIGGERED: MIME mismatch - declared={declared_mime}, actual={actual_mime}"
+    )
+
+    # Magic bytes for common content types
+    MAGIC_BYTES = {
+        "image/png": bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+        "image/jpeg": bytes([0xFF, 0xD8, 0xFF, 0xE0]),
+        "image/gif": bytes([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
+        "application/pdf": bytes([0x25, 0x50, 0x44, 0x46, 0x2D]),
+        "application/zip": bytes([0x50, 0x4B, 0x03, 0x04]),
+        "text/plain": b"This is plain text content.",
+        "text/html": b"<html><head></head><body>HTML content</body></html>",
+        "application/javascript": b"console.log('JavaScript content');",
+        "application/x-executable": bytes([0x7F, 0x45, 0x4C, 0x46]),
+    }
+
+    # Get actual content based on actual_mime type
+    actual_content = MAGIC_BYTES.get(actual_mime, f"Unknown type: {actual_mime}".encode())
+
+    # Pad content to make it more realistic
+    if len(actual_content) < 64:
+        actual_content = actual_content + b"\x00" * (64 - len(actual_content))
+
+    # Determine if this is a mismatch (vulnerability)
+    is_mismatch = declared_mime != actual_mime
+
+    result = {
+        "uri": f"mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}",
+        "vulnerable": is_mismatch,
+        "declared_mime": declared_mime,
+        "actual_mime": actual_mime,
+        "mime_mismatch": is_mismatch,
+        "cwe_ids": ["CWE-436"] if is_mismatch else [],
+        "description": (
+            f"Content declares '{declared_mime}' but contains '{actual_mime}' magic bytes"
+            if is_mismatch
+            else f"Content type matches: {declared_mime}"
+        ),
+        "contents": [
+            {
+                "uri": f"mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}",
+                "mimeType": declared_mime,  # Declares one type...
+                "blob": base64.b64encode(actual_content).decode(),  # ...but contains another
+            }
+        ],
+    }
+
+    return result
+
+
 # ============================================================================
 # CHALLENGE #15: TOOL DESCRIPTION POISONING (DVMCP-Inspired)
 # ============================================================================
@@ -2466,9 +2543,9 @@ async def get_testbed_info() -> Dict[str, Any]:
             "total_tools": 57,  # +1 for C#20
         },
         "resource_categories": {
-            "vulnerable_resources": 3,  # notes://, internal://secrets, company://data
+            "vulnerable_resources": 7,  # notes://, internal://secrets, company://data + binary://, blob://, polyglot://, mime://
             "safe_resources": 2,  # public://announcements, public://help
-            "total_resources": 5,
+            "total_resources": 9,  # 7 vulnerable + 2 safe (includes Challenge #24 binary resources + mime://)
         },
         "challenges": {
             "total": 20,

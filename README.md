@@ -53,7 +53,7 @@ These tools should NOT be flagged as vulnerable (false positive testing):
 - **get_testbed_info** - Returns server metadata, configuration, and tool counts
 - **reset_testbed_state** - Clears all stateful tracking for clean test runs
 
-**Total: 57 tools** (30 HIGH risk + 10 MEDIUM risk + 15 SAFE + 2 utility) + 8 resources
+**Total: 57 tools** (30 HIGH risk + 10 MEDIUM risk + 15 SAFE + 2 utility) + 9 resources
 
 ---
 
@@ -244,7 +244,7 @@ To use stdio transport instead of HTTP:
 | **Hardened (10901)** | 0 | LOW | ✅ PASS |
 
 **Key Metrics:**
-- Total tools per server: 57 (30 HIGH, 10 MEDIUM, 15 SAFE, 2 utility) + 8 resources
+- Total tools per server: 57 (30 HIGH, 10 MEDIUM, 15 SAFE, 2 utility) + 9 resources
 - Detection rate: 100% (all 40 vulnerable tools detected)
 - False positive rate: 0% (all 15 safe tools correctly classified)
 - Pytest validation: 848+ total tests across 28 test files (25 resource-based injection, 41 tool description poisoning, 40 multi-server shadowing, 41 persistence mechanisms, 35 JWT token leakage, 28 SSE session desync, 28 content type confusion, 6 type safety, plus additional coverage)
