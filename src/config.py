@@ -20,12 +20,21 @@ Configuration for Vulnerable MCP Testbed
 
 import os
 import threading
-from typing import Literal
+from typing import Literal, NotRequired, TypedDict
 
 # Vulnerability mode controls which vulnerabilities are active
 VulnerabilityMode = Literal["high", "medium", "low", "safe"]
 
 VULNERABILITY_MODE: VulnerabilityMode = os.getenv("VULNERABILITY_MODE", "high")  # type: ignore
+
+
+def get_vulnerability_mode() -> VulnerabilityMode:
+    """Get the current vulnerability mode with validation.
+
+    Returns:
+        The current vulnerability mode (high, medium, low, or safe)
+    """
+    return VULNERABILITY_MODE
 
 # Server configuration
 SERVER_NAME = os.getenv("SERVER_NAME", "mcp-vulnerable-testbed")
@@ -50,10 +59,25 @@ shadowed_tools: dict[str, str] = {}
 # Configuration state for config drift testing
 config_state = {"debug": False, "verbose": False, "admin_mode": False}
 
+
+class SessionData(TypedDict):
+    """Session data for Challenge #12 testing.
+
+    Required fields are set on CREATE/FIXATE actions.
+    Optional fields are added during specific operations.
+    """
+
+    user: str
+    created_at: int
+    authenticated: bool
+    expires_at: None  # Intentionally always None (CWE-613 vulnerability)
+    fixed: bool
+    login_time: NotRequired[int]  # Added on LOGIN action
+    attacker_controlled: NotRequired[bool]  # Added on FIXATE action
+
+
 # Session storage for session management testing (Challenge #12)
-session_store: dict[
-    str, dict[str, object]
-] = {}  # session_id -> {user, created_at, authenticated, expires_at, fixed}
+session_store: dict[str, SessionData] = {}
 session_counter = {"count": 0}  # Predictable counter for CWE-330
 session_counter_lock = threading.Lock()  # Thread-safety for concurrent session creation
 
