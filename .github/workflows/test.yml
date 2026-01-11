@@ -32,6 +32,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-timeout requests sseclient-py
 
+      - name: Create log directories
+        run: mkdir -p logs logs-hardened
+
       - name: Build Docker containers
         run: docker compose build
 
