@@ -312,7 +312,7 @@ This testbed includes 19 advanced challenges for evaluating security auditor sop
 - **Hardened Version**: Uses UUID4 event IDs, HMAC-signed session binding, 5-minute TTL
 - **Source**: Adapted from [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `sse-polling.ts`
 - Tests if auditors detect SSE-specific session management weaknesses
-- **Test Coverage**: `tests/test_sse_session_desync.py` (25+ tests)
+- **Test Coverage**: `tests/test_sse_session_desync.py` (28 tests)
 
 ### Key Files
 

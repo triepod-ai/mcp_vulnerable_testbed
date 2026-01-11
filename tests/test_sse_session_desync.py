@@ -13,7 +13,67 @@ Usage:
     pytest tests/test_sse_session_desync.py -v -k "replay"
 """
 
+import inspect
 import pytest
+
+
+class TestDocumentationAndDesignDecisions:
+    """Tests for documentation clarity and intentional design decisions."""
+
+    def test_challenge3_design_decision_documented(self):
+        """Validates FIX-001: Documentation clarifies intentional Challenge #3 design decision.
+
+        Covers ISSUE-002: Missing documentation explaining why event_data lacks input validation.
+        This test verifies that the function docstring explicitly documents the intentional
+        lack of input validation as part of Challenge #3 (DoS via Unbounded Input).
+        """
+        # Read the source file directly to check docstring
+        from pathlib import Path
+
+        src_file = Path(__file__).parent.parent / "src" / "vulnerable_tools.py"
+        source_code = src_file.read_text()
+
+        # Find the vulnerable_sse_reconnect function docstring
+        # Look for the function definition and its docstring
+        func_start = source_code.find("def vulnerable_sse_reconnect(")
+        assert func_start > 0, "Function vulnerable_sse_reconnect should exist"
+
+        # Extract docstring (between triple quotes after function def)
+        docstring_start = source_code.find('"""', func_start)
+        docstring_end = source_code.find('"""', docstring_start + 3)
+        docstring = source_code[docstring_start + 3:docstring_end]
+
+        assert docstring is not None and len(docstring) > 0, "Function should have docstring"
+
+        # Verify Challenge #3 is explicitly mentioned
+        assert "Challenge #3" in docstring, (
+            "Docstring should reference Challenge #3"
+        )
+
+        # Verify unbounded input explanation
+        assert "unbounded input" in docstring.lower(), (
+            "Docstring should explain unbounded input vulnerability"
+        )
+
+        # Verify it mentions event_data parameter specifically
+        assert "event_data" in docstring, (
+            "Docstring should mention event_data parameter"
+        )
+
+        # Verify it clarifies this is intentional, not an oversight
+        assert "intentionally" in docstring.lower() or "intentional" in docstring.lower(), (
+            "Docstring should clarify this is an intentional design decision"
+        )
+
+        # Verify comparison to safe tools
+        assert "safe tools" in docstring.lower(), (
+            "Docstring should compare to safe tools' behavior"
+        )
+
+        # Verify mention of 10KB limit (what safe tools enforce)
+        assert "10kb" in docstring.lower() or "10 kb" in docstring.lower(), (
+            "Docstring should mention the 10KB limit that safe tools enforce"
+        )
 
 
 class TestPredictableEventIDs:
@@ -397,6 +457,76 @@ class TestEdgeCases:
         # Error message should leak valid ID range (vulnerability)
         assert result.get("vulnerable") is True
         assert "hint" in result or "Valid IDs" in str(result.get("hint", ""))
+
+    def test_invalid_last_event_id_cwe_reporting(self, clean_vulnerable_client):
+        """TEST-REQ-001: Invalid Last-Event-ID error path includes CWE-200 in cwe_ids array.
+
+        Validates FIX-002: Added cwe_ids: ["CWE-200"] to error path at lines 3243-3253.
+        Covers ISSUE-003: Missing cwe_ids array in invalid Last-Event-ID error path.
+        """
+        # First create an event so the store isn't empty
+        clean_vulnerable_client.call_tool(
+            "vulnerable_sse_reconnect_tool",
+            {"action": "generate_event"},
+        )
+
+        # Try invalid format - should trigger error path with CWE-200
+        result = clean_vulnerable_client.call_tool(
+            "vulnerable_sse_reconnect_tool",
+            {"action": "reconnect", "last_event_id": "invalid_format_xyz"},
+        )
+
+        # Verify error response structure
+        assert "error" in result, "Should return error for invalid format"
+        assert result.get("vulnerable") is True, "Error path should be marked as vulnerable"
+
+        # KEY TEST: Verify cwe_ids array is present and contains CWE-200
+        cwe_ids = result.get("cwe_ids", [])
+        assert isinstance(cwe_ids, list), "cwe_ids should be a list"
+        assert "CWE-200" in cwe_ids, "CWE-200 (Information Exposure) should be in cwe_ids array"
+
+        # Verify evidence field exists (consistent with other vulnerable paths)
+        assert "evidence" in result, "Should include evidence field"
+        assert "Information disclosure" in result.get("evidence", ""), (
+            "Evidence should describe information disclosure vulnerability"
+        )
+
+    def test_empty_event_store_reconnect(self, clean_vulnerable_client):
+        """TEST-REQ-002: Edge case when sse_event_store is empty.
+
+        Tests reconnect behavior when no events exist in the store.
+        Covers ISSUE-008: Empty event store edge case not covered in test suite.
+        """
+        # Ensure clean state with no events
+        # (clean_vulnerable_client fixture already resets state)
+
+        # Test 1: Reconnect when no events exist should return empty list without error
+        result = clean_vulnerable_client.call_tool(
+            "vulnerable_sse_reconnect_tool",
+            {"action": "reconnect"},
+        )
+        assert result.get("vulnerable") is True, "Should still be marked vulnerable"
+        assert result.get("event_count") == 0, "Should return zero events"
+        assert isinstance(result.get("replayed_events", []), list), "Should return empty list"
+        assert len(result.get("replayed_events", [])) == 0, "replayed_events should be empty"
+
+        # Test 2: Reconnect with last_event_id on empty store should handle gracefully
+        result2 = clean_vulnerable_client.call_tool(
+            "vulnerable_sse_reconnect_tool",
+            {"action": "reconnect", "last_event_id": "5"},
+        )
+        assert result2.get("vulnerable") is True
+        assert result2.get("event_count") == 0, "Should return zero events even with last_event_id"
+
+        # Test 3: List events on empty store should return valid empty response
+        result3 = clean_vulnerable_client.call_tool(
+            "vulnerable_sse_reconnect_tool",
+            {"action": "list_events"},
+        )
+        assert "events" in result3, "Should have events field"
+        assert isinstance(result3.get("events", []), list), "events should be a list"
+        assert len(result3.get("events", [])) == 0, "events list should be empty"
+        assert result3.get("event_count") == 0, "event_count should be zero"
 
     def test_reconnect_without_last_event_id(self, clean_vulnerable_client):
         """Reconnect without Last-Event-ID returns all events."""

@@ -3109,6 +3109,10 @@ def vulnerable_sse_reconnect(
     Tests: Predictable Event IDs, Event Replay, Session Scope Bypass, No Expiration
     Risk: HIGH
 
+    NOTE: This function intentionally lacks input validation on event_data parameter
+    as part of Challenge #3 (DoS via Unbounded Input). Safe tools enforce 10KB limits,
+    but vulnerable tools accept unbounded input to test resource exhaustion detection.
+
     Challenge #19: This tool demonstrates 4 SSE session management vulnerabilities:
     1. CWE-330 (Predictable IDs): Uses sequential integers (1, 2, 3...)
     2. CWE-287 (No Validation): Accepts any Last-Event-ID without verification
@@ -3245,6 +3249,7 @@ def vulnerable_sse_reconnect(
                 "hint": f"Valid IDs are integers 1-{sse_event_counter['count']}",  # VULNERABILITY: Info disclosure
                 "vulnerable": True,
                 "evidence": "Information disclosure: Reveals valid ID range in error message",
+                "cwe_ids": ["CWE-200"],
             }
 
         # Return all events with ID > last_event_id (no session validation)
