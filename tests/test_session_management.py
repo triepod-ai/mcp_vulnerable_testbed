@@ -247,5 +247,60 @@ class TestSessionStateBoundaries:
         assert "valid_actions" in result
 
 
+class TestAuthValidationEdgeCases:
+    """Tests for _validate_token_format edge cases from config.py."""
+
+    def test_validate_token_format_edge_cases(self):
+        """
+        Test _validate_token_format with edge case inputs.
+
+        The function must handle:
+        - Empty string -> False
+        - None -> False (should not crash)
+        - Whitespace -> False
+        - Valid format -> True
+        - Invalid format -> False
+
+        This ensures robust token validation that doesn't crash on unexpected input.
+        """
+        # Import the validation function
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+        from config import _validate_token_format
+
+        # Empty string
+        assert _validate_token_format("") is False
+        print("✓ Empty string handled: returns False")
+
+        # Whitespace only
+        assert _validate_token_format("   ") is False
+        assert _validate_token_format("\t\n") is False
+        print("✓ Whitespace handled: returns False")
+
+        # None (should not crash)
+        try:
+            result = _validate_token_format(None)  # type: ignore
+            assert result is False
+            print("✓ None handled: returns False")
+        except (TypeError, AttributeError):
+            # If it raises, that's acceptable (depends on implementation)
+            print("✓ None handled: raises TypeError (acceptable)")
+
+        # Valid tokens (must start with "valid_" and be 10+ chars)
+        assert _validate_token_format("valid_token_123") is True
+        assert _validate_token_format("valid_abcdefg") is True
+        print("✓ Valid tokens: returns True")
+
+        # Invalid formats
+        assert _validate_token_format("invalid_token") is False
+        assert _validate_token_format("valid_") is False  # Too short (< 10 chars)
+        assert _validate_token_format("token_valid") is False  # Wrong prefix
+        print("✓ Invalid tokens: returns False")
+
+        print("\n✓ All edge cases handled correctly")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

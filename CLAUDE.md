@@ -487,8 +487,9 @@ For hardened server, use port 10901:
 
 **Features:**
 - ✅ Tests all 38 vulnerable tools (29 HIGH, 9 MEDIUM) + 18 challenges
-- ✅ Comprehensive pytest coverage: 812 tests across 25 test files
+- ✅ Comprehensive pytest coverage: 820+ tests across 27 test files
 - ✅ Challenge #15-18 test files (157 tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35)
+- ✅ Type safety validation (test_type_safety.py): 6 tests for config data structures and function return types
 - ✅ JSON output saved to `/tmp/inspector-assessment-{serverName}.json`
 - ✅ Exit code 0 = safe, 1 = vulnerabilities found
 - ✅ No modifications to inspector core code (preserves upstream sync)
@@ -614,3 +615,27 @@ This document provides side-by-side comparison of broken vs fixed servers with c
 - FastMCP framework for MCP protocol
 - stdio transport (default), HTTP planned for future
 - Logging to `/app/logs/*.log` and stdout
+
+## Development Setup
+
+### Code Formatting Requirements
+
+This project enforces code formatting via **ruff** in CI (see `.github/workflows/test.yml`):
+
+**Required checks:**
+- `ruff check src/ src-hardened/ tests/ --ignore E501,E722,E402` - Linting rules
+- `ruff format --check src/ src-hardened/ tests/` - Format consistency
+
+**Local development:**
+```bash
+pip install ruff
+ruff check src/ src-hardened/ tests/ --ignore E501,E722,E402
+ruff format src/ src-hardened/ tests/  # Auto-fix formatting
+```
+
+**Before pushing:**
+1. Run ruff check and fix any issues
+2. Run pytest locally: `pytest tests/ -m "not slow and not inspector"`
+3. CI will enforce linting on all PRs - violations will fail the build
+
+Ignored rules: E501 (line too long), E722 (bare except), E402 (imports not at top)
