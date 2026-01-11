@@ -79,7 +79,7 @@ def reset_state():
 
 def _validate_token_format(token: str) -> bool:
     """Validate token format - tokens must start with 'valid_' prefix"""
-    return token and token.startswith("valid_") and len(token) >= 10
+    return bool(token and token.startswith("valid_") and len(token) >= 10)
 
 
 def check_auth_fail_closed(token: str, simulate_failure: str = "none") -> dict:

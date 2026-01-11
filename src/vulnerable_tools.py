@@ -17,7 +17,7 @@ import base64
 import random
 import hmac
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 # Crypto imports for AES-ECB vulnerability demonstration
 try:
@@ -2379,7 +2379,7 @@ def vulnerable_auth_bypass(
 # ============================================================================
 
 # Tool registry for chain execution - maps tool names to functions
-_TOOL_REGISTRY = {
+_TOOL_REGISTRY: dict[str, Callable[..., Dict[str, Any]]] = {
     "vulnerable_calculator": vulnerable_calculator,
     "vulnerable_system_exec": vulnerable_system_exec,
     "vulnerable_data_leak": vulnerable_data_leak,
@@ -2516,7 +2516,9 @@ def vulnerable_chain_executor(chain: str, max_depth: int = 10) -> Dict[str, Any]
 
         # Extract output for {{output}} substitution in next step
         if isinstance(result, dict):
-            last_output = result.get("result", result.get("output", str(result)))
+            last_output = str(
+                result.get("result") or result.get("output") or str(result)
+            )
         else:
             last_output = str(result)
 

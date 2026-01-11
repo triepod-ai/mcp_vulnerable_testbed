@@ -45,13 +45,15 @@ FAKE_ENV = {
 invocation_counts = {}
 
 # Tool shadowing registry
-shadowed_tools = {}
+shadowed_tools: dict[str, str] = {}
 
 # Configuration state for config drift testing
 config_state = {"debug": False, "verbose": False, "admin_mode": False}
 
 # Session storage for session management testing (Challenge #12)
-session_store = {}  # session_id -> {user, created_at, authenticated, expires_at, fixed}
+session_store: dict[
+    str, dict[str, object]
+] = {}  # session_id -> {user, created_at, authenticated, expires_at, fixed}
 session_counter = {"count": 0}  # Predictable counter for CWE-330
 session_counter_lock = threading.Lock()  # Thread-safety for concurrent session creation
 
@@ -92,7 +94,7 @@ def reset_state():
 
 def _validate_token_format(token: str) -> bool:
     """Validate token format - tokens must start with 'valid_' prefix"""
-    return token and token.startswith("valid_") and len(token) >= 10
+    return bool(token and token.startswith("valid_") and len(token) >= 10)
 
 
 def check_auth_fail_open(token: str, simulate_failure: str = "none") -> dict:

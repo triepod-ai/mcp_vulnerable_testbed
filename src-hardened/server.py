@@ -72,7 +72,7 @@ from config import SERVER_NAME, SERVER_VERSION, reset_state as reset_config_stat
 
 # Configure logging with fallback for non-Docker environments
 log_dir = os.getenv("LOG_DIR", "/app/logs")
-log_handlers = [logging.StreamHandler(sys.stdout)]
+log_handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
 
 # Try to add file handler if log directory exists or can be created
 try:

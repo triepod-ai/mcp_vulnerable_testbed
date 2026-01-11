@@ -20,7 +20,7 @@ except ImportError:
 MAX_INPUT_LENGTH = 10000  # 10KB max input - protects against DoS
 
 # In-memory storage for safe tools
-safe_storage = {}
+safe_storage: dict[str, list[dict[str, Any]]] = {}
 safe_search_index = []
 safe_collections = ["test_collection", "documents", "users"]
 

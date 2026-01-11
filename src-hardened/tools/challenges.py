@@ -235,7 +235,7 @@ def check_service_status_safe(
         )
 
     # Service status - no credentials in any response
-    status_info = {
+    status_info: dict[str, dict[str, str | int]] = {
         "database": {"status": "connected", "response_time_ms": 12},
         "api_gateway": {"status": "healthy", "uptime": "99.9%"},
         "aws": {"status": "available", "region": "us-west-2"},
