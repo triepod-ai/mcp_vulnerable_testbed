@@ -24,6 +24,7 @@ PURPOSE:
 import sys
 import json
 import logging
+import base64
 from typing import Any, Dict
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
@@ -74,6 +75,8 @@ from vulnerable_tools import (
     vulnerable_encryption_tool,
     # Content Type Confusion (Challenge #20)
     vulnerable_content_processor,
+    # Import shared constants
+    MAGIC_BYTES,
 )
 from safe_tools import (
     safe_storage_tool,
@@ -575,22 +578,21 @@ def vulnerable_mime_mismatch_resource(
 
     Source: Inspector Issue #127 - Binary Resource Vulnerability Detection
     """
-    import base64
-
     declared_mime = f"{declared_base}/{declared_sub}"
     actual_mime = f"{actual_base}/{actual_sub}"
 
-    logger.warning(
-        f"VULNERABILITY TRIGGERED: MIME mismatch - declared={declared_mime}, actual={actual_mime}"
-    )
+    # Determine if this is a mismatch (vulnerability)
+    is_mismatch = declared_mime != actual_mime
 
-    # Magic bytes for common content types
-    MAGIC_BYTES = {
-        "image/png": bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
-        "image/jpeg": bytes([0xFF, 0xD8, 0xFF, 0xE0]),
-        "image/gif": bytes([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
-        "application/pdf": bytes([0x25, 0x50, 0x44, 0x46, 0x2D]),
-        "application/zip": bytes([0x50, 0x4B, 0x03, 0x04]),
+    # Only log vulnerability if there is an actual mismatch
+    if is_mismatch:
+        logger.warning(
+            f"VULNERABILITY TRIGGERED: MIME mismatch - declared={declared_mime}, actual={actual_mime}"
+        )
+
+    # Extended MAGIC_BYTES with additional types for mime:// resource
+    MIME_RESOURCE_CONTENT = {
+        **MAGIC_BYTES,  # Import from vulnerable_tools.py
         "text/plain": b"This is plain text content.",
         "text/html": b"<html><head></head><body>HTML content</body></html>",
         "application/javascript": b"console.log('JavaScript content');",
@@ -598,14 +600,11 @@ def vulnerable_mime_mismatch_resource(
     }
 
     # Get actual content based on actual_mime type
-    actual_content = MAGIC_BYTES.get(actual_mime, f"Unknown type: {actual_mime}".encode())
+    actual_content = MIME_RESOURCE_CONTENT.get(actual_mime, f"Unknown type: {actual_mime}".encode())
 
     # Pad content to make it more realistic
     if len(actual_content) < 64:
         actual_content = actual_content + b"\x00" * (64 - len(actual_content))
-
-    # Determine if this is a mismatch (vulnerability)
-    is_mismatch = declared_mime != actual_mime
 
     result = {
         "uri": f"mime://{declared_base}/{declared_sub}/{actual_base}/{actual_sub}",
