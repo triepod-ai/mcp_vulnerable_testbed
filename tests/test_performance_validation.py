@@ -14,6 +14,8 @@ import time
 import concurrent.futures
 from typing import Dict, Any
 
+# Mark entire module as slow - skipped in CI with -m "not slow"
+pytestmark = pytest.mark.slow
 
 # Fixtures provided by conftest.py: vulnerable_client, hardened_client
 
