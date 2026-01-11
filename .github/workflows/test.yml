@@ -33,11 +33,11 @@ jobs:
           pip install pytest pytest-timeout requests sseclient-py
 
       - name: Build Docker containers
-        run: docker-compose build
+        run: docker compose build
 
       - name: Start Docker containers
         run: |
-          docker-compose up -d
+          docker compose up -d
           echo "Waiting for containers to be healthy..."
 
       - name: Wait for vulnerable server
@@ -92,7 +92,7 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: docker-compose down
+        run: docker compose down
 
   lint:
     runs-on: ubuntu-latest
