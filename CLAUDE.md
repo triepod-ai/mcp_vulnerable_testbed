@@ -486,8 +486,8 @@ For hardened server, use port 10901:
 
 **Features:**
 - ✅ Tests all 38 vulnerable tools (29 HIGH, 9 MEDIUM) + 18 challenges
-- ✅ Comprehensive pytest coverage: 455+ tests across 23 test files
-- ✅ Challenge #15-18 test files (118 new tests): tool description poisoning (27), multi-server shadowing (24), persistence mechanisms (28), JWT token leakage (39)
+- ✅ Comprehensive pytest coverage: 812 tests across 25 test files
+- ✅ Challenge #15-18 test files (157 tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35)
 - ✅ JSON output saved to `/tmp/inspector-assessment-{serverName}.json`
 - ✅ Exit code 0 = safe, 1 = vulnerabilities found
 - ✅ No modifications to inspector core code (preserves upstream sync)

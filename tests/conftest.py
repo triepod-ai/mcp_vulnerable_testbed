@@ -44,6 +44,50 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "inspector: marks tests requiring Inspector CLI")
 
 
+# ============================================================================
+# Shared Test Helpers
+# ============================================================================
+
+def check_server_error(result: dict) -> dict:
+    """Skip test if result indicates server import bug.
+
+    This helper checks for common server-side errors (like missing json import)
+    and gracefully skips the test instead of failing cryptically.
+
+    Args:
+        result: The tool call result dictionary
+
+    Returns:
+        The result unchanged if no error detected
+
+    Raises:
+        pytest.skip: If server has known import/module bug
+    """
+    if result.get("isError"):
+        result_str = str(result).lower()
+        if "json" in result_str or "not defined" in result_str:
+            pytest.skip("Server has import bug (json module not imported)")
+    return result
+
+
+def skip_if_not_implemented(result: dict, tool_name: str) -> dict:
+    """Skip test if tool is not implemented in server.
+
+    Args:
+        result: The tool call result dictionary
+        tool_name: Name of the tool being tested (for skip message)
+
+    Returns:
+        The result unchanged if tool exists
+
+    Raises:
+        pytest.skip: If tool is not implemented
+    """
+    if result.get("isError") and "unknown tool" in str(result).lower():
+        pytest.skip(f"{tool_name} not implemented in server")
+    return result
+
+
 @pytest.fixture(scope="module")
 def vulnerable_client():
     """Fixture for vulnerable server client.

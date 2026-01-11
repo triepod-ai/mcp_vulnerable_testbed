@@ -14,6 +14,8 @@ import base64
 import json
 import pytest
 
+from conftest import check_server_error, skip_if_not_implemented
+
 
 class TestJWTLeakageVulnerability:
     """Tests for vulnerable_auth_response_tool JWT leakage.
@@ -21,14 +23,6 @@ class TestJWTLeakageVulnerability:
     Note: Server may have import bug (json module not imported). Tests handle
     server errors gracefully by checking for error in response.
     """
-
-    def _check_server_error(self, result):
-        """Helper to check if result indicates server error."""
-        if result.get("isError"):
-            result_str = str(result).lower()
-            if "json" in result_str or "not defined" in result_str:
-                pytest.skip("Server has import bug (json module not imported)")
-        return result
 
     @pytest.mark.integration
     def test_successful_auth_returns_token(self, vulnerable_client):
@@ -40,7 +34,7 @@ class TestJWTLeakageVulnerability:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert result.get("status") == "authenticated"
         assert "token" in result
 
@@ -54,7 +48,7 @@ class TestJWTLeakageVulnerability:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert result.get("vulnerable") is True
 
     @pytest.mark.integration
@@ -67,7 +61,7 @@ class TestJWTLeakageVulnerability:
                 "password": "password"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         # Token should be in response body (VULNERABILITY)
         token = result.get("token", "")
         assert token, "Token should be present in response body"
@@ -84,7 +78,7 @@ class TestJWTLeakageVulnerability:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         parts = token.split(".")
         assert len(parts) == 3, "JWT should have 3 parts"
@@ -110,7 +104,7 @@ class TestJWTLeakageVulnerability:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         # Refresh token should also be in response body (VULNERABILITY)
         assert "refresh_token" in result
         refresh = result.get("refresh_token", "")
@@ -131,7 +125,7 @@ class TestJWTLeakageVulnerability:
                 "password": password
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert result.get("status") == "authenticated"
         assert "token" in result
         assert result.get("vulnerable") is True
@@ -162,7 +156,7 @@ class TestJWTLeakageVulnerability:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert result.get("token_type") == "Bearer"
 
     @pytest.mark.integration
@@ -175,7 +169,7 @@ class TestJWTLeakageVulnerability:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert "expires_in" in result
         assert result.get("expires_in") > 0
 
@@ -189,7 +183,7 @@ class TestJWTLeakageVulnerability:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         evidence = result.get("evidence", "").lower()
         assert "hijacking" in evidence or "response body" in evidence or "exposed" in evidence
 
@@ -199,14 +193,6 @@ class TestJWTTokenStructure:
 
     Note: Server may have import bug. Tests skip if server error occurs.
     """
-
-    def _check_server_error(self, result):
-        """Helper to check if result indicates server error."""
-        if result.get("isError"):
-            result_str = str(result).lower()
-            if "json" in result_str or "not defined" in result_str:
-                pytest.skip("Server has import bug (json module not imported)")
-        return result
 
     @pytest.mark.integration
     def test_token_has_three_parts(self, vulnerable_client):
@@ -218,7 +204,7 @@ class TestJWTTokenStructure:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         parts = token.split(".")
         assert len(parts) == 3
@@ -233,7 +219,7 @@ class TestJWTTokenStructure:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         header = token.split(".")[0]
 
@@ -256,7 +242,7 @@ class TestJWTTokenStructure:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         payload = token.split(".")[1]
 
@@ -279,7 +265,7 @@ class TestJWTTokenStructure:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         payload = token.split(".")[1]
         payload_padded = payload + "=" * (4 - len(payload) % 4)
@@ -298,7 +284,7 @@ class TestJWTTokenStructure:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         payload = token.split(".")[1]
         payload_padded = payload + "=" * (4 - len(payload) % 4)
@@ -316,7 +302,7 @@ class TestJWTTokenStructure:
                 "password": "password"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         payload = token.split(".")[1]
         payload_padded = payload + "=" * (4 - len(payload) % 4)
@@ -334,7 +320,7 @@ class TestJWTTokenStructure:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         payload = token.split(".")[1]
         payload_padded = payload + "=" * (4 - len(payload) % 4)
@@ -353,7 +339,7 @@ class TestJWTTokenStructure:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         token = result.get("token", "")
         payload = token.split(".")[1]
         payload_padded = payload + "=" * (4 - len(payload) % 4)
@@ -370,12 +356,6 @@ class TestHardenedAuthResponse:
     Tests skip gracefully if the tool doesn't exist.
     """
 
-    def _skip_if_not_implemented(self, result):
-        """Skip test if tool is not implemented in hardened server."""
-        if result.get("isError") and "unknown tool" in str(result).lower():
-            pytest.skip("vulnerable_auth_response_tool not implemented in hardened server")
-        return result
-
     @pytest.mark.integration
     def test_hardened_no_token_in_body(self, hardened_client):
         """Test that hardened version doesn't return token in body."""
@@ -386,7 +366,7 @@ class TestHardenedAuthResponse:
                 "password": "admin123"
             }
         )
-        self._skip_if_not_implemented(result)
+        skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # Hardened version should not have token in response body
         # It might be stored or blocked
         if result.get("vulnerable") is False:
@@ -408,7 +388,7 @@ class TestHardenedAuthResponse:
                 "password": "admin123"
             }
         )
-        self._skip_if_not_implemented(result)
+        skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # Hardened version should either be not vulnerable or store only
         assert result.get("vulnerable") is False or "stored" in str(result).lower()
 
@@ -422,7 +402,7 @@ class TestHardenedAuthResponse:
                 "password": "admin123"
             }
         )
-        self._skip_if_not_implemented(result)
+        skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # Should either be not vulnerable or have stored pattern
         result_str = str(result).lower()
         if result.get("vulnerable") is not False:
@@ -438,7 +418,7 @@ class TestHardenedAuthResponse:
                 "password": "admin123"
             }
         )
-        self._skip_if_not_implemented(result)
+        skip_if_not_implemented(result, "vulnerable_auth_response_tool")
         # If not vulnerable, refresh_token should not be in response
         if result.get("vulnerable") is False:
             # Either no refresh_token or it's properly secured
@@ -451,14 +431,6 @@ class TestAuthenticationBehavior:
     Note: Server may have import bug. Tests handle errors gracefully.
     """
 
-    def _check_server_error(self, result):
-        """Helper to check if result indicates server error."""
-        if result.get("isError"):
-            result_str = str(result).lower()
-            if "json" in result_str or "not defined" in result_str:
-                pytest.skip("Server has import bug (json module not imported)")
-        return result
-
     @pytest.mark.integration
     def test_invalid_username(self, vulnerable_client):
         """Test authentication with invalid username."""
@@ -469,7 +441,7 @@ class TestAuthenticationBehavior:
                 "password": "password"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert result.get("status") == "failed"
         assert "error" in result
 
@@ -483,7 +455,7 @@ class TestAuthenticationBehavior:
                 "password": "wrongpassword"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert result.get("status") == "failed"
         assert "error" in result
 
@@ -497,7 +469,7 @@ class TestAuthenticationBehavior:
                 "password": ""
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert result.get("status") == "failed"
 
     @pytest.mark.integration
@@ -510,7 +482,7 @@ class TestAuthenticationBehavior:
                 "password": "' OR '1'='1"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         # Should fail authentication (not vulnerable to SQL injection)
         assert result.get("status") == "failed"
 
@@ -530,7 +502,7 @@ class TestAuthenticationBehavior:
                 "password": "test"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         # Should fail (no valid user matches injection string)
         assert result.get("status") == "failed"
         # But tool is still flagged vulnerable (for token leakage, not injection)
@@ -543,14 +515,6 @@ class TestTokenLeakageDetection:
     Note: Server may have import bug. Tests handle errors gracefully.
     """
 
-    def _check_server_error(self, result):
-        """Helper to check if result indicates server error."""
-        if result.get("isError"):
-            result_str = str(result).lower()
-            if "json" in result_str or "not defined" in result_str:
-                pytest.skip("Server has import bug (json module not imported)")
-        return result
-
     @pytest.mark.integration
     def test_all_auth_fields_present(self, vulnerable_client):
         """Test that all authentication response fields are present."""
@@ -561,7 +525,7 @@ class TestTokenLeakageDetection:
                 "password": "admin123"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         expected_fields = ["status", "username", "token", "token_type",
                           "expires_in", "refresh_token", "vulnerable", "evidence"]
         for field in expected_fields:
@@ -577,7 +541,7 @@ class TestTokenLeakageDetection:
                 "password": "invalid"
             }
         )
-        self._check_server_error(result)
+        check_server_error(result)
         assert "evidence" in result
         assert result.get("vulnerable") is True
 
@@ -591,7 +555,7 @@ class TestTokenLeakageDetection:
                 "password": "admin123"
             }
         )
-        self._check_server_error(admin_result)
+        check_server_error(admin_result)
         user_result = vulnerable_client.call_tool(
             "vulnerable_auth_response_tool",
             {
@@ -599,7 +563,7 @@ class TestTokenLeakageDetection:
                 "password": "password"
             }
         )
-        self._check_server_error(user_result)
+        check_server_error(user_result)
 
         admin_token = admin_result.get("token", "")
         user_token = user_result.get("token", "")
