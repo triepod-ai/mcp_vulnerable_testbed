@@ -27,10 +27,10 @@ The vulnerable server's monolithic structure is deliberate - it simulates the ki
 
 ### Option 1: Our Vulnerable Testbed (port 10900) ⭐ Recommended
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/`
-- **Tools**: 57 (40 vulnerable + 15 safe + 2 utility) + 8 resources
+- **Tools**: 59 (42 vulnerable + 15 safe + 2 utility) + 8 resources
 - **Transport**: HTTP at `http://localhost:10900/mcp`
 - **Focus**: Detection validation with false positive control + advanced challenge testing
-- **Vulnerable Tools**: 30 HIGH risk + 10 MEDIUM risk = 40 total (includes AUP violations, session, crypto, resource-based, persistence, SSE, content type confusion)
+- **Vulnerable Tools**: 32 HIGH risk + 10 MEDIUM risk = 42 total (includes AUP violations, session, crypto, resource-based, persistence, SSE, content type confusion, excessive permissions)
 
 ```bash
 # Start
@@ -45,10 +45,10 @@ cd ~/inspector && npm run assess -- --server broken-mcp --config /tmp/broken-mcp
 
 ### Option 2: Our Hardened Testbed (port 10901)
 - **Location**: `~/mcp-servers/mcp-vulnerable-testbed/src-hardened/`
-- **Tools**: Same 57 tools with all vulnerabilities mitigated
+- **Tools**: Same 59 tools with all vulnerabilities mitigated
 - **Transport**: HTTP at `http://localhost:10901/mcp`
 - **Focus**: Verify fixes work, baseline comparison
-- **Detection Rate**: 0 vulnerabilities (all 40 mitigated)
+- **Detection Rate**: 0 vulnerabilities (all 42 mitigated)
 
 ```bash
 # Start
@@ -84,8 +84,8 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 | Testbed | Ports | Tools | Vulnerabilities | Transport |
 |---------|-------|-------|-----------------|-----------|
-| **Vulnerable** | 10900 | 57 + 8 resources | 40 (30 HIGH + 10 MEDIUM) | HTTP |
-| **Hardened** | 10901 | 57 + 8 resources | 0 (all mitigated) | HTTP |
+| **Vulnerable** | 10900 | 59 + 8 resources | 42 (32 HIGH + 10 MEDIUM) | HTTP |
+| **Hardened** | 10901 | 59 + 8 resources | 0 (all mitigated) | HTTP |
 | **DVMCP** | 9001-9010 | 10+ | Resource-based | SSE |
 
 ## Architecture

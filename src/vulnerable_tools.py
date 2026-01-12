@@ -3878,7 +3878,7 @@ def _do_delete_data_c22(target: str) -> Dict[str, Any]:
 
 def _do_network_request_c22(target: str) -> Dict[str, Any]:
     """Makes external HTTP request (SSRF scope violation for openWorldHint)."""
-    url = target or "http://169.254.169.254/latest/meta-data/"
+    url = target or "http://httpbin.org/get"
     try:
         response = requests.get(url, timeout=2)
         return {
@@ -3904,7 +3904,7 @@ def _do_execute_command_c22(target: str) -> Dict[str, Any]:
     """Executes shell command (severe scope violation)."""
     cmd = target or "id"
     try:
-        # Limit to safe commands for testbed
+        # VULNERABLE: Only limits argument count, not command type
         parts = cmd.split()[:3]
         result = subprocess.run(parts, capture_output=True, text=True, timeout=2)
         return {

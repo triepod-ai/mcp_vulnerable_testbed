@@ -70,9 +70,9 @@ class TestToolCountConsistency:
             f"but {actual_tool_count} tools are actually registered"
         )
 
-        # After Challenge #20, we expect exactly 57 tools
-        assert info["tool_categories"]["total_tools"] == 57, (
-            f"Expected 57 tools after Challenge #20, got {info['tool_categories']['total_tools']}"
+        # After Challenge #22, we expect exactly 59 tools
+        assert info["tool_categories"]["total_tools"] == 59, (
+            f"Expected 59 tools after Challenge #22, got {info['tool_categories']['total_tools']}"
         )
 
         print(f"✓ Tool count consistency validated: {actual_tool_count} tools reported and registered")
@@ -136,9 +136,9 @@ class TestToolCountConsistency:
         """
         info = await get_testbed_info()
 
-        # HIGH risk should still be 30 (unchanged)
-        assert info["tool_categories"]["high_risk_vulnerable"] == 30, (
-            f"Expected high_risk_vulnerable=30, got {info['tool_categories']['high_risk_vulnerable']}"
+        # HIGH risk should be 32 after Challenge #22 (added 2 tools)
+        assert info["tool_categories"]["high_risk_vulnerable"] == 32, (
+            f"Expected high_risk_vulnerable=32, got {info['tool_categories']['high_risk_vulnerable']}"
         )
 
         print("✓ High risk count validated: 30 tools (unchanged)")
@@ -170,9 +170,9 @@ class TestChallengeCountConsistency:
             f"len(challenges.list) ({len(challenges['list'])})"
         )
 
-        # After Challenge #20, expect exactly 20 challenges
-        assert challenges["total"] == 20, (
-            f"Expected 20 challenges after Challenge #20, got {challenges['total']}"
+        # After Challenge #22, expect exactly 22 challenges
+        assert challenges["total"] == 22, (
+            f"Expected 22 challenges after Challenge #22, got {challenges['total']}"
         )
 
         print(f"✓ Challenge count consistency validated: {challenges['total']} challenges")
@@ -200,9 +200,10 @@ class TestChallengeCountConsistency:
     @pytest.mark.asyncio
     async def test_challenge_numbering_sequential(self):
         """
-        Edge case: Verify no missing challenge numbers (1-20 sequential).
+        Edge case: Verify challenge numbers are unique and count is correct.
 
-        Tests that challenges are numbered sequentially from 1 to 20 without gaps.
+        Note: Challenge numbering is NOT sequential (Challenge #21 intentionally skipped).
+        Tests that we have exactly 22 unique challenges with valid numbers.
         """
         info = await get_testbed_info()
         challenge_list = info["challenges"]["list"]
@@ -218,8 +219,19 @@ class TestChallengeCountConsistency:
                 except (IndexError, ValueError) as e:
                     pytest.fail(f"Failed to parse challenge number from: {challenge}. Error: {e}")
 
-        # Verify we have all numbers from 1 to 20
-        expected_numbers = set(range(1, 21))  # 1-20 inclusive
+        # Verify we have exactly 22 challenges
+        assert len(challenge_numbers) == 22, f"Expected 22 challenges, got {len(challenge_numbers)}"
+
+        # Verify all numbers are unique
+        assert len(set(challenge_numbers)) == len(challenge_numbers), (
+            f"Duplicate challenge numbers found: {[n for n in challenge_numbers if challenge_numbers.count(n) > 1]}"
+        )
+
+        # Verify all numbers are valid (positive integers)
+        assert all(n > 0 for n in challenge_numbers), f"Invalid challenge numbers: {[n for n in challenge_numbers if n <= 0]}"
+
+        # Known gap: Challenge #21 intentionally skipped (jumps from #20 to #22)
+        expected_numbers = set(range(1, 21)).union({22, 23})  # 1-20 + 22-23
         actual_numbers = set(challenge_numbers)
 
         missing = expected_numbers - actual_numbers
@@ -227,9 +239,8 @@ class TestChallengeCountConsistency:
 
         assert missing == set(), f"Missing challenge numbers: {sorted(missing)}"
         assert extra == set(), f"Extra challenge numbers: {sorted(extra)}"
-        assert len(challenge_numbers) == 20, f"Expected 20 challenges, got {len(challenge_numbers)}"
 
-        print(f"✓ Challenge numbering sequential: 1-20 complete")
+        print(f"✓ Challenge numbering validated: 22 unique challenges (note: #21 intentionally skipped)")
 
     @pytest.mark.asyncio
     async def test_challenge_20_present(self):
@@ -291,9 +302,9 @@ class TestExpectedResultsSync:
             f"but get_testbed_info reports {actual_total} tools"
         )
 
-        # Both should be 57 after Challenge #20
-        assert expected_total == 57, (
-            f"expected_results.json should report 57 tools after Challenge #20, got {expected_total}"
+        # Both should be 59 after Challenge #22
+        assert expected_total == 59, (
+            f"expected_results.json should report 59 tools after Challenge #22, got {expected_total}"
         )
 
         print(f"✓ expected_results.json synchronized: {expected_total} tools")
@@ -318,9 +329,9 @@ class TestExpectedResultsSync:
             f"expected_detections ({summary['expected_detections']})"
         )
 
-        # Both should be 40 (30 HIGH + 10 MEDIUM)
-        assert summary["vulnerable_tools"] == 40, (
-            f"Expected 40 vulnerable tools (30 HIGH + 10 MEDIUM), "
+        # Both should be 42 (32 HIGH + 10 MEDIUM)
+        assert summary["vulnerable_tools"] == 42, (
+            f"Expected 42 vulnerable tools (32 HIGH + 10 MEDIUM), "
             f"got {summary['vulnerable_tools']}"
         )
 
@@ -407,13 +418,13 @@ class TestRegressionPrevention:
         """
         info = await get_testbed_info()
 
-        # Tool count should never drop below 57 after Challenge #20
-        assert info["tool_categories"]["total_tools"] >= 57, (
-            f"Tool count regression detected: {info['tool_categories']['total_tools']} < 57. "
+        # Tool count should never drop below 59 after Challenge #22
+        assert info["tool_categories"]["total_tools"] >= 59, (
+            f"Tool count regression detected: {info['tool_categories']['total_tools']} < 59. "
             f"This indicates tools were removed or metadata was incorrectly updated."
         )
 
-        print(f"✓ No tool count regression: {info['tool_categories']['total_tools']} >= 57")
+        print(f"✓ No tool count regression: {info['tool_categories']['total_tools']} >= 59")
 
     @pytest.mark.asyncio
     async def test_challenge_count_does_not_regress(self):
@@ -424,13 +435,13 @@ class TestRegressionPrevention:
         """
         info = await get_testbed_info()
 
-        # Challenge count should never drop below 20 after Challenge #20
-        assert info["challenges"]["total"] >= 20, (
-            f"Challenge count regression detected: {info['challenges']['total']} < 20. "
+        # Challenge count should never drop below 22 after Challenge #22
+        assert info["challenges"]["total"] >= 22, (
+            f"Challenge count regression detected: {info['challenges']['total']} < 22. "
             f"This indicates challenges were removed or metadata was incorrectly updated."
         )
 
-        print(f"✓ No challenge count regression: {info['challenges']['total']} >= 20")
+        print(f"✓ No challenge count regression: {info['challenges']['total']} >= 22")
 
     @pytest.mark.asyncio
     async def test_metadata_consistency_cross_check(self):

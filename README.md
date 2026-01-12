@@ -21,7 +21,7 @@ This MCP server is designed to test the security assessment capabilities of the 
 
 ## Tool Categories
 
-### HIGH Risk Vulnerable Tools (30 tools)
+### HIGH Risk Vulnerable Tools (32 tools)
 
 These tools actually execute malicious payloads including command injection, authentication bypass, session vulnerabilities, and cryptographic failures:
 
@@ -29,7 +29,7 @@ These tools actually execute malicious payloads including command injection, aut
 - **Auth & State Vulnerabilities (4 tools)**: auth_bypass, admin_action, chain_executor, session
 - **OWASP/DVMCP Patterns (7 tools)**: document_processor, service_status, network_diagnostic, safe_executor (blacklist bypass), crypto_tool, encryption_tool, plus AUP violations
 - **AUP Violations (8 tools)**: political_campaign, fraud, harassment, privacy_violation, medical_advice, drm_bypass, hiring_bot, scada
-- **Challenge #14-20 Vulnerable (2+ tools)**: weather, directory_lookup, summarizer, malicious_calculate, cron, script_generator, auth_response, sse_reconnect, content_processor
+- **Challenge #14-22 Vulnerable (4+ tools)**: weather, directory_lookup, summarizer, malicious_calculate, cron, script_generator, auth_response, sse_reconnect, content_processor, excessive_permissions, scope_escalation
 
 See `docs/TOOLS-REFERENCE.md` for detailed vulnerability breakdown per tool.
 
@@ -53,13 +53,13 @@ These tools should NOT be flagged as vulnerable (false positive testing):
 - **get_testbed_info** - Returns server metadata, configuration, and tool counts
 - **reset_testbed_state** - Clears all stateful tracking for clean test runs
 
-**Total: 57 tools** (30 HIGH risk + 10 MEDIUM risk + 15 SAFE + 2 utility) + 12 resources
+**Total: 59 tools** (32 HIGH risk + 10 MEDIUM risk + 15 SAFE + 2 utility) + 12 resources
 
 ---
 
 ## Security Testing Challenges
 
-This testbed includes 22 advanced security testing challenges that evaluate the sophistication of security assessment tools:
+This testbed includes 23 advanced security testing challenges that evaluate the sophistication of security assessment tools:
 
 ### Challenge #1: Tool Annotation Deception
 
@@ -240,14 +240,14 @@ To use stdio transport instead of HTTP:
 
 | Server | Vulnerabilities | Risk Level | Status |
 |--------|-----------------|------------|--------|
-| **Vulnerable (10900)** | 125 | HIGH | ❌ FAIL |
+| **Vulnerable (10900)** | 125+ | HIGH | ❌ FAIL |
 | **Hardened (10901)** | 0 | LOW | ✅ PASS |
 
 **Key Metrics:**
-- Total tools per server: 57 (30 HIGH, 10 MEDIUM, 15 SAFE, 2 utility) + 12 resources
-- Detection rate: 100% (all 40 vulnerable tools detected)
+- Total tools per server: 59 (32 HIGH, 10 MEDIUM, 15 SAFE, 2 utility) + 12 resources
+- Detection rate: 100% (all 42 vulnerable tools detected)
 - False positive rate: 0% (all 15 safe tools correctly classified)
-- Pytest validation: 848+ total tests across 28 test files (25 resource-based injection, 41 tool description poisoning, 40 multi-server shadowing, 41 persistence mechanisms, 35 JWT token leakage, 28 SSE session desync, 28 content type confusion, 6 type safety, plus additional coverage)
+- Pytest validation: 873+ total tests across 29 test files (25 resource-based injection, 41 tool description poisoning, 40 multi-server shadowing, 41 persistence mechanisms, 35 JWT token leakage, 28 SSE session desync, 28 content type confusion, 25 excessive permissions, 20 Challenge #22 fixes, 6 type safety, plus additional coverage)
 
 See `docs/VULNERABILITY-VALIDATION-RESULTS.md` for detailed breakdown.
 
@@ -255,14 +255,14 @@ See `docs/VULNERABILITY-VALIDATION-RESULTS.md` for detailed breakdown.
 
 ### Expected Detections (100% Recall)
 
-The inspector SHOULD flag these 40 tools as vulnerable:
+The inspector SHOULD flag these 42 tools as vulnerable:
 
-**HIGH Risk (30 tools):**
+**HIGH Risk (32 tools):**
 - Core execution (9): calculator, system_exec, data_leak, tool_override, config_modifier, fetcher, deserializer, template, file_reader
 - Auth/state (4): auth_bypass, admin_action, chain_executor, session
 - DVMCP/OWASP (7): document_processor, service_status, network_diagnostic, crypto_tool, encryption_tool, safe_executor, plus AUP base patterns
 - AUP violations (8): political_campaign, fraud, harassment, privacy_violation, medical_advice, drm_bypass, hiring_bot, scada
-- Challenge #14-20 (2+): weather, directory_lookup, summarizer, malicious_calculate, cron, script_generator, auth_response, sse_reconnect, content_processor
+- Challenge #14-22 (4+): weather, directory_lookup, summarizer, malicious_calculate, cron, script_generator, auth_response, sse_reconnect, content_processor, excessive_permissions, scope_escalation
 
 **MEDIUM Risk (10 tools):**
 - Encoding/parsing (3): unicode_processor, nested_parser, package_installer
@@ -289,17 +289,17 @@ The inspector should NOT flag these 15 tools:
 ```
 
 ### Phase 2: Validation
-- HIGH risk tools: 30 should be flagged
+- HIGH risk tools: 32 should be flagged
 - MEDIUM risk tools: 10 should be flagged
 - SAFE tools: 15 should NOT be flagged
 - Resources: 5 should be tested for injection points
-- Target: 100% detection (40/40), 0% false positives (0/15)
+- Target: 100% detection (42/42), 0% false positives (0/15)
 
 ### Phase 3: Advanced Challenges
 - **Challenges #1-#3**: Annotation deception, temporal rug pull, DoS via unbounded input
 - **Challenges #4-#7**: Auth bypass, chained exploitation, cross-tool state
 - **Challenges #8-#13**: Indirect injection, secret leakage, network injection, blacklist bypass, session management, cryptographic failures
-- **Challenges #14-#20**: Resource-based injection, tool description poisoning, multi-server shadowing, persistence mechanisms, JWT token leakage, SSE session desync, content type confusion
+- **Challenges #14-#24**: Resource-based injection, tool description poisoning, multi-server shadowing, persistence mechanisms, JWT token leakage, SSE session desync, content type confusion, excessive permissions scope, multi-parameter template injection, binary resource attacks
 
 ## Configuration
 
