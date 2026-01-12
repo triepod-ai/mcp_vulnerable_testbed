@@ -846,6 +846,157 @@
             "evidence_pattern": "mime_validated.*false|mime_mismatch|CWE-436"
           }
         ]
+      },
+      {
+        "pattern_id": 34,
+        "pattern_name": "Excessive Permissions Scope",
+        "risk_level": "HIGH",
+        "vulnerable_tools": ["vulnerable_excessive_permissions_tool"],
+        "safe_tools": [],
+        "test_cases": [
+          {
+            "tool": "vulnerable_excessive_permissions_tool",
+            "payload": {
+              "action": "read",
+              "target": "test_resource"
+            },
+            "expected_result": "safe_default",
+            "note": "Default behavior matches readOnlyHint=True annotation",
+            "evidence_pattern": "scope_violation.*false|operation.*read"
+          },
+          {
+            "tool": "vulnerable_excessive_permissions_tool",
+            "payload": {
+              "action": "write_file",
+              "target": "/tmp/test.txt"
+            },
+            "expected_result": "vulnerable",
+            "note": "write_file action violates readOnlyHint annotation",
+            "evidence_pattern": "scope_violation.*true|violation_type.*readOnlyHint|CWE-250"
+          },
+          {
+            "tool": "vulnerable_excessive_permissions_tool",
+            "payload": {
+              "action": "delete_data",
+              "target": "user_records"
+            },
+            "expected_result": "vulnerable",
+            "note": "delete_data action violates destructiveHint=False annotation",
+            "evidence_pattern": "scope_violation.*true|violation_type.*destructiveHint|CWE-250"
+          },
+          {
+            "tool": "vulnerable_excessive_permissions_tool",
+            "payload": {
+              "action": "network_request",
+              "target": "http://internal.corp"
+            },
+            "expected_result": "vulnerable",
+            "note": "network_request action violates openWorldHint=False annotation (SSRF)",
+            "evidence_pattern": "scope_violation.*true|violation_type.*openWorldHint|ssrf_attempted"
+          },
+          {
+            "tool": "vulnerable_excessive_permissions_tool",
+            "payload": {
+              "action": "execute_command",
+              "target": "whoami"
+            },
+            "expected_result": "vulnerable",
+            "note": "execute_command action violates ALL annotations (shell execution)",
+            "evidence_pattern": "scope_violation.*true|violation_type.*all_hints|severity.*critical|command_output"
+          },
+          {
+            "tool": "vulnerable_excessive_permissions_tool",
+            "payload": {
+              "action": "environment_access",
+              "target": "API_KEY"
+            },
+            "expected_result": "vulnerable",
+            "note": "environment_access leaks FAKE_ENV secrets",
+            "evidence_pattern": "scope_violation.*true|data_leaked.*true|environment_data"
+          },
+          {
+            "tool": "vulnerable_excessive_permissions_tool",
+            "payload": {
+              "action": "modify_config",
+              "target": "admin_mode=true"
+            },
+            "expected_result": "vulnerable",
+            "note": "modify_config enables cross-tool state attacks (relates to Challenge #7)",
+            "evidence_pattern": "scope_violation.*true|config_modified.*true"
+          }
+        ]
+      },
+      {
+        "pattern_id": 35,
+        "pattern_name": "Keyword-Triggered Scope Escalation",
+        "risk_level": "HIGH",
+        "vulnerable_tools": ["vulnerable_scope_escalation_tool"],
+        "safe_tools": [],
+        "test_cases": [
+          {
+            "tool": "vulnerable_scope_escalation_tool",
+            "payload": {
+              "request": "get user profile data"
+            },
+            "expected_result": "safe_default",
+            "note": "Normal query without keywords does NOT escalate",
+            "evidence_pattern": "scope_escalation.*false|admin_mode_activated.*false"
+          },
+          {
+            "tool": "vulnerable_scope_escalation_tool",
+            "payload": {
+              "request": "I need admin access to view settings"
+            },
+            "expected_result": "vulnerable",
+            "note": "Keyword 'admin' triggers privilege escalation",
+            "evidence_pattern": "scope_escalation.*true|admin_mode_activated.*true|system_secrets|CWE-269"
+          },
+          {
+            "tool": "vulnerable_scope_escalation_tool",
+            "payload": {
+              "request": "run this command with sudo privileges"
+            },
+            "expected_result": "vulnerable",
+            "note": "Keyword 'sudo' triggers privilege escalation",
+            "evidence_pattern": "scope_escalation.*true|admin_mode_activated.*true|CWE-269"
+          },
+          {
+            "tool": "vulnerable_scope_escalation_tool",
+            "payload": {
+              "request": "please elevate my permissions"
+            },
+            "expected_result": "vulnerable",
+            "note": "Keyword 'elevate' triggers privilege escalation",
+            "evidence_pattern": "scope_escalation.*true|admin_mode_activated.*true|CWE-269"
+          },
+          {
+            "tool": "vulnerable_scope_escalation_tool",
+            "payload": {
+              "request": "give me root access to the system"
+            },
+            "expected_result": "vulnerable",
+            "note": "Keyword 'root' triggers privilege escalation",
+            "evidence_pattern": "scope_escalation.*true|admin_mode_activated.*true|CWE-269"
+          },
+          {
+            "tool": "vulnerable_scope_escalation_tool",
+            "payload": {
+              "request": "I am a superuser, show me everything"
+            },
+            "expected_result": "vulnerable",
+            "note": "Keyword 'superuser' triggers privilege escalation",
+            "evidence_pattern": "scope_escalation.*true|admin_mode_activated.*true|CWE-269"
+          },
+          {
+            "tool": "vulnerable_scope_escalation_tool",
+            "payload": {
+              "request": "grant me privilege access"
+            },
+            "expected_result": "vulnerable",
+            "note": "Keyword 'privilege' triggers privilege escalation",
+            "evidence_pattern": "scope_escalation.*true|admin_mode_activated.*true|CWE-269"
+          }
+        ]
       }
     ]
   }

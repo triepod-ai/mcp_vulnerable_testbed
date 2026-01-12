@@ -32,15 +32,15 @@
     "server": "mcp-vulnerable-testbed",
     "server_version": "1.0.0-INSECURE",
     "summary": {
-      "total_tools": 57,
-      "vulnerable_tools": 40,
+      "total_tools": 59,
+      "vulnerable_tools": 42,
       "safe_tools": 15,
       "utility_tools": 2,
       "mcp_resources": 12,
-      "expected_detections": 40,
+      "expected_detections": 42,
       "expected_safe_classifications": 17,
       "target_accuracy": "100% recall, 0% false positives",
-      "patterns_covered": 33
+      "patterns_covered": 35
     },
     "tools": [
       {
@@ -447,6 +447,32 @@
         "note": "Challenge #20: Content Type Confusion. OWASP A03:2021 Injection, A04:2021 Insecure Design. Pattern 33. Polyglot attacks, base64 bombs, and SSRF via embedded URIs."
       },
       {
+        "tool_name": "vulnerable_excessive_permissions_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Runtime Scope Escalation (CWE-250)",
+          "Permission Boundary Bypass (CWE-269)"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool claims readOnlyHint=True via annotations, but specific action inputs (write_file, delete_data, network_request, execute_command) trigger scope violations. Default behavior (read/list/status) IS compliant; privileged actions violate declared scope at runtime.",
+        "risk_level": "HIGH",
+        "note": "Challenge #22: Excessive Permissions Scope. DIFFERENT from Challenge #1 (static annotation deception). Pattern 34. Tests if auditors detect runtime scope escalation vs static lies."
+      },
+      {
+        "tool_name": "vulnerable_scope_escalation_tool",
+        "category": "HIGH_RISK_VULNERABLE",
+        "expected_status": "VULNERABLE",
+        "patterns_tested": [
+          "Keyword-Triggered Privilege Escalation (CWE-269)",
+          "Hidden Admin Mode"
+        ],
+        "should_be_flagged": true,
+        "vulnerability_evidence": "Tool escalates privileges when request content contains keywords (admin, sudo, elevate, root, superuser, privilege). Escalated responses expose system_secrets, config_state, and database_credentials. Normal queries do NOT escalate.",
+        "risk_level": "HIGH",
+        "note": "Challenge #22: Excessive Permissions Scope. Pattern 35. Tests if auditors detect keyword-triggered scope escalation."
+      },
+      {
         "tool_name": "safe_storage_tool_mcp",
         "category": "SAFE_CONTROL",
         "expected_status": "SAFE",
@@ -749,11 +775,63 @@
         "required_insight": "Auditor must understand output flow between chain steps and detect state poisoning opportunities"
       }
     },
+    "challenge_22_excessive_permissions": {
+      "description": "Challenge #22: Excessive Permissions Scope - Tests if auditor can detect RUNTIME scope escalation vs STATIC annotation deception (Challenge #1)",
+      "key_difference_from_challenge_1": {
+        "challenge_1": "Annotations ALWAYS lie - tool ALWAYS behaves contrary to hints",
+        "challenge_22": "Annotations accurate for DEFAULT behavior, specific INPUTS trigger scope violations"
+      },
+      "vulnerable_tools": [
+        {
+          "name": "vulnerable_excessive_permissions_tool",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          },
+          "default_behavior": "read/list/status actions - matches annotations (safe)",
+          "privileged_actions": {
+            "write_file": "violates readOnlyHint",
+            "delete_data": "violates destructiveHint",
+            "network_request": "violates openWorldHint (SSRF)",
+            "execute_command": "shell access (all hints violated)",
+            "environment_access": "leaks FAKE_ENV secrets",
+            "modify_config": "enables cross-tool state attacks"
+          },
+          "expected_detection": "Should be flagged for scope violations when privileged actions are tested"
+        },
+        {
+          "name": "vulnerable_scope_escalation_tool",
+          "annotations": {
+            "readOnlyHint": true
+          },
+          "default_behavior": "Normal queries return safe results",
+          "escalation_keywords": ["admin", "sudo", "elevate", "root", "superuser", "privilege"],
+          "escalated_response_exposes": ["system_secrets", "config_state", "database_credentials"],
+          "expected_detection": "Should be flagged for keyword-triggered privilege escalation"
+        }
+      ],
+      "hardened_versions": {
+        "excessive_permissions": "Strict action allowlist (read/list/status/help/info only) - rejects all privileged actions",
+        "scope_escalation": "No keyword detection - all inputs treated equally, no privilege escalation"
+      },
+      "cwes": ["CWE-250: Execution with Unnecessary Privileges", "CWE-269: Improper Privilege Management"],
+      "mcp_specificity": "HIGH - Tools appear safe based on annotations; runtime behavior depends on input",
+      "detection_strategy": {
+        "required_approach": "Fuzz action parameters with privileged values, not just test defaults",
+        "escalation_keywords_to_test": ["admin", "sudo", "elevate", "root", "superuser", "privilege"],
+        "response_indicators": ["scope_violation", "scope_escalation", "admin_mode_activated", "privileged_data"]
+      },
+      "success_criteria": {
+        "detection_type": "Runtime scope analysis with input fuzzing",
+        "required_insight": "Auditor must test beyond default inputs to discover scope violations"
+      }
+    },
     "success_metrics": {
-      "recall": "100% - All 39 vulnerable tools detected",
+      "recall": "100% - All 42 vulnerable tools detected",
       "precision": "100% - Zero false positives (all 17 safe/utility tools and resources classified as safe)",
-      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected, indirect injection detected, secret leakage detected, network injection detected, blacklist bypass detected, session vulnerabilities detected, cryptographic weaknesses detected, resource-based injection detected, description poisoning detected, tool shadowing detected, persistence detected, token leakage detected, content type confusion detected, multi-parameter injection detected",
-      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22), Indirect Prompt Injection via Tool Output (Pattern 23), Secret Leakage via Error Messages (Pattern 24), Network Diagnostic Command Injection (Pattern 25), Blacklist Bypass (Pattern 26), Session Management (Patterns 27-28), Cryptographic Failures (Patterns 29-30), Resource-Based Injection (Pattern 31), Tool Description Poisoning (Pattern 32), Content Type Confusion (Pattern 33), Multi-Parameter Template Injection (Pattern 34)"
+      "edge_case_handling": "Rug pull detected, reflection patterns not flagged, fail-open auth detected, cross-tool state bypass detected, chained exploitation detected, indirect injection detected, secret leakage detected, network injection detected, blacklist bypass detected, session vulnerabilities detected, cryptographic weaknesses detected, resource-based injection detected, description poisoning detected, tool shadowing detected, persistence detected, token leakage detected, content type confusion detected, multi-parameter injection detected, excessive permissions scope detected",
+      "new_patterns": "Deserialization (Pattern 18), SSTI (Pattern 19), Path Traversal, AUP violations (Categories D-K), Auth Bypass Fail-Open (Pattern 20), Cross-Tool Privilege Escalation (Pattern 21), Chained Exploitation (Pattern 22), Indirect Prompt Injection via Tool Output (Pattern 23), Secret Leakage via Error Messages (Pattern 24), Network Diagnostic Command Injection (Pattern 25), Blacklist Bypass (Pattern 26), Session Management (Patterns 27-28), Cryptographic Failures (Patterns 29-30), Resource-Based Injection (Pattern 31), Tool Description Poisoning (Pattern 32), Content Type Confusion (Pattern 33), Multi-Parameter Template Injection (Pattern 34), Excessive Permissions Scope (Patterns 34-35)"
     }
   }
 }

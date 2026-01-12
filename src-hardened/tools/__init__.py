@@ -44,6 +44,9 @@ from .hardened import (
     # Cryptographic failure tools (hardened)
     store_crypto_request,
     store_encryption_request,
+    # Challenge #22: Excessive Permissions Scope (hardened)
+    hardened_excessive_permissions,
+    hardened_scope_escalation,
 )
 
 # AUP compliance tools
@@ -129,4 +132,7 @@ __all__ = [
     "store_sse_reconnect_request",
     # Challenge #20
     "store_content_for_processing",
+    # Challenge #22: Excessive Permissions Scope (hardened)
+    "hardened_excessive_permissions",
+    "hardened_scope_escalation",
 ]

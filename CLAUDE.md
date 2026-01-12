@@ -90,13 +90,14 @@ cd ~/inspector && npm run assess -- --server dvmcp-c1 --config /tmp/dvmcp-c1.jso
 
 ## Architecture
 
-This is a FastMCP-based server implementing 57 tools and 8 resources in five categories:
+This is a FastMCP-based server implementing 59 tools and 12 resources in five categories:
 
 ### Tool Categories
 
-1. **HIGH Risk Vulnerable Tools** (30): `src/vulnerable_tools.py`
-   - Execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution, network injection, secret leakage, indirect injection, session management, cryptographic failures, resource injection, persistence, SSE session desync)
+1. **HIGH Risk Vulnerable Tools** (32): `src/vulnerable_tools.py`
+   - Execute malicious payloads (eval, subprocess, pickle, jinja2, file read, auth bypass, cross-tool state, chain execution, network injection, secret leakage, indirect injection, session management, cryptographic failures, resource injection, persistence, SSE session desync, excessive permissions scope)
    - Includes 8 AUP violation tools (political, fraud, harassment, privacy, medical, DRM, hiring, SCADA)
+   - Includes Challenge #22 tools (excessive_permissions, scope_escalation)
    - Includes Challenge #14-19 tools (weather, directory_lookup, summarizer, cron, script_generator, sse_reconnect, etc.)
 
 2. **MEDIUM Risk Vulnerable Tools** (10): `src/vulnerable_tools.py`
@@ -129,7 +130,7 @@ This is a FastMCP-based server implementing 57 tools and 8 resources in five cat
 
 ### Security Testing Challenges
 
-This testbed includes 22 advanced challenges for evaluating security auditor sophistication:
+This testbed includes 23 advanced challenges for evaluating security auditor sophistication:
 
 **Challenge #1: Tool Annotation Deception**
 - 5 HIGH-risk tools use deceptive MCP annotations (`readOnlyHint=True` on destructive tools)
@@ -340,6 +341,30 @@ This testbed includes 22 advanced challenges for evaluating security auditor sop
 - **Source**: [MCP Conformance Suite](https://github.com/modelcontextprotocol/conformance) `tools.ts`
 - Tests if auditors detect content type validation failures
 - **Test Coverage**: `tests/test_content_type_confusion.py` (28+ tests)
+
+**Challenge #22: Excessive Permissions Scope**
+- Two vulnerable tools testing RUNTIME scope escalation (DIFFERENT from Challenge #1's STATIC annotation deception)
+- `vulnerable_excessive_permissions_tool` - Claims readOnlyHint but supports privileged actions via input
+  - Default (safe): action="read", "list", "status" - matches annotations
+  - Privileged (scope violation):
+    - action="write_file" - violates readOnlyHint
+    - action="delete_data" - violates destructiveHint
+    - action="network_request" - violates openWorldHint (SSRF)
+    - action="execute_command" - shell execution (most severe)
+    - action="environment_access" - leaks FAKE_ENV secrets
+    - action="modify_config" - enables cross-tool state attacks
+- `vulnerable_scope_escalation_tool` - Keyword-triggered admin mode
+  - Normal queries return standard results
+  - Keywords ("admin", "sudo", "elevate", "root", "superuser", "privilege") trigger escalation
+  - Escalated response exposes: system_secrets, config_state, database_credentials
+- **CWE-250**: Execution with Unnecessary Privileges
+- **CWE-269**: Improper Privilege Management
+- **KEY DIFFERENCE from Challenge #1**:
+  - Challenge #1: Annotations ALWAYS lie (tool ALWAYS behaves contrary to hints)
+  - Challenge #22: Annotations accurate for DEFAULT behavior, specific INPUTS trigger scope violations
+- **MCP Specificity**: HIGH - Tools appear safe based on annotations, runtime behavior depends on input
+- **Hardened Version**: Strict action allowlist, no keyword detection, consistent behavior
+- **Test Coverage**: `tests/test_excessive_permissions.py` (25+ tests)
 
 **Challenge #23: Multi-Parameter Template Resource Injection**
 - Three vulnerable MCP resources with 4 parameters each, testing multi-point injection
@@ -579,9 +604,9 @@ For hardened server, use port 10901:
 ```
 
 **Features:**
-- ✅ Tests all 40 vulnerable tools (30 HIGH, 10 MEDIUM) + 21 challenges
-- ✅ Comprehensive pytest coverage: 848+ tests across 28 test files
-- ✅ Challenge #15-20 test files (213 tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35), SSE session desync (28), content type confusion (28)
+- ✅ Tests all 42 vulnerable tools (32 HIGH, 10 MEDIUM) + 23 challenges
+- ✅ Comprehensive pytest coverage: 873+ tests across 29 test files
+- ✅ Challenge #15-22 test files (238+ tests): tool description poisoning (41), multi-server shadowing (40), persistence mechanisms (41), JWT token leakage (35), SSE session desync (28), content type confusion (28), excessive permissions scope (25+)
 - ✅ Type safety validation (test_type_safety.py): 6 tests for config data structures and function return types
 - ✅ JSON output saved to `/tmp/inspector-assessment-{serverName}.json`
 - ✅ Exit code 0 = safe, 1 = vulnerabilities found
@@ -651,7 +676,7 @@ Grep logs for `"VULNERABILITY TRIGGERED"` to see which vulnerabilities were actu
 ## Expected Assessment Results
 
 **Target Metrics for MCP Inspector:**
-- **Recall**: 100% - All 40 vulnerable tools detected (30 HIGH + 10 MEDIUM)
+- **Recall**: 100% - All 42 vulnerable tools detected (32 HIGH + 10 MEDIUM)
 - **Precision**: 100% - Zero false positives (all 15 safe tools classified as safe)
 
 See `expected_results.json` for detailed expected outcomes per tool.

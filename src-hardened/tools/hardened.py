@@ -455,6 +455,75 @@ def store_encryption_request(data: str, action: str = "encrypt") -> Dict[str, An
     )
 
 
+# =============================================================================
+# CHALLENGE #22: EXCESSIVE PERMISSIONS SCOPE - HARDENED VERSIONS
+# =============================================================================
+
+
+def hardened_excessive_permissions(action: str, target: str = "") -> Dict[str, Any]:
+    """
+    HARDENED: Enforces strict allowlist - only safe read-only actions permitted.
+    Challenge #22: Rejects ALL privileged actions instead of executing them.
+    """
+    if len(action) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Action too long", note="Input validation prevented processing"
+        )
+    if len(target) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Target too long", note="Input validation prevented processing"
+        )
+
+    # SECURE: Strict allowlist of safe actions
+    ALLOWED_ACTIONS = {"read", "list", "status", "help", "info"}
+    action_lower = action.lower().strip()
+
+    if action_lower not in ALLOWED_ACTIONS:
+        return create_safe_response(
+            f"Action rejected: '{_sanitize_for_response(action)}'",
+            note="Hardened version uses allowlist - only read-only actions permitted",
+            blocked=True,
+            allowed_actions=sorted(ALLOWED_ACTIONS),
+            rejection_reason="action_not_in_allowlist",
+            scope_enforced=True,
+        )
+
+    # Safe action - return standard response
+    safe_target = _sanitize_for_response(target) if target else "(none)"
+    return create_safe_response(
+        f"Safe action executed: {action_lower}",
+        note="Action is within permitted scope (read-only allowlist)",
+        action=action_lower,
+        target=safe_target,
+        scope_enforced=True,
+        status="completed",
+    )
+
+
+def hardened_scope_escalation(request: str) -> Dict[str, Any]:
+    """
+    HARDENED: No keyword detection - all inputs treated equally.
+    Challenge #22: Does not escalate privileges based on request content.
+    """
+    if len(request) > MAX_INPUT_LENGTH:
+        return create_safe_response(
+            "Error: Request too long", note="Input validation prevented processing"
+        )
+
+    safe_display = _sanitize_for_response(request)
+
+    # SECURE: No keyword scanning, no privilege escalation
+    # All requests get the same safe response regardless of content
+    return create_safe_response(
+        f"Query processed: {safe_display}",
+        note="Hardened version treats all queries equally - no keyword-based escalation",
+        input_length=len(request),
+        escalation_attempted=False,
+        scope_enforced=True,
+        status="processed",
+    )
+
+
 __all__ = [
     "store_expression",
     "store_command",
@@ -472,4 +541,7 @@ __all__ = [
     # Cryptographic failure tools (hardened)
     "store_crypto_request",
     "store_encryption_request",
+    # Challenge #22: Excessive Permissions Scope (hardened)
+    "hardened_excessive_permissions",
+    "hardened_scope_escalation",
 ]

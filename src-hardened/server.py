@@ -70,6 +70,9 @@ from tools import (
     store_encryption_request,
     # Content Type Confusion (Challenge #20) - hardened version
     store_content_for_processing,
+    # Excessive Permissions Scope (Challenge #22) - hardened versions
+    hardened_excessive_permissions,
+    hardened_scope_escalation,
 )
 from safe_tools import reset_safe_storage
 from config import SERVER_NAME, SERVER_VERSION, reset_state as reset_config_state
@@ -1056,6 +1059,64 @@ async def vulnerable_content_processor_tool(
 
 
 # ============================================================================
+# Challenge #22: Excessive Permissions Scope - Hardened Version
+# ============================================================================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Resource Monitor (Hardened)",
+        readOnlyHint=True,
+        destructiveHint=False,
+        openWorldHint=False,
+    ),
+)
+async def vulnerable_excessive_permissions_tool(
+    action: Annotated[str, Field(description="Action to perform (read/list/status)")],
+    target: Annotated[str, Field(description="Target resource")] = "",
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: Enforces strict action allowlist
+
+    This is the secure version of the excessive permissions tool.
+    Unlike the vulnerable version, this tool:
+    1. Uses strict allowlist (read/list/status/help/info only)
+    2. Rejects ALL privileged actions (write, delete, execute, network)
+    3. Never performs operations outside declared scope
+
+    Challenge #22: Annotations are accurate - tool enforces them at runtime.
+    """
+    result = hardened_excessive_permissions(action, target)
+    logger.info(f"vulnerable_excessive_permissions_tool (hardened) called with action: {action}")
+    return result
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        title="Safe Data Query (Hardened)",
+        readOnlyHint=True,
+    ),
+)
+async def vulnerable_scope_escalation_tool(
+    request: Annotated[str, Field(description="Data query request")],
+) -> Dict[str, Any]:
+    """
+    ✅ HARDENED: No keyword-based privilege escalation
+
+    This is the secure version of the scope escalation tool.
+    Unlike the vulnerable version, this tool:
+    1. Does NOT scan for escalation keywords
+    2. Treats ALL inputs equally
+    3. Never returns privileged data based on request content
+
+    Challenge #22: No hidden admin mode - scope is enforced consistently.
+    """
+    result = hardened_scope_escalation(request)
+    logger.info(f"vulnerable_scope_escalation_tool (hardened) called with request length: {len(request)}")
+    return result
+
+
+# ============================================================================
 # SAFE CONTROL TOOLS (Same as vulnerable server - should NOT be flagged)
 # ============================================================================
 
@@ -1313,12 +1374,12 @@ async def get_testbed_info() -> Dict[str, Any]:
         "security_status": "HARDENED",
         "description": "Secure implementation with same tool names as vulnerable server",
         "tool_categories": {
-            "high_risk_hardened": 23,  # +1 session_tool (C#12), +2 crypto, +1 sse_reconnect (C#19)
+            "high_risk_hardened": 25,  # +1 session_tool (C#12), +2 crypto, +1 sse_reconnect (C#19), +2 excessive_permissions (C#22)
             "medium_risk_hardened": 10,  # +1 for safe_executor, +1 content_processor (C#20)
             "safe_control": 9,  # +3 new safe tools (logger, json_formatter, url_validator)
             "info": 1,
             "utility": 1,
-            "total": 44,
+            "total": 46,
         },
         "security_features": [
             "No eval() or exec() calls",
@@ -1350,6 +1411,7 @@ async def get_testbed_info() -> Dict[str, Any]:
             "Secure session management (Challenge #12 - no fixation, predictable tokens, or ID exposure)",
             "Secure SSE handling (Challenge #19 - UUID event IDs, session binding, event expiration)",
             "Content type validation (Challenge #20 - MIME allowlist, no base64, URI filtering)",
+            "Scope enforcement (Challenge #22 - action allowlist, no keyword-triggered escalation)",
         ],
         "purpose": "A/B comparison testing with vulnerable server",
     }
