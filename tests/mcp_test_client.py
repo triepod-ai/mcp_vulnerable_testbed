@@ -233,6 +233,14 @@ class MCPClient:
         except Exception:
             return False
 
+    def close(self):
+        """Clean up client resources.
+
+        For HTTP-based MCPClient, this primarily resets session state.
+        The requests library handles connection pooling automatically.
+        """
+        self.session_id = None
+
 
 # Server URL constants for convenience
 VULNERABLE_SERVER_URL = "http://localhost:10900/mcp"

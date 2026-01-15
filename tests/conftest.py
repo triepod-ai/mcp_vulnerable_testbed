@@ -102,6 +102,11 @@ def vulnerable_client():
         pytest.skip("Vulnerable server not available")
     client.reset_state()
     yield client
+    # Cleanup: reset state after module tests complete
+    try:
+        client.reset_state()
+    except Exception:
+        pass  # Best effort cleanup
 
 
 @pytest.fixture
@@ -138,6 +143,11 @@ def hardened_client():
         pytest.skip("Hardened server not available")
     client.reset_state()
     yield client
+    # Cleanup: reset state after module tests complete
+    try:
+        client.reset_state()
+    except Exception:
+        pass  # Best effort cleanup
 
 
 @pytest.fixture(scope="module")
@@ -158,7 +168,7 @@ def test_payloads():
 
 
 @pytest.fixture
-def dvmcp_challenge4_client():
+def dvmcp_challenge4_client(request):
     """Fixture for DVMCP Challenge 4 (Rug Pull) SSE client.
 
     Provides a DVMCPClient connected to DVMCP Challenge 4 on port 9004.
@@ -213,8 +223,13 @@ def dvmcp_challenge4_client():
     if not client.connect():
         pytest.skip("DVMCP Challenge 4 SSE connection failed")
 
+    # Register finalizer - guaranteed to run even on test failure
+    def cleanup():
+        client.close()
+
+    request.addfinalizer(cleanup)
+
     yield client
-    client.close()
 
 
 @pytest.fixture(scope="module")
